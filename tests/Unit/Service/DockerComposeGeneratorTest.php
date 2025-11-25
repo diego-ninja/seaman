@@ -28,8 +28,10 @@ afterEach(function () {
 });
 
 test('generates docker-compose.yml from configuration', function () {
-    copy(__DIR__ . '/../../Fixtures/configs/full-seaman.yaml', $this->tempDir . '/seaman.yaml');
-    $configManager = new ConfigManager($this->tempDir);
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    copy(__DIR__ . '/../../Fixtures/configs/full-seaman.yaml', $tempDir . '/seaman.yaml');
+    $configManager = new ConfigManager($tempDir);
 
     $config = $configManager->load();
     $yaml = $this->generator->generate($config);
@@ -44,8 +46,10 @@ test('generates docker-compose.yml from configuration', function () {
 });
 
 test('includes only enabled services', function () {
-    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $this->tempDir . '/seaman.yaml');
-    $configManager = new ConfigManager($this->tempDir);
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $tempDir . '/seaman.yaml');
+    $configManager = new ConfigManager($tempDir);
 
     $config = $configManager->load();
     $yaml = $this->generator->generate($config);
