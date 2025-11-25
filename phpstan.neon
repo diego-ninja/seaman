@@ -13,3 +13,4 @@ parameters:
         - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$tempDir#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$manager#'
+        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$renderer#'
