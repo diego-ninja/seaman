@@ -1,0 +1,59 @@
+{
+  "name": "seaman/seaman",
+  "description": "Docker development environment manager for Symfony 7+",
+  "type": "project",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Diego",
+      "email": "yosoy@diego.ninja"
+    }
+  ],
+  "require": {
+    "php": "^8.4",
+    "symfony/console": "^7.2",
+    "symfony/yaml": "^7.2",
+    "symfony/process": "^7.2",
+    "twig/twig": "^3.14"
+  },
+  "require-dev": {
+    "pestphp/pest": "^4.0",
+    "phpstan/phpstan": "^2.0",
+    "friendsofphp/php-cs-fixer": "^3.64",
+    "mockery/mockery": "^1.6",
+    "humbug/box": "^4.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "Seaman\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Seaman\\Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "sort-packages": true,
+    "preferred-install": "dist",
+    "optimize-autoloader": true,
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  },
+  "bin": [
+    "bin/seaman.php"
+  ],
+  "scripts": {
+    "test": "pest",
+    "test:coverage": "pest --coverage --min=95",
+    "phpstan": "phpstan analyse src tests --level=10",
+    "cs:check": "php-cs-fixer fix --dry-run --diff",
+    "cs:fix": "php-cs-fixer fix",
+    "quality": [
+      "@phpstan",
+      "@cs:check",
+      "@test:coverage"
+    ]
+  }
+}
