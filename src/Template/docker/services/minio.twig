@@ -1,0 +1,20 @@
+{{ name }}:
+image: minio/minio:{{ service.version }}
+command: server /data --console-address ":9001"
+environment:
+- MINIO_ROOT_USER=${MINIO_ROOT_USER:-seaman}
+- MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-seaman123}
+ports:
+- "${MINIO_PORT}:9000"
+- "${MINIO_CONSOLE_PORT}:9001"
+networks:
+- seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+    - {{ name }}:/data
+{% endif %}
+healthcheck:
+test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+interval: 30s
+timeout: 20s
+retries: 3

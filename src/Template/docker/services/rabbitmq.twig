@@ -1,0 +1,19 @@
+{{ name }}:
+image: rabbitmq:{{ service.version }}
+environment:
+- RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-seaman}
+- RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-secret}
+ports:
+- "${RABBITMQ_PORT}:5672"
+- "${RABBITMQ_MANAGEMENT_PORT}:15672"
+networks:
+- seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+    - {{ name }}:/var/lib/rabbitmq
+{% endif %}
+healthcheck:
+test: ["CMD", "rabbitmq-diagnostics", "ping"]
+interval: 30s
+timeout: 10s
+retries: 5

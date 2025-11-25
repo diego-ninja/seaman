@@ -1,0 +1,20 @@
+{{ name }}:
+image: mysql:{{ service.version }}
+environment:
+- MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
+- MYSQL_DATABASE=${DB_NAME:-seaman}
+- MYSQL_USER=${DB_USER:-seaman}
+- MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+ports:
+- "${DB_PORT}:3306"
+networks:
+- seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+    - {{ name }}:/var/lib/mysql
+{% endif %}
+healthcheck:
+test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+interval: 10s
+timeout: 5s
+retries: 5

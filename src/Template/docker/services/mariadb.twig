@@ -1,0 +1,20 @@
+{{ name }}:
+image: mariadb:{{ service.version }}
+environment:
+- MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
+- MARIADB_DATABASE=${DB_NAME:-seaman}
+- MARIADB_USER=${DB_USER:-seaman}
+- MARIADB_PASSWORD=${DB_PASSWORD:-secret}
+ports:
+- "${DB_PORT}:3306"
+networks:
+- seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+    - {{ name }}:/var/lib/mysql
+{% endif %}
+healthcheck:
+test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+interval: 10s
+timeout: 5s
+retries: 5
