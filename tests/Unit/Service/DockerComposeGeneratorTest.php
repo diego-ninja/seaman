@@ -28,8 +28,8 @@ afterEach(function () {
 });
 
 test('generates docker-compose.yml from configuration', function () {
-    $configManager = new ConfigManager(__DIR__ . '/../../Fixtures/configs');
-    copy(__DIR__ . '/../../Fixtures/configs/full-seaman.yaml', __DIR__ . '/../../Fixtures/configs/seaman.yaml');
+    copy(__DIR__ . '/../../Fixtures/configs/full-seaman.yaml', $this->tempDir . '/seaman.yaml');
+    $configManager = new ConfigManager($this->tempDir);
 
     $config = $configManager->load();
     $yaml = $this->generator->generate($config);
@@ -41,14 +41,11 @@ test('generates docker-compose.yml from configuration', function () {
         ->and($yaml)->toContain('redis:')
         ->and($yaml)->toContain('networks:')
         ->and($yaml)->toContain('volumes:');
-
-    // Cleanup
-    unlink(__DIR__ . '/../../Fixtures/configs/seaman.yaml');
 });
 
 test('includes only enabled services', function () {
-    $configManager = new ConfigManager(__DIR__ . '/../../Fixtures/configs');
-    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', __DIR__ . '/../../Fixtures/configs/seaman.yaml');
+    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $this->tempDir . '/seaman.yaml');
+    $configManager = new ConfigManager($this->tempDir);
 
     $config = $configManager->load();
     $yaml = $this->generator->generate($config);
@@ -56,6 +53,4 @@ test('includes only enabled services', function () {
     expect($yaml)->toContain('app:')
         ->and($yaml)->not->toContain('database:')
         ->and($yaml)->not->toContain('redis:');
-
-    unlink(__DIR__ . '/../../Fixtures/configs/seaman.yaml');
 });

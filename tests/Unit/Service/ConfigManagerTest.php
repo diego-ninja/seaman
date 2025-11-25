@@ -44,10 +44,9 @@ afterEach(function () {
 });
 
 test('loads configuration from YAML', function () {
-    $fixtureDir = __DIR__ . '/../../Fixtures/configs';
-    $manager = new ConfigManager($fixtureDir);
+    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $this->tempDir . '/seaman.yaml');
 
-    $config = $manager->load();
+    $config = $this->manager->load();
 
     expect($config)->toBeInstanceOf(Configuration::class)
         ->and($config->version)->toBe('1.0')
