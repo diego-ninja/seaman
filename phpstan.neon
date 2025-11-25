@@ -1,0 +1,13 @@
+includes:
+    - vendor/pestphp/pest/extension.neon
+
+parameters:
+    level: 10
+    paths:
+        - src
+        - tests
+    excludePaths:
+        - tests/Fixtures
+    reportUnmatchedIgnoredErrors: true
+    ignoreErrors:
+        - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'

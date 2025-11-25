@@ -17,11 +17,12 @@
     "twig/twig": "^3.14"
   },
   "require-dev": {
-    "pestphp/pest": "^4.0",
-    "phpstan/phpstan": "^2.0",
     "friendsofphp/php-cs-fixer": "^3.64",
+    "humbug/box": "^4.6",
     "mockery/mockery": "^1.6",
-    "humbug/box": "^4.6"
+    "pestphp/pest": "^4.0",
+    "pestphp/pest-plugin-arch": "^4.0",
+    "phpstan/phpstan": "^2.0"
   },
   "autoload": {
     "psr-4": {

@@ -1,0 +1,36 @@
+# AI
+.claude
+
+# Dependencies
+/vendor/
+
+# Build artifacts
+/build/
+*.phar
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Testing
+.phpunit.result.cache
+.pest/
+
+# Coverage
+coverage/
+.coverage/
+
+# PHPStan
+.phpstan.cache/
+
+# PHP CS Fixer
+.php-cs-fixer.cache
+
+# Environment
+.env.local
