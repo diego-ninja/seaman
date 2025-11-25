@@ -1,0 +1,42 @@
+#!/bin/sh
+# Xdebug toggle script - enables/disables Xdebug without container restart
+
+MODE=$1
+
+if [ -z "$MODE" ]; then
+    echo "Usage: xdebug-toggle [on|off]"
+    exit 1
+fi
+
+XDEBUG_INI="/usr/local/etc/php/conf.d/docker-php-ext-xdebug.ini"
+
+case "$MODE" in
+    on)
+        cat > "$XDEBUG_INI" <<EOF
+zend_extension=xdebug.so
+xdebug.mode=debug
+xdebug.client_host={{ xdebug.client_host }}
+xdebug.client_port=9003
+xdebug.idekey={{ xdebug.ide_key }}
+xdebug.start_with_request=yes
+xdebug.log=/tmp/xdebug.log
+EOF
+        # Reload PHP-FPM if running
+        if pidof php-fpm > /dev/null 2>&1; then
+            kill -USR2 1
+        fi
+        echo "✓ Xdebug enabled"
+        ;;
+    off)
+        echo "; xdebug disabled" > "$XDEBUG_INI"
+        # Reload PHP-FPM if running
+        if pidof php-fpm > /dev/null 2>&1; then
+            kill -USR2 1
+        fi
+        echo "✓ Xdebug disabled"
+        ;;
+    *)
+        echo "Error: Invalid mode '$MODE'. Use 'on' or 'off'."
+        exit 1
+        ;;
+esac
