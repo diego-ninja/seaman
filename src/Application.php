@@ -7,9 +7,13 @@ declare(strict_types=1);
 
 namespace Seaman;
 
+use Seaman\Command\InitCommand;
+use Seaman\Command\RestartCommand;
 use Seaman\Command\ServiceAddCommand;
 use Seaman\Command\ServiceListCommand;
 use Seaman\Command\ServiceRemoveCommand;
+use Seaman\Command\StartCommand;
+use Seaman\Command\StopCommand;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\MailpitService;
@@ -40,6 +44,10 @@ class Application extends BaseApplication
             new ServiceListCommand($configManager, $registry),
             new ServiceAddCommand($configManager, $registry),
             new ServiceRemoveCommand($configManager, $registry),
+            new InitCommand($registry),
+            new StartCommand(),
+            new StopCommand(),
+            new RestartCommand(),
         ]);
     }
 
