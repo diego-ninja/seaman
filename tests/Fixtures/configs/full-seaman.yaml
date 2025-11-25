@@ -1,0 +1,34 @@
+version: '1.0'
+
+server:
+  type: symfony
+  port: 8000
+
+php:
+  version: '8.4'
+  extensions:
+    - pdo_pgsql
+    - redis
+    - intl
+  xdebug:
+    enabled: false
+    ide_key: PHPSTORM
+    client_host: host.docker.internal
+
+services:
+  database:
+    enabled: true
+    type: postgresql
+    version: '16'
+    port: 5432
+
+  redis:
+    enabled: true
+    type: redis
+    version: '7-alpine'
+    port: 6379
+
+volumes:
+  persist:
+    - database
+    - redis
