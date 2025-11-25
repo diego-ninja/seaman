@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// ABOUTME: Interface for pluggable Docker services.
-// ABOUTME: Each service defines its config, dependencies, and compose generation.
+// ABOUTME: Interface for Docker container service implementations.
+// ABOUTME: Defines contract for service configuration and metadata.
 
 namespace Seaman\Service\Container;
 
@@ -19,20 +19,19 @@ interface ServiceInterface
     public function getDescription(): string;
 
     /**
-     * @return list<string> Service names this service depends on
+     * @return list<string>
      */
     public function getDependencies(): array;
 
     public function getDefaultConfig(): ServiceConfig;
 
     /**
-     * @param ServiceConfig $config
-     * @return array<string, mixed>
+     * @return array<string, mixed> Docker Compose service definition
      */
     public function generateComposeConfig(ServiceConfig $config): array;
 
     /**
-     * @return list<int>
+     * @return list<int> Ports this service requires
      */
     public function getRequiredPorts(): array;
 
