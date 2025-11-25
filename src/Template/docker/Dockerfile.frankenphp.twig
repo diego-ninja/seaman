@@ -30,4 +30,4 @@ WORKDIR /var/www/html
 # Make xdebug-toggle script executable
 RUN chmod +x /usr/local/bin/xdebug-toggle || true
 
-CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]
+CMD frankenphp run --config /etc/caddy/Caddyfile
