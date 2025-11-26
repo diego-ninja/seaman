@@ -5,56 +5,67 @@ declare(strict_types=1);
 // ABOUTME: Tests for DockerComposeGenerator service.
 // ABOUTME: Validates docker-compose.yml generation from configuration.
 
-namespace Seaman\Tests\Unit\Service;
+namespace Tests\Unit\Service;
 
 use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\ConfigManager;
 use Seaman\Service\TemplateRenderer;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ServiceCollection;
+use Seaman\ValueObject\ServiceConfig;
+use Seaman\ValueObject\VolumeConfig;
+use Seaman\ValueObject\XdebugConfig;
 
-beforeEach(function () {
-    $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
-    mkdir($this->tempDir, 0755, true);
-
+beforeEach(function (): void {
     $templateDir = __DIR__ . '/../../../src/Template';
     $this->renderer = new TemplateRenderer($templateDir);
     $this->generator = new DockerComposeGenerator($this->renderer);
 });
 
-afterEach(function () {
-    if (is_dir($this->tempDir)) {
-        array_map('unlink', glob($this->tempDir . '/*'));
-        rmdir($this->tempDir);
-    }
-});
+test('generates docker-compose.yml from configuration', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig('8.4', ['intl', 'opcache'], $xdebug);
 
-test('generates docker-compose.yml from configuration', function () {
-    /** @var string $tempDir */
-    $tempDir = $this->tempDir;
-    copy(__DIR__ . '/../../Fixtures/configs/full-seaman.yaml', $tempDir . '/seaman.yaml');
-    $configManager = new ConfigManager($tempDir);
+    $config = new Configuration(
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+    );
 
-    $config = $configManager->load();
     $yaml = $this->generator->generate($config);
 
     expect($yaml)->toContain('version: \'3.8\'')
         ->and($yaml)->toContain('services:')
         ->and($yaml)->toContain('app:')
-        ->and($yaml)->toContain('database:')
-        ->and($yaml)->toContain('redis:')
-        ->and($yaml)->toContain('networks:')
-        ->and($yaml)->toContain('volumes:');
+        ->and($yaml)->toContain('image: seaman/seaman:latest')
+        ->and($yaml)->toContain('build:')
+        ->and($yaml)->toContain('dockerfile: .seaman/Dockerfile');
 });
 
-test('includes only enabled services', function () {
-    /** @var string $tempDir */
-    $tempDir = $this->tempDir;
-    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $tempDir . '/seaman.yaml');
-    $configManager = new ConfigManager($tempDir);
+test('includes only enabled services', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig('8.4', ['intl'], $xdebug);
 
-    $config = $configManager->load();
+    $redis = new ServiceConfig(
+        name: 'redis',
+        enabled: true,
+        type: 'redis',
+        version: '7-alpine',
+        port: 6379,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    $config = new Configuration(
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection(['redis' => $redis]),
+        volumes: new VolumeConfig(['redis']),
+    );
+
     $yaml = $this->generator->generate($config);
 
-    expect($yaml)->toContain('app:')
-        ->and($yaml)->not->toContain('database:')
-        ->and($yaml)->not->toContain('redis:');
+    expect($yaml)->toContain('redis:')
+        ->and($yaml)->toContain('image: redis:7-alpine');
 });

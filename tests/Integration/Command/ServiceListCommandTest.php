@@ -15,7 +15,6 @@ use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ServerConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -34,9 +33,6 @@ beforeEach(function () {
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
 version: '1.0'
-server:
-  type: symfony
-  port: 8000
 php:
   version: '8.4'
   extensions: []

@@ -79,7 +79,6 @@ class ServiceAddCommand extends Command
             $services = $config->services->add($serviceName, $serviceConfig);
             $config = new \Seaman\ValueObject\Configuration(
                 version: $config->version,
-                server: $config->server,
                 php: $config->php,
                 services: $services,
                 volumes: $config->volumes,

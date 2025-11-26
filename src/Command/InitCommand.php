@@ -9,11 +9,10 @@ namespace Seaman\Command;
 
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\DockerfileGenerator;
+use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\TemplateRenderer;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\ServerConfig;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\XdebugConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -61,18 +60,7 @@ class InitCommand extends Command
             '8.4',
         );
 
-        // Step 2: Server Type
-        /** @var string $serverType */
-        $serverType = $io->choice(
-            'Select server type',
-            [
-                'symfony' => 'Symfony Server (fastest, hot reload)',
-                'frankenphp' => 'FrankenPHP + Caddy (modern, HTTP/3)',
-            ],
-            'symfony',
-        );
-
-        // Step 3: Database Selection
+        // Step 2: Database Selection
         $databaseQuestion = new ChoiceQuestion(
             'Select database (leave empty for none)',
             ['none', 'postgresql', 'mysql', 'mariadb'],
@@ -81,7 +69,7 @@ class InitCommand extends Command
         /** @var string $database */
         $database = $io->askQuestion($databaseQuestion);
 
-        // Step 4: Additional Services
+        // Step 3: Additional Services
         /** @var list<string> $additionalServices */
         $additionalServices = $io->choice(
             'Select additional services (comma-separated)',
@@ -91,7 +79,6 @@ class InitCommand extends Command
         );
 
         // Build configuration
-        $server = new ServerConfig($serverType, 8000);
         $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
 
         $extensions = [];
@@ -134,7 +121,6 @@ class InitCommand extends Command
 
         $config = new Configuration(
             version: '1.0',
-            server: $server,
             php: $php,
             services: new ServiceCollection($services),
             volumes: new VolumeConfig($persistVolumes),
@@ -145,7 +131,7 @@ class InitCommand extends Command
         $configManager->save($config);
 
         // Generate Docker files
-        $this->generateDockerFiles($config, $projectRoot);
+        $this->generateDockerFiles($config, $projectRoot, $io);
 
         $io->success('Seaman initialized successfully!');
         $io->info('Next steps:');
@@ -158,11 +144,18 @@ class InitCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function generateDockerFiles(Configuration $config, string $projectRoot): void
+    private function generateDockerFiles(Configuration $config, string $projectRoot, SymfonyStyle $io): void
     {
         $seamanDir = $projectRoot . '/.seaman';
         if (!is_dir($seamanDir)) {
             mkdir($seamanDir, 0755, true);
+        }
+
+        // Copy root Dockerfile to .seaman/
+        $rootDockerfile = $projectRoot . '/Dockerfile';
+        if (!file_exists($rootDockerfile)) {
+            $io->error('Dockerfile not found in project root. Cannot proceed.');
+            throw new \RuntimeException('Dockerfile not found');
         }
 
         $templateDir = __DIR__ . '/../Template';
@@ -176,22 +169,42 @@ class InitCommand extends Command
         // Generate seaman.yaml (service definitions in .seaman/)
         $this->generateSeamanConfig($config, $seamanDir);
 
-        // Generate Dockerfile
-        $dockerfileGenerator = new DockerfileGenerator($renderer);
-        $dockerfile = $dockerfileGenerator->generate($config->server, $config->php);
-        file_put_contents($seamanDir . '/Dockerfile', $dockerfile);
-
-        // Generate xdebug-toggle script
+        // Generate xdebug-toggle script (needed by Dockerfile build and runtime)
         $xdebugScript = $renderer->render('scripts/xdebug-toggle.sh.twig', [
             'xdebug' => $config->php->xdebug,
         ]);
-        $scriptPath = $seamanDir . '/scripts/xdebug-toggle.sh';
-        $scriptsDir = dirname($scriptPath);
-        if (!is_dir($scriptsDir)) {
-            mkdir($scriptsDir, 0755, true);
+
+        // Create in project root for Docker build
+        $rootScriptDir = $projectRoot . '/scripts';
+        if (!is_dir($rootScriptDir)) {
+            mkdir($rootScriptDir, 0755, true);
         }
-        file_put_contents($scriptPath, $xdebugScript);
-        chmod($scriptPath, 0755);
+        file_put_contents($rootScriptDir . '/xdebug-toggle.sh', $xdebugScript);
+        chmod($rootScriptDir . '/xdebug-toggle.sh', 0755);
+
+        // Also create in .seaman for volume mount reference
+        $seamanScriptDir = $seamanDir . '/scripts';
+        if (!is_dir($seamanScriptDir)) {
+            mkdir($seamanScriptDir, 0755, true);
+        }
+        file_put_contents($seamanScriptDir . '/xdebug-toggle.sh', $xdebugScript);
+        chmod($seamanScriptDir . '/xdebug-toggle.sh', 0755);
+
+        // Copy root Dockerfile to .seaman/ (after xdebug script is created)
+        copy($rootDockerfile, $seamanDir . '/Dockerfile');
+
+        // Build Docker image
+        $io->info('Building Docker image...');
+        $builder = new DockerImageBuilder($projectRoot);
+        $result = $builder->build();
+
+        if (!$result->isSuccessful()) {
+            $io->error('Failed to build Docker image');
+            $io->writeln($result->errorOutput);
+            throw new \RuntimeException('Docker build failed');
+        }
+
+        $io->success('Docker image built successfully!');
     }
 
     private function generateSeamanConfig(Configuration $config, string $seamanDir): void

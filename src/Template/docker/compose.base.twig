@@ -2,19 +2,20 @@ version: '3.8'
 
 services:
   app:
+    image: seaman/seaman:latest
     build:
       context: .
       dockerfile: .seaman/Dockerfile
       args:
-        PHP_VERSION: {{ php.version }}
+        WWWGROUP: ${WWWGROUP:-1000}
     volumes:
       - .:/var/www/html
       - .seaman/scripts/xdebug-toggle.sh:/usr/local/bin/xdebug-toggle
     environment:
-      - XDEBUG_MODE=${XDEBUG_MODE}
+      - XDEBUG_MODE=${XDEBUG_MODE:-off}
       - PHP_IDE_CONFIG=serverName=seaman
     ports:
-      - "${APP_PORT}:8000"
+      - "${APP_PORT:-8000}:8000"
 {% if services.enabled|length > 0 %}
     depends_on:
 {% for name, service in services.enabled %}

@@ -71,7 +71,6 @@ class ServiceRemoveCommand extends Command
             $services = $config->services->remove($serviceName);
             $config = new \Seaman\ValueObject\Configuration(
                 version: $config->version,
-                server: $config->server,
                 php: $config->php,
                 services: $services,
                 volumes: $config->volumes,
