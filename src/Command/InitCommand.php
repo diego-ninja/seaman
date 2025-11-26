@@ -67,7 +67,6 @@ class InitCommand extends Command
             'Select server type',
             [
                 'symfony' => 'Symfony Server (fastest, hot reload)',
-                'nginx-fpm' => 'Nginx + PHP-FPM (production-like)',
                 'frankenphp' => 'FrankenPHP + Caddy (modern, HTTP/3)',
             ],
             'symfony',
@@ -174,8 +173,8 @@ class InitCommand extends Command
         $composeYaml = $composeGenerator->generate($config);
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 
-        // Generate sail.yaml (service definitions in .seaman/)
-        $this->generateSailConfig($config, $seamanDir);
+        // Generate seaman.yaml (service definitions in .seaman/)
+        $this->generateSeamanConfig($config, $seamanDir);
 
         // Generate Dockerfile
         $dockerfileGenerator = new DockerfileGenerator($renderer);
@@ -195,15 +194,15 @@ class InitCommand extends Command
         chmod($scriptPath, 0755);
     }
 
-    private function generateSailConfig(Configuration $config, string $seamanDir): void
+    private function generateSeamanConfig(Configuration $config, string $seamanDir): void
     {
-        $sailConfig = [
+        $seamanConfig = [
             'version' => $config->version,
             'services' => [],
         ];
 
         foreach ($config->services->all() as $name => $service) {
-            $sailConfig['services'][$name] = [
+            $seamanConfig['services'][$name] = [
                 'enabled' => $service->enabled,
                 'type' => $service->type,
                 'version' => $service->version,
@@ -211,15 +210,15 @@ class InitCommand extends Command
             ];
 
             if (!empty($service->additionalPorts)) {
-                $sailConfig['services'][$name]['additional_ports'] = $service->additionalPorts;
+                $seamanConfig['services'][$name]['additional_ports'] = $service->additionalPorts;
             }
 
             if (!empty($service->environmentVariables)) {
-                $sailConfig['services'][$name]['environment'] = $service->environmentVariables;
+                $seamanConfig['services'][$name]['environment'] = $service->environmentVariables;
             }
         }
 
-        $sailYaml = \Symfony\Component\Yaml\Yaml::dump($sailConfig, 4, 2);
-        file_put_contents($seamanDir . '/sail.yaml', $sailYaml);
+        $seamanYaml = \Symfony\Component\Yaml\Yaml::dump($seamanConfig, 4, 2);
+        file_put_contents($seamanDir . '/seaman.yaml', $seamanYaml);
     }
 }

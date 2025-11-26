@@ -20,7 +20,6 @@ readonly class DockerfileGenerator
     {
         $template = match ($server->type) {
             'symfony' => 'docker/Dockerfile.symfony.twig',
-            'nginx-fpm' => 'docker/Dockerfile.nginx-fpm.twig',
             'frankenphp' => 'docker/Dockerfile.frankenphp.twig',
             default => throw new \InvalidArgumentException("Unknown server type: {$server->type}"),
         };

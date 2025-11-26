@@ -9,7 +9,7 @@ namespace Seaman\ValueObject;
 
 readonly class ServerConfig
 {
-    private const array VALID_TYPES = ['symfony', 'nginx-fpm', 'frankenphp'];
+    private const array VALID_TYPES = ['symfony', 'frankenphp'];
     private const int MIN_PORT = 1024;
     private const int MAX_PORT = 65535;
 
