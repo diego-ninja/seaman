@@ -12,7 +12,7 @@ class SpinnerFactory extends Spinner
     /**
      * @throws Exception
      */
-    public static function for(Process|callable $callable, string $message, ?string $style = null): bool
+    public static function for(Process|callable $callable, string $message, ?string $style = Spinner::DEFAULT_SPINNER_STYLE): bool
     {
         return $callable instanceof Process
             ? self::forProcess($callable, $message, $style)
@@ -22,7 +22,7 @@ class SpinnerFactory extends Spinner
     /**
      * @throws Exception
      */
-    private static function forProcess(Process $process, string $message, ?string $style = null): bool
+    private static function forProcess(Process $process, string $message, ?string $style = Spinner::DEFAULT_SPINNER_STYLE): bool
     {
         $spinner = new self(style: $style);
         $spinner->setMessage($message);

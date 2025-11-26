@@ -26,7 +26,7 @@ if (false === in_array(PHP_SAPI, ['cli', 'phpdbg', 'embed'], true)) {
 
 
 SignalHandler::listen([Signal::interrupt, Signal::terminate], static function (Signal $signal, Info $info): void {
-    Terminal::output()->writeln("\n\n 💔 <error>Interrupted by user.</error>");
+    Terminal::output()->writeln("\n\n 💔 Interrupted by user.");
     Terminal::restoreCursor();
 
     exit($signal->toInt());

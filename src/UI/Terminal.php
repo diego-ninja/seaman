@@ -9,6 +9,7 @@ use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\StreamableInputInterface;
 use Symfony\Component\Console\Output\ConsoleOutput;
 
+use Symfony\Component\Console\Style\SymfonyStyle;
 use function Termwind\terminal;
 
 final class Terminal
@@ -137,6 +138,11 @@ final class Terminal
     public static function stream(): mixed
     {
         return self::input()?->getStream() ?: STDIN;
+    }
+
+    public static function style(): SymfonyStyle
+    {
+        return new SymfonyStyle(Terminal::input(), Terminal::output());
     }
 
     private function __construct(
