@@ -5,16 +5,22 @@
   "license": "MIT",
   "authors": [
     {
-      "name": "Diego",
+      "name": "Diego Rin Martín",
       "email": "yosoy@diego.ninja"
     }
   ],
   "require": {
     "php": "^8.4",
+    "diego-ninja/docker": "^2.1",
+    "diego-ninja/granite": "^1.5",
+    "innmind/signals": "^4.1",
+    "laravel/prompts": "^0.3.8",
+    "nunomaduro/termwind": "^2.3",
     "symfony/console": "^7.2",
+    "symfony/process": "^7.3",
     "symfony/yaml": "^7.2",
-    "symfony/process": "^7.2",
-    "twig/twig": "^3.14"
+    "twig/twig": "^3.14",
+    "vlucas/phpdotenv": "^5.6"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3.64",
