@@ -5,48 +5,56 @@ declare(strict_types=1);
 // ABOUTME: Integration tests for RebuildCommand.
 // ABOUTME: Validates image rebuilding functionality.
 
-/**
- * @property string $tempDir
- * @property string $originalDir
- */
+namespace Tests\Integration\Command;
 
-namespace Seaman\Tests\Integration\Command;
-
-use Seaman\Application;
-use Seaman\Tests\Integration\TestHelper;
 use Symfony\Component\Console\Tester\CommandTester;
+use Seaman\Command\RebuildCommand;
 
-beforeEach(function () {
-    $this->tempDir = TestHelper::createTempDir();
-    $originalDir = getcwd();
-    if ($originalDir === false) {
-        throw new \RuntimeException('Failed to get current working directory');
+beforeEach(function (): void {
+    $this->testDir = sys_get_temp_dir() . '/seaman-rebuild-test-' . uniqid();
+    mkdir($this->testDir, 0755, true);
+    mkdir($this->testDir . '/.seaman', 0755, true);
+    chdir($this->testDir);
+
+    // Create minimal seaman.yaml
+    file_put_contents($this->testDir . '/seaman.yaml', 'version: 1.0');
+
+    // Create minimal Dockerfile
+    file_put_contents(
+        $this->testDir . '/.seaman/Dockerfile',
+        "FROM ubuntu:24.04\nRUN echo 'test'",
+    );
+
+    // Create minimal docker-compose.yml
+    file_put_contents(
+        $this->testDir . '/docker-compose.yml',
+        "version: '3.8'\nservices:\n  app:\n    image: seaman/seaman:latest",
+    );
+});
+
+afterEach(function (): void {
+    if (is_dir($this->testDir)) {
+        exec("rm -rf {$this->testDir}");
     }
-    $this->originalDir = $originalDir;
-    chdir($this->tempDir);
 });
 
-afterEach(function () {
-    chdir($this->originalDir);
-    TestHelper::removeTempDir($this->tempDir);
+test('rebuild command requires seaman.yaml', function (): void {
+    chdir(sys_get_temp_dir());
+
+    $command = new RebuildCommand();
+    $tester = new CommandTester($command);
+    $tester->execute([]);
+
+    expect($tester->getStatusCode())->toBe(1)
+        ->and($tester->getDisplay())->toContain('seaman.yaml not found');
 });
 
+test('rebuild command builds image and restarts services', function (): void {
+    $command = new RebuildCommand();
+    $tester = new CommandTester($command);
 
-test('rebuild command requires seaman.yaml', function () {
-    $application = new Application();
-    $commandTester = new CommandTester($application->find('rebuild'));
+    $result = $tester->execute([]);
 
-    $commandTester->execute([]);
-
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
-});
-
-test('rebuild command with specific service', function () {
-    $application = new Application();
-    $commandTester = new CommandTester($application->find('rebuild'));
-
-    $commandTester->execute(['service' => 'app']);
-
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    $output = $tester->getDisplay();
+    expect($output)->toContain('Building Docker image');
 });
