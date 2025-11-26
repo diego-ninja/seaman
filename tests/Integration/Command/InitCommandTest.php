@@ -19,6 +19,9 @@ use Seaman\Service\Container\MinioService;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\RabbitmqService;
 
+/**
+ * @property string $testDir
+ */
 beforeEach(function (): void {
     $this->testDir = sys_get_temp_dir() . '/seaman-init-test-' . uniqid();
     mkdir($this->testDir, 0755, true);

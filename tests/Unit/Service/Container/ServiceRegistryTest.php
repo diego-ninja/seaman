@@ -12,7 +12,6 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\HealthCheck;
 use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ServerConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -28,10 +27,6 @@ beforeEach(function () {
     // Create a configuration with some enabled services
     $this->config = new Configuration(
         version: '1.0',
-        server: new ServerConfig(
-            type: 'nginx-fpm',
-            port: 8080,
-        ),
         php: new PhpConfig(
             version: '8.4',
             extensions: [],

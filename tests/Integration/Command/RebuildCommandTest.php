@@ -10,6 +10,9 @@ namespace Tests\Integration\Command;
 use Symfony\Component\Console\Tester\CommandTester;
 use Seaman\Command\RebuildCommand;
 
+/**
+ * @property string $testDir
+ */
 beforeEach(function (): void {
     $this->testDir = sys_get_temp_dir() . '/seaman-rebuild-test-' . uniqid();
     mkdir($this->testDir, 0755, true);

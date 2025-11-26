@@ -13,6 +13,7 @@ parameters:
     ignoreErrors:
         - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$tempDir#'
+        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$testDir#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$originalDir#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$manager#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$renderer#'
@@ -21,6 +22,7 @@ parameters:
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$generator#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$projectRoot#'
         - '#Part \$this->projectRoot \(mixed\) of encapsed string cannot be cast to string#'
+        - '#Part \$this->testDir \(mixed\) of encapsed string cannot be cast to string#'
         - '#Parameter \#1 \$projectRoot of class Seaman\\Service\\DockerImageBuilder constructor expects string, mixed given#'
         - '#Parameter \#1 \$directory of function chdir expects string, mixed given#'
         - '#Parameter \#1 \$dir of static method Seaman\\Tests\\Integration\\TestHelper::removeTempDir\(\) expects string, mixed given#'

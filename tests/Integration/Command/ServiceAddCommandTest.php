@@ -27,9 +27,6 @@ beforeEach(function () {
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
 version: '1.0'
-server:
-  type: symfony
-  port: 8000
 php:
   version: '8.4'
   extensions: []
@@ -74,9 +71,6 @@ test('shows info message when all services are already enabled', function () {
     // Create config with all services enabled
     $yaml = <<<YAML
 version: '1.0'
-server:
-  type: symfony
-  port: 8000
 php:
   version: '8.4'
   extensions: []
