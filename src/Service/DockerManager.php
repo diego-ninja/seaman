@@ -9,6 +9,7 @@ namespace Seaman\Service;
 
 use Seaman\ValueObject\LogOptions;
 use Seaman\ValueObject\ProcessResult;
+use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
 
 readonly class DockerManager
@@ -18,7 +19,7 @@ readonly class DockerManager
     public function __construct(
         private string $projectPath,
     ) {
-        $this->composeFile = $this->projectPath . '/.seaman/docker-compose.yml';
+        $this->composeFile = $this->projectPath . '/docker-compose.yml';
     }
 
     /**
@@ -89,7 +90,7 @@ readonly class DockerManager
      * @return ProcessResult The result of the command execution
      * @throws \RuntimeException When docker-compose.yml does not exist
      */
-    public function execute(string $service, array $command): ProcessResult
+    public function executeInService(string $service, array $command): ProcessResult
     {
         $this->ensureComposeFileExists();
 
@@ -97,6 +98,28 @@ readonly class DockerManager
         $fullCommand = array_merge($fullCommand, $command);
 
         return $this->runProcess($fullCommand);
+    }
+
+    /**
+     * Executes an interactive command inside a service container.
+     *
+     * @param string $service The service name
+     * @param list<string> $command The command and arguments to execute
+     * @return int The exit code of the command
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     */
+    public function executeInteractive(string $service, array $command): int
+    {
+        $this->ensureComposeFileExists();
+
+        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', $service];
+        $fullCommand = array_merge($fullCommand, $command);
+
+        $process = new Process($fullCommand);
+        $process->setTty(Process::isTtySupported());
+        $process->setTimeout(null);
+
+        return $process->run();
     }
 
     /**
@@ -136,6 +159,73 @@ readonly class DockerManager
     }
 
     /**
+     * Gets the status of all Docker containers.
+     *
+     * @return list<array<string, mixed>> A list of service statuses
+     * @throws \RuntimeException When docker-compose.yml does not exist or output is invalid
+     */
+    public function status(): array
+    {
+        $this->ensureComposeFileExists();
+
+        $command = ['docker-compose', '-f', $this->composeFile, 'ps', '--format', 'json'];
+
+        $result = $this->runProcess($command);
+
+        if (!$result->isSuccessful()) {
+            return [];
+        }
+
+        // Handle empty output (no containers)
+        if (trim($result->output) === '') {
+            return [];
+        }
+
+        try {
+            /** @var array<array<string, mixed>> $decoded */
+            $decoded = json_decode($result->output, true, 512, JSON_THROW_ON_ERROR);
+            return array_values($decoded);
+        } catch (\JsonException $e) {
+            throw new \RuntimeException('Failed to parse docker-compose status JSON: ' . $e->getMessage(), 0, $e);
+        }
+    }
+
+    /**
+     * Rebuilds Docker images.
+     *
+     * @param string|null $service Optional service name to rebuild only that service
+     * @return ProcessResult The result of the rebuild operation
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     */
+    public function rebuild(?string $service = null): ProcessResult
+    {
+        $this->ensureComposeFileExists();
+
+        $command = ['docker-compose', '-f', $this->composeFile, 'build', '--no-cache'];
+
+        if ($service !== null) {
+            $command[] = $service;
+        }
+
+        return $this->runProcess($command, 300.0); // 5 minutes for builds
+    }
+
+    /**
+     * Destroys all Docker containers, volumes, and networks.
+     *
+     * @return ProcessResult The result of the destroy operation
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     */
+    public function destroy(): ProcessResult
+    {
+        $this->ensureComposeFileExists();
+
+        $command = ['docker-compose', '-f', $this->composeFile, 'down', '-v', '--remove-orphans'];
+
+        return $this->runProcess($command);
+    }
+
+    /**
      * Ensures the docker-compose.yml file exists.
      *
      * @throws \RuntimeException When the file does not exist
@@ -163,7 +253,7 @@ readonly class DockerManager
 
         try {
             $process->run();
-        } catch (\Symfony\Component\Process\Exception\ProcessTimedOutException $e) {
+        } catch (ProcessTimedOutException $e) {
             // Timeout is expected for commands like logs --follow
             // Return what we got before timeout
             return new ProcessResult(

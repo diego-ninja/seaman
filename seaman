@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+# Seaman - Docker development environment manager for Symfony 7+
+
+set -e
+
+SEAMAN_DIR="${HOME}/.seaman"
+PHAR_PATH="${SEAMAN_DIR}/seaman.phar"
+PHAR_URL="https://github.com/diego-ninja/seaman/releases/latest/download/seaman.phar"
+
+# Create seaman directory if it doesn't exist
+if [ ! -d "$SEAMAN_DIR" ]; then
+    mkdir -p "$SEAMAN_DIR"
+fi
+
+# Download PHAR if it doesn't exist
+if [ ! -f "$PHAR_PATH" ]; then
+    echo "Downloading Seaman..."
+    curl -sS -L "$PHAR_URL" -o "$PHAR_PATH"
+    chmod +x "$PHAR_PATH"
+    echo "Seaman installed successfully!"
+fi
+
+# Execute PHAR with all arguments
+php "$PHAR_PATH" "$@"

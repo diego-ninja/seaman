@@ -1,40 +1,40 @@
 version: '3.8'
 
 services:
-app:
-build:
-context: .
-dockerfile: .seaman/Dockerfile
-args:
-PHP_VERSION: {{ php.version }}
-volumes:
-- .:/var/www/html
-- .seaman/scripts/xdebug-toggle.sh:/usr/local/bin/xdebug-toggle
-environment:
-- XDEBUG_MODE=${XDEBUG_MODE}
-- PHP_IDE_CONFIG=serverName=seaman
-ports:
-- "${APP_PORT}:8000"
+  app:
+    build:
+      context: .
+      dockerfile: .seaman/Dockerfile
+      args:
+        PHP_VERSION: {{ php.version }}
+    volumes:
+      - .:/var/www/html
+      - .seaman/scripts/xdebug-toggle.sh:/usr/local/bin/xdebug-toggle
+    environment:
+      - XDEBUG_MODE=${XDEBUG_MODE}
+      - PHP_IDE_CONFIG=serverName=seaman
+    ports:
+      - "${APP_PORT}:8000"
 {% if services.enabled|length > 0 %}
     depends_on:
-    {% for name, service in services.enabled %}
-        - {{ name }}
-    {% endfor %}
+{% for name, service in services.enabled %}
+      - {{ name }}
+{% endfor %}
 {% endif %}
-networks:
-- seaman
+    networks:
+      - seaman
 
 {% for name, service in services.enabled %}
-    {% include 'docker/services/' ~ service.type ~ '.twig' with { name: name, service: service } %}
+{% include 'docker/services/' ~ service.type ~ '.twig' with { name: name, service: service } %}
 
 {% endfor %}
 networks:
-seaman:
-driver: bridge
+  seaman:
+    driver: bridge
 
 {% if volumes.persist|length > 0 %}
-    volumes:
-    {% for volume in volumes.persist %}
-        {{ volume }}:
-    {% endfor %}
+volumes:
+{% for volume in volumes.persist %}
+  {{ volume }}:
+{% endfor %}
 {% endif %}

@@ -34,3 +34,7 @@ coverage/
 
 # Environment
 .env.local
+/.env
+/docker-compose.yml
+/seaman.yaml
+/.seaman/

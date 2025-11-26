@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Run php commands on application container',
     aliases: ['php'],
 )]
-class PhpCommand extends Command
+class ExecutePhpCommand extends Command
 {
     protected function configure(): void
     {
@@ -29,8 +29,17 @@ class PhpCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $projectRoot = (string) getcwd();
+
+        // Check if seaman.yaml exists
+        if (!file_exists($projectRoot . '/seaman.yaml')) {
+            $output->writeln('<error>seaman.yaml not found. Run "seaman init" first.</error>');
+            return Command::FAILURE;
+        }
+
+        /** @var list<string> $args */
         $args = $input->getArgument('args');
-        $manager = new DockerManager(getcwd());
+        $manager = new DockerManager($projectRoot);
 
         $result = $manager->executeInService('app', ['php', ...$args]);
         $output->write($result->output);

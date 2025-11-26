@@ -21,8 +21,10 @@ beforeEach(function () {
 });
 
 afterEach(function () {
-    if (is_dir($this->tempDir)) {
-        exec("rm -rf {$this->tempDir}");
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    if (is_dir($tempDir)) {
+        exec("rm -rf {$tempDir}");
     }
 });
 

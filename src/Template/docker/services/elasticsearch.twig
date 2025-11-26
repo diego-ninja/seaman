@@ -1,19 +1,19 @@
-{{ name }}:
-image: elasticsearch:{{ service.version }}
-environment:
-- discovery.type=single-node
-- xpack.security.enabled=false
-- "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-ports:
-- "${ELASTICSEARCH_PORT}:9200"
-networks:
-- seaman
+  {{ name }}:
+    image: elasticsearch:{{ service.version }}
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "${ELASTICSEARCH_PORT}:9200"
+    networks:
+      - seaman
 {% if volumes.shouldPersist(name) %}
     volumes:
-    - {{ name }}:/usr/share/elasticsearch/data
+      - {{ name }}:/usr/share/elasticsearch/data
 {% endif %}
-healthcheck:
-test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-interval: 30s
-timeout: 10s
-retries: 5
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5

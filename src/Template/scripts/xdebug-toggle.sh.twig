@@ -15,9 +15,9 @@ case "$MODE" in
         cat > "$XDEBUG_INI" <<EOF
 zend_extension=xdebug.so
 xdebug.mode=debug
-xdebug.client_host={{ xdebug.client_host }}
+xdebug.client_host={{ xdebug.clientHost }}
 xdebug.client_port=9003
-xdebug.idekey={{ xdebug.ide_key }}
+xdebug.idekey={{ xdebug.ideKey }}
 xdebug.start_with_request=yes
 xdebug.log=/tmp/xdebug.log
 EOF

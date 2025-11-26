@@ -5622,7 +5622,7 @@ Expected: No errors
 **Step 4: Commit**
 
 ```bash
-git add src/Command/ComposerCommand.php src/Command/ConsoleCommand.php src/Command/PhpCommand.php src/Application.php
+git add src/Command/ExecuteComposerCommand.php src/Command/ExecuteConsoleCommand.php src/Command/ExecutePhpCommand.php src/Application.php
 git commit -m "feat: add passthrough commands (Composer, Console, PHP)"
 ```
 

@@ -30,9 +30,18 @@ class RestartCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        $projectRoot = (string) getcwd();
+
+        // Check if seaman.yaml exists
+        if (!file_exists($projectRoot . '/seaman.yaml')) {
+            $io->error('seaman.yaml not found. Run "seaman init" first.');
+            return Command::FAILURE;
+        }
+
+        /** @var ?string $service */
         $service = $input->getArgument('service');
 
-        $manager = new DockerManager(getcwd());
+        $manager = new DockerManager((string) getcwd());
 
         $io->info($service ? "Restarting service: {$service}..." : 'Restarting all services...');
 

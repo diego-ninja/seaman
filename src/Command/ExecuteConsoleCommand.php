@@ -19,11 +19,8 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Run symfony console commands on application container',
     aliases: ['console'],
 )]
-class ConsoleCommand extends Command
+class ExecuteConsoleCommand extends Command
 {
-    protected static $defaultName = 'console';
-    protected static $defaultDescription = 'Run Symfony console commands';
-
     protected function configure(): void
     {
         $this->ignoreValidationErrors();
@@ -32,8 +29,17 @@ class ConsoleCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $projectRoot = (string) getcwd();
+
+        // Check if seaman.yaml exists
+        if (!file_exists($projectRoot . '/seaman.yaml')) {
+            $output->writeln('<error>seaman.yaml not found. Run "seaman init" first.</error>');
+            return Command::FAILURE;
+        }
+
+        /** @var list<string> $args */
         $args = $input->getArgument('args');
-        $manager = new DockerManager(getcwd());
+        $manager = new DockerManager($projectRoot);
 
         $result = $manager->executeInService('app', ['php', 'bin/console', ...$args]);
         $output->write($result->output);

@@ -19,7 +19,7 @@ beforeEach(function () {
     $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
     mkdir($this->tempDir . '/.seaman', 0755, true);
 
-    // Create a minimal docker-compose.yml for testing
+    // Create a minimal docker-compose.yml for testing (now in root)
     $composeContent = <<<YAML
 services:
   web:
@@ -28,7 +28,7 @@ services:
     image: mysql:8.0
 YAML;
 
-    file_put_contents($this->tempDir . '/.seaman/docker-compose.yml', $composeContent);
+    file_put_contents($this->tempDir . '/docker-compose.yml', $composeContent);
     $this->manager = new DockerManager($this->tempDir);
 });
 
@@ -115,23 +115,35 @@ test('restart returns ProcessResult for specific service', function () {
     expect($result->exitCode)->toBeInt();
 });
 
-test('execute runs command in service container', function () {
+test('executeInService runs command in service container', function () {
     /** @var DockerManager $manager */
     $manager = $this->manager;
 
-    $result = $manager->execute('web', ['ls', '-la']);
+    $result = $manager->executeInService('web', ['ls', '-la']);
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
     expect($result->exitCode)->toBeInt();
 });
 
-test('execute handles single command argument', function () {
+test('executeInService handles single command argument', function () {
     /** @var DockerManager $manager */
     $manager = $this->manager;
 
-    $result = $manager->execute('web', ['pwd']);
+    $result = $manager->executeInService('web', ['pwd']);
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
+});
+
+test('executeInteractive returns an integer exit code', function () {
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+
+    // We can't test interactivity in a unit test,
+    // but we can check if it returns an exit code.
+    // We run a non-blocking command.
+    $exitCode = $manager->executeInteractive('web', ['/bin/true']);
+
+    expect($exitCode)->toBeInt();
 });
 
 test('logs returns ProcessResult with default options', function () {
@@ -209,11 +221,50 @@ invalid yaml content [[[
   this will cause docker-compose to fail
 YAML;
 
-    file_put_contents($tempDir . '/.seaman/docker-compose.yml', $invalidContent);
+    file_put_contents($tempDir . '/docker-compose.yml', $invalidContent);
 
     $manager = new DockerManager($tempDir);
     $result = $manager->start();
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
     expect($result->isSuccessful())->toBeFalse();
+});
+
+test('status returns array with container status', function () {
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+
+    $result = $manager->status();
+
+    expect($result)->toBeArray();
+});
+
+test('rebuild returns ProcessResult for all services', function () {
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+
+    $result = $manager->rebuild();
+
+    expect($result)->toBeInstanceOf(ProcessResult::class);
+    expect($result->exitCode)->toBeInt();
+});
+
+test('rebuild returns ProcessResult for specific service', function () {
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+
+    $result = $manager->rebuild('web');
+
+    expect($result)->toBeInstanceOf(ProcessResult::class);
+    expect($result->exitCode)->toBeInt();
+});
+
+test('destroy returns ProcessResult', function () {
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+
+    $result = $manager->destroy();
+
+    expect($result)->toBeInstanceOf(ProcessResult::class);
+    expect($result->exitCode)->toBeInt();
 });

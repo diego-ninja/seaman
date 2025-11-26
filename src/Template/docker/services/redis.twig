@@ -1,15 +1,15 @@
-{{ name }}:
-image: redis:{{ service.version }}
-ports:
-- "${REDIS_PORT}:6379"
-networks:
-- seaman
+  {{ name }}:
+    image: redis:{{ service.version }}
+    ports:
+      - "${REDIS_PORT}:6379"
+    networks:
+      - seaman
 {% if volumes.shouldPersist(name) %}
     volumes:
-    - {{ name }}:/data
+      - {{ name }}:/data
 {% endif %}
-healthcheck:
-test: ["CMD", "redis-cli", "ping"]
-interval: 10s
-timeout: 5s
-retries: 5
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

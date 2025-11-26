@@ -30,13 +30,27 @@ class StartCommand extends Command
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        /** @var ?string $service */
         $service = $input->getArgument('service');
 
-        $manager = new DockerManager(getcwd());
+        $projectRoot = (string) getcwd();
+
+        // Check if seaman.yaml exists
+        if (!file_exists($projectRoot . '/seaman.yaml')) {
+            $io->error('seaman.yaml not found. Run "seaman init" first.');
+            return Command::FAILURE;
+        }
+
+        $manager = new DockerManager($projectRoot);
 
         $io->info($service ? "Starting service: {$service}..." : 'Starting all services...');
 
-        $result = $manager->start($service);
+        try {
+            $result = $manager->start($service);
+        } catch (\RuntimeException $e) {
+            $io->error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         if ($result->isSuccessful()) {
             $io->success($service ? "Service {$service} started!" : 'All services started!');

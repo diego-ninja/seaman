@@ -1,19 +1,19 @@
-{{ name }}:
-image: postgres:{{ service.version }}
-environment:
-- POSTGRES_DB=${DB_NAME:-seaman}
-- POSTGRES_USER=${DB_USER:-seaman}
-- POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
-ports:
-- "${DB_PORT}:5432"
-networks:
-- seaman
+  {{ name }}:
+    image: postgres:{{ service.version }}
+    environment:
+      - POSTGRES_DB=${DB_NAME:-seaman}
+      - POSTGRES_USER=${DB_USER:-seaman}
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
+    ports:
+      - "${DB_PORT}:5432"
+    networks:
+      - seaman
 {% if volumes.shouldPersist(name) %}
     volumes:
-    - {{ name }}:/var/lib/postgresql/data
+      - {{ name }}:/var/lib/postgresql/data
 {% endif %}
-healthcheck:
-test: ["CMD", "pg_isready", "-U", "${DB_USER:-seaman}"]
-interval: 10s
-timeout: 5s
-retries: 5
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${DB_USER:-seaman}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
