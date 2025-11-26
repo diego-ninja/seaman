@@ -9,7 +9,6 @@ namespace Seaman\Service;
 
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ServerConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -54,25 +53,13 @@ readonly class ConfigManager
      */
     private function parseConfiguration(array $data): Configuration
     {
-        $serverData = $data['server'] ?? [];
-        if (!is_array($serverData)) {
-            throw new \RuntimeException('Invalid server configuration');
+        // Check for old config format with server field
+        if (isset($data['server'])) {
+            throw new \RuntimeException(
+                'Old configuration format detected. The "server" field is no longer supported. ' .
+                'Please run "seaman init" to reinitialize your configuration.'
+            );
         }
-
-        $serverType = $serverData['type'] ?? 'symfony';
-        if (!is_string($serverType)) {
-            throw new \RuntimeException('Server type must be a string');
-        }
-
-        $serverPort = $serverData['port'] ?? 8000;
-        if (!is_int($serverPort)) {
-            throw new \RuntimeException('Server port must be an integer');
-        }
-
-        $server = new ServerConfig(
-            type: $serverType,
-            port: $serverPort,
-        );
 
         $phpData = $data['php'] ?? [];
         if (!is_array($phpData)) {
@@ -224,7 +211,6 @@ readonly class ConfigManager
 
         return new Configuration(
             version: $version,
-            server: $server,
             php: $php,
             services: new ServiceCollection($services),
             volumes: $volumes,
@@ -235,10 +221,6 @@ readonly class ConfigManager
     {
         $data = [
             'version' => $config->version,
-            'server' => [
-                'type' => $config->server->type,
-                'port' => $config->server->port,
-            ],
             'php' => [
                 'version' => $config->php->version,
                 'extensions' => $config->php->extensions,
@@ -286,24 +268,6 @@ readonly class ConfigManager
      */
     public function merge(Configuration $base, array $overrides): Configuration
     {
-        // Merge server config
-        $serverData = $overrides['server'] ?? [];
-        if (!is_array($serverData)) {
-            $serverData = [];
-        }
-
-        $serverType = $serverData['type'] ?? $base->server->type;
-        if (!is_string($serverType)) {
-            $serverType = $base->server->type;
-        }
-
-        $serverPort = $serverData['port'] ?? $base->server->port;
-        if (!is_int($serverPort)) {
-            $serverPort = $base->server->port;
-        }
-
-        $server = new ServerConfig($serverType, $serverPort);
-
         // Merge PHP config (keep base xdebug if not overridden)
         $phpData = $overrides['php'] ?? [];
         if (!is_array($phpData)) {
@@ -454,7 +418,6 @@ readonly class ConfigManager
 
         return new Configuration(
             version: $version,
-            server: $server,
             php: $php,
             services: $services,
             volumes: $volumes,
@@ -465,7 +428,7 @@ readonly class ConfigManager
     {
         $lines = [
             '# Application configuration',
-            'APP_PORT=' . $config->server->port,
+            'APP_PORT=8000',
             '',
             '# PHP configuration',
             'PHP_VERSION=' . $config->php->version,

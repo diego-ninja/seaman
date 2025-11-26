@@ -1,9 +1,5 @@
 version: '1.0'
 
-server:
-  type: symfony
-  port: 8000
-
 php:
   version: '8.4'
   extensions:

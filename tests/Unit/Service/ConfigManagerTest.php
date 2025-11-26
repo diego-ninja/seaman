@@ -10,7 +10,6 @@ namespace Seaman\Tests\Unit\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ServerConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -52,8 +51,6 @@ test('loads configuration from YAML', function () {
 
     expect($config)->toBeInstanceOf(Configuration::class)
         ->and($config->version)->toBe('1.0')
-        ->and($config->server->type)->toBe('symfony')
-        ->and($config->server->port)->toBe(8000)
         ->and($config->php->version)->toBe('8.4')
         ->and($config->php->extensions)->toBe(['pdo_pgsql', 'redis'])
         ->and($config->php->xdebug->enabled)->toBe(false)
@@ -84,13 +81,12 @@ test('throws exception when YAML is invalid', function () {
 });
 
 test('saves configuration to YAML', function () {
-    $server = new ServerConfig('symfony', 8000);
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig('8.4', ['pdo_pgsql'], $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $config = new Configuration('1.0', $server, $php, $services, $volumes);
+    $config = new Configuration('1.0', $php, $services, $volumes);
 
     /** @var ConfigManager $manager */
     $manager = $this->manager;
@@ -103,18 +99,16 @@ test('saves configuration to YAML', function () {
 
     $loadedConfig = $manager->load();
     expect($loadedConfig->version)->toBe('1.0')
-        ->and($loadedConfig->server->type)->toBe('symfony')
         ->and($loadedConfig->php->version)->toBe('8.4');
 });
 
 test('generates .env file when saving', function () {
-    $server = new ServerConfig('symfony', 8000);
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig('8.4', [], $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $config = new Configuration('1.0', $server, $php, $services, $volumes);
+    $config = new Configuration('1.0', $php, $services, $volumes);
 
     /** @var ConfigManager $manager */
     $manager = $this->manager;
@@ -132,14 +126,13 @@ test('generates .env file when saving', function () {
 });
 
 test('merges service into existing configuration', function () {
-    $server = new ServerConfig('symfony', 8000);
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig('8.4', [], $xdebug);
     $existingService = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
     $services = new ServiceCollection(['postgresql' => $existingService]);
     $volumes = new VolumeConfig(['database']);
 
-    $baseConfig = new Configuration('1.0', $server, $php, $services, $volumes);
+    $baseConfig = new Configuration('1.0', $php, $services, $volumes);
 
     $overrides = [
         'services' => [
@@ -166,25 +159,19 @@ test('merges service into existing configuration', function () {
 });
 
 test('merge preserves existing configuration', function () {
-    $server = new ServerConfig('symfony', 8000);
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig('8.4', ['pdo_pgsql'], $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $baseConfig = new Configuration('1.0', $server, $php, $services, $volumes);
+    $baseConfig = new Configuration('1.0', $php, $services, $volumes);
 
-    $overrides = [
-        'server' => [
-            'port' => 9000,
-        ],
-    ];
+    $overrides = [];
 
     /** @var ConfigManager $manager */
     $manager = $this->manager;
     $merged = $manager->merge($baseConfig, $overrides);
 
-    expect($merged->server->port)->toBe(9000)
-        ->and($merged->server->type)->toBe('symfony')
-        ->and($merged->php->version)->toBe('8.4');
+    expect($merged->php->version)->toBe('8.4')
+        ->and($merged->php->extensions)->toBe(['pdo_pgsql']);
 });
