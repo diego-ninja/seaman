@@ -7,13 +7,26 @@ declare(strict_types=1);
 
 namespace Seaman;
 
+use Seaman\Command\BuildCommand;
+use Seaman\Command\DbDumpCommand;
+use Seaman\Command\DbRestoreCommand;
+use Seaman\Command\DbShellCommand;
+use Seaman\Command\ExecuteComposerCommand;
+use Seaman\Command\ExecuteConsoleCommand;
+use Seaman\Command\DestroyCommand;
 use Seaman\Command\InitCommand;
+use Seaman\Command\LogsCommand;
+use Seaman\Command\ExecutePhpCommand;
+use Seaman\Command\RebuildCommand;
 use Seaman\Command\RestartCommand;
 use Seaman\Command\ServiceAddCommand;
 use Seaman\Command\ServiceListCommand;
 use Seaman\Command\ServiceRemoveCommand;
+use Seaman\Command\ShellCommand;
 use Seaman\Command\StartCommand;
+use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
+use Seaman\Command\XdebugCommand;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\MailpitService;
@@ -40,7 +53,9 @@ class Application extends BaseApplication
         $configManager = new ConfigManager($projectRoot);
         $registry = $this->createServiceRegistry();
 
-        $this->addCommands([
+        $dockerManager = new \Seaman\Service\DockerManager($projectRoot);
+
+        $commands = [
             new ServiceListCommand($configManager, $registry),
             new ServiceAddCommand($configManager, $registry),
             new ServiceRemoveCommand($configManager, $registry),
@@ -48,7 +63,26 @@ class Application extends BaseApplication
             new StartCommand(),
             new StopCommand(),
             new RestartCommand(),
-        ]);
+            new StatusCommand(),
+            new RebuildCommand(),
+            new DestroyCommand(),
+            new ShellCommand(),
+            new LogsCommand(),
+            new XdebugCommand(),
+            new ExecuteComposerCommand(),
+            new ExecuteConsoleCommand(),
+            new ExecutePhpCommand(),
+            new DbDumpCommand($configManager, $dockerManager),
+            new DbRestoreCommand($configManager, $dockerManager),
+            new DbShellCommand($configManager, $dockerManager),
+        ];
+
+        // Only register build command when not running from PHAR
+        if (!\Phar::running()) {
+            $commands[] = new BuildCommand();
+        }
+
+        $this->addCommands($commands);
     }
 
     private function createServiceRegistry(): ServiceRegistry
