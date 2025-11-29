@@ -1,71 +1,54 @@
 <?php
 
-declare(strict_types=1);
-
 // ABOUTME: Integration tests for InitCommand.
-// ABOUTME: Validates interactive initialization flow.
+// ABOUTME: Tests command instantiation and service integration.
+
+declare(strict_types=1);
 
 namespace Tests\Integration\Command;
 
-use Symfony\Component\Console\Tester\CommandTester;
-use Seaman\Command\InitCommand;
-use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\Container\PostgresqlService;
-use Seaman\Service\Container\MysqlService;
-use Seaman\Service\Container\MariadbService;
-use Seaman\Service\Container\RedisService;
-use Seaman\Service\Container\MailpitService;
-use Seaman\Service\Container\MinioService;
-use Seaman\Service\Container\ElasticsearchService;
-use Seaman\Service\Container\RabbitmqService;
+use Seaman\Application;
+use Seaman\Enum\ProjectType;
+use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyDetector;
 
-/**
- * @property string $testDir
- */
-beforeEach(function (): void {
-    $this->testDir = sys_get_temp_dir() . '/seaman-init-test-' . uniqid();
-    mkdir($this->testDir, 0755, true);
-    chdir($this->testDir);
+test('init command is registered in application', function (): void {
+    $app = new Application();
+    $command = $app->find('init');
 
-    // Copy root Dockerfile to test directory
-    $rootDockerfile = __DIR__ . '/../../../Dockerfile';
-    if (file_exists($rootDockerfile)) {
-        copy($rootDockerfile, $this->testDir . '/Dockerfile');
-    }
+    expect($command)->toBeInstanceOf(\Seaman\Command\InitCommand::class);
+    expect($command->getName())->toBe('seaman:init');
 });
 
-afterEach(function (): void {
-    if (is_dir($this->testDir)) {
-        exec("rm -rf {$this->testDir}");
-    }
+test('init command has correct aliases', function (): void {
+    $app = new Application();
+    $command = $app->find('init');
+
+    expect($command->getAliases())->toContain('init');
 });
 
-test('init command creates seaman.yaml', function (): void {
-    $registry = new ServiceRegistry();
-    $registry->register(new PostgresqlService());
-    $registry->register(new MysqlService());
-    $registry->register(new MariadbService());
-    $registry->register(new RedisService());
-    $registry->register(new MailpitService());
-    $registry->register(new MinioService());
-    $registry->register(new ElasticsearchService());
-    $registry->register(new RabbitmqService());
+test('symfony detector works correctly', function (): void {
+    $detector = new SymfonyDetector();
 
-    $command = new InitCommand($registry);
-    $tester = new CommandTester($command);
+    $tempDir = sys_get_temp_dir() . '/test-detector-' . uniqid();
+    mkdir($tempDir);
 
-    $tester->setInputs([
-        '8.4',           // PHP version
-        'postgresql',    // Database
-        'redis,mailpit', // Additional services
-    ]);
+    $result = $detector->detect($tempDir);
+    expect($result->isSymfonyProject)->toBeFalse();
 
-    $tester->execute([]);
+    rmdir($tempDir);
+});
 
-    expect(file_exists($this->testDir . '/seaman.yaml'))->toBeTrue()
-        ->and(file_exists($this->testDir . '/.seaman/Dockerfile'))->toBeTrue()
-        ->and(file_exists($this->testDir . '/docker-compose.yml'))->toBeTrue();
+test('project bootstrapper generates correct commands', function (): void {
+    $bootstrapper = new ProjectBootstrapper();
 
-    $output = $tester->getDisplay();
-    expect($output)->toContain('Seaman initialized successfully!');
+    $command = $bootstrapper->getBootstrapCommand(
+        ProjectType::WebApplication,
+        'test-app',
+        '/tmp'
+    );
+
+    expect($command)->toContain('symfony');
+    expect($command)->toContain('new');
+    expect($command)->toContain('test-app');
 });

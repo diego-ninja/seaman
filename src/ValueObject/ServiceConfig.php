@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class ServiceConfig
+final readonly class ServiceConfig
 {
     /**
      * @param list<int> $additionalPorts

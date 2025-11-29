@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class XdebugConfig
+final readonly class XdebugConfig
 {
     public function __construct(
         public bool $enabled,

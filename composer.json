@@ -11,9 +11,11 @@
   ],
   "require": {
     "php": "^8.4",
+    "ext-posix": "*",
     "diego-ninja/docker": "^2.1",
     "diego-ninja/granite": "^1.5",
     "innmind/signals": "^4.1",
+    "jolicode/jolinotif": "^3",
     "laravel/prompts": "^0.3.8",
     "nunomaduro/termwind": "^2.3",
     "symfony/console": "^7.2",
@@ -33,7 +35,11 @@
   "autoload": {
     "psr-4": {
       "Seaman\\": "src/"
-    }
+    },
+    "files": [
+      "helpers/functions.php"
+    ]
+
   },
   "autoload-dev": {
     "psr-4": {
@@ -43,6 +49,9 @@
   "config": {
     "sort-packages": true,
     "preferred-install": "dist",
+    "exclude-from-classmap": [
+      "vendor/humbug/php-scoper/vendor-hotfix"
+    ],
     "optimize-autoloader": true,
     "allow-plugins": {
       "pestphp/pest-plugin": true

@@ -7,17 +7,20 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
+use Seaman\Enum\Database;
+use Seaman\Enum\Service;
+
 readonly class VolumeConfig
 {
     /**
-     * @param list<string> $persist
+     * @param list<Service|Database> $persist
      */
     public function __construct(
         public array $persist = [],
     ) {}
 
-    public function shouldPersist(string $volumeName): bool
+    public function shouldPersist(Service $service): bool
     {
-        return in_array($volumeName, $this->persist, true);
+        return in_array($service, $this->persist, true);
     }
 }

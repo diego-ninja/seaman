@@ -7,21 +7,22 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class PhpConfig
-{
-    private const array SUPPORTED_VERSIONS = ['8.2', '8.3', '8.4'];
+use InvalidArgumentException;
+use Seaman\Enum\PhpVersion;
 
+final readonly class PhpConfig
+{
     /**
      * @param list<string> $extensions
      */
     public function __construct(
-        public string $version,
+        public PhpVersion $version,
         public array $extensions,
         public XdebugConfig $xdebug,
     ) {
-        if (!in_array($version, self::SUPPORTED_VERSIONS, true)) {
-            throw new \InvalidArgumentException(
-                "Unsupported PHP version: {$version}. Must be one of: " . implode(', ', self::SUPPORTED_VERSIONS),
+        if (!PhpVersion::isSupported($this->version)) {
+            throw new InvalidArgumentException(
+                "Unsupported PHP version: {$version->value}. Must be one of: " . implode(', ', array_map(static fn(PhpVersion $version): string => $version->value, PhpVersion::supported())),
             );
         }
     }
