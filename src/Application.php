@@ -37,6 +37,8 @@ use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RabbitmqService;
 use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyDetector;
 use Symfony\Component\Console\Application as BaseApplication;
 
 class Application extends BaseApplication
@@ -59,7 +61,11 @@ class Application extends BaseApplication
             new ServiceListCommand($configManager, $registry),
             new ServiceAddCommand($configManager, $registry),
             new ServiceRemoveCommand($configManager, $registry),
-            new InitCommand($registry),
+            new InitCommand(
+                $registry,
+                new SymfonyDetector(),
+                new ProjectBootstrapper(),
+            ),
             new StartCommand(),
             new StopCommand(),
             new RestartCommand(),
