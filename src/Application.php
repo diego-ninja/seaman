@@ -47,13 +47,15 @@ use Symfony\Component\Console\Application as BaseApplication;
 
 class Application extends BaseApplication
 {
+    private EventDispatcher $eventDispatcher;
+
     public function __construct()
     {
         parent::__construct('Seaman', '1.0.0');
 
         // Setup EventDispatcher with auto-discovered listeners
-        $dispatcher = $this->createEventDispatcher();
-        $this->setDispatcher($dispatcher);
+        $this->eventDispatcher = $this->createEventDispatcher();
+        $this->setDispatcher($this->eventDispatcher);
 
         $projectRoot = getcwd();
         if ($projectRoot === false) {
@@ -97,6 +99,11 @@ class Application extends BaseApplication
         }
 
         $this->addCommands($commands);
+    }
+
+    public function getEventDispatcher(): EventDispatcher
+    {
+        return $this->eventDispatcher;
     }
 
     private function createServiceRegistry(): ServiceRegistry
