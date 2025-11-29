@@ -21,7 +21,7 @@ test('bootstrap creates web application project', function (): void {
     $command = $bootstrapper->getBootstrapCommand(
         ProjectType::WebApplication,
         'test-app',
-        $tempDir
+        $tempDir,
     );
 
     expect($command)->toContain('symfony');
@@ -41,7 +41,7 @@ test('bootstrap creates api platform project', function (): void {
     $commands = $bootstrapper->getBootstrapCommands(
         ProjectType::ApiPlatform,
         'test-api',
-        $tempDir
+        $tempDir,
     );
 
     expect($commands)->toHaveCount(2);
@@ -60,7 +60,7 @@ test('bootstrap creates microservice project', function (): void {
     $command = $bootstrapper->getBootstrapCommand(
         ProjectType::Microservice,
         'test-micro',
-        $tempDir
+        $tempDir,
     );
 
     expect($command)->toContain('symfony');
@@ -79,7 +79,7 @@ test('bootstrap creates skeleton project', function (): void {
     $command = $bootstrapper->getBootstrapCommand(
         ProjectType::Skeleton,
         'test-skeleton',
-        $tempDir
+        $tempDir,
     );
 
     expect($command)->toContain('symfony');

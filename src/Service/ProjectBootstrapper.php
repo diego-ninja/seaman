@@ -22,19 +22,19 @@ final readonly class ProjectBootstrapper
      */
     public function getBootstrapCommand(ProjectType $type, string $name, string $targetDirectory): string
     {
-        return match($type) {
+        return match ($type) {
             ProjectType::WebApplication => sprintf(
                 'cd %s && symfony new %s --webapp',
                 escapeshellarg($targetDirectory),
-                escapeshellarg($name)
+                escapeshellarg($name),
             ),
             ProjectType::Microservice, ProjectType::Skeleton => sprintf(
                 'cd %s && symfony new %s --webapp=false',
                 escapeshellarg($targetDirectory),
-                escapeshellarg($name)
+                escapeshellarg($name),
             ),
             ProjectType::ApiPlatform => throw new \InvalidArgumentException(
-                'API Platform requires multiple commands. Use getBootstrapCommands() instead.'
+                'API Platform requires multiple commands. Use getBootstrapCommands() instead.',
             ),
         };
     }
@@ -57,12 +57,12 @@ final readonly class ProjectBootstrapper
             sprintf(
                 'cd %s && symfony new %s --webapp',
                 escapeshellarg($targetDirectory),
-                escapeshellarg($name)
+                escapeshellarg($name),
             ),
             sprintf(
                 'cd %s/%s && composer require api',
                 escapeshellarg($targetDirectory),
-                escapeshellarg($name)
+                escapeshellarg($name),
             ),
         ];
     }

@@ -16,7 +16,7 @@ enum ProjectType: string
 
     public function getLabel(): string
     {
-        return match($this) {
+        return match ($this) {
             self::WebApplication => 'Full Web Application',
             self::ApiPlatform => 'API Platform',
             self::Microservice => 'Microservice',
@@ -26,7 +26,7 @@ enum ProjectType: string
 
     public function getDescription(): string
     {
-        return match($this) {
+        return match ($this) {
             self::WebApplication => 'Complete web app with Twig, Doctrine, Security, Forms',
             self::ApiPlatform => 'API-first application with API Platform bundle',
             self::Microservice => 'Minimal Symfony with framework-bundle only',
