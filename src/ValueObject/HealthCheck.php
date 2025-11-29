@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class HealthCheck
+final readonly class HealthCheck
 {
     /**
      * @param list<string> $test

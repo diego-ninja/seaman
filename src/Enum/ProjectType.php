@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Seaman\ValueObject;
+namespace Seaman\Enum;
 
 enum ProjectType: string
 {
@@ -14,6 +14,8 @@ enum ProjectType: string
     case Microservice = 'microservice';
     case Skeleton = 'skeleton';
 
+    case Existing = 'existing';
+
     public function getLabel(): string
     {
         return match ($this) {
@@ -21,6 +23,7 @@ enum ProjectType: string
             self::ApiPlatform => 'API Platform',
             self::Microservice => 'Microservice',
             self::Skeleton => 'Skeleton',
+            self::Existing => 'Existing',
         };
     }
 
@@ -31,6 +34,7 @@ enum ProjectType: string
             self::ApiPlatform => 'API-first application with API Platform bundle',
             self::Microservice => 'Minimal Symfony with framework-bundle only',
             self::Skeleton => 'Bare minimum framework-bundle',
+            self::Existing => 'Already initialised application',
         };
     }
 }

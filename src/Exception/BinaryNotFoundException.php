@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Ninja\Cosmic\Exception;
+namespace Seaman\Exception;
 
-class BinaryNotFoundException extends CosmicException
+class BinaryNotFoundException extends SeamanException
 {
     public static function withBinary(string $binary): self
     {

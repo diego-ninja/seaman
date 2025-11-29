@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class LogOptions
+final readonly class LogOptions
 {
     public function __construct(
         public bool $follow = false,

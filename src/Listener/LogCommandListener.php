@@ -18,9 +18,11 @@ final readonly class LogCommandListener
     {
         $command = $event->getCommand();
 
+        /**
         error_log(sprintf(
             '[Seaman] Executing command: %s',
             $command?->getName() ?? 'unknown',
         ));
+        **/
     }
 }

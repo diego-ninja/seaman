@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
-use Seaman\ValueObject\ProjectType;
+use Seaman\Enum\ProjectType;
 use Symfony\Component\Process\Process;
 
 final readonly class ProjectBootstrapper

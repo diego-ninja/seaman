@@ -8,9 +8,9 @@ declare(strict_types=1);
 namespace Tests\Integration\Command;
 
 use Seaman\Application;
-use Seaman\Service\SymfonyDetector;
+use Seaman\Enum\ProjectType;
 use Seaman\Service\ProjectBootstrapper;
-use Seaman\ValueObject\ProjectType;
+use Seaman\Service\SymfonyDetector;
 
 test('init command is registered in application', function (): void {
     $app = new Application();

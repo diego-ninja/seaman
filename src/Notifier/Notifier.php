@@ -2,25 +2,22 @@
 
 declare(strict_types=1);
 
-namespace Ninja\Cosmic\Notifier;
+namespace Seaman\Notifier;
 
+use Joli\JoliNotif\DefaultNotifier;
 use Joli\JoliNotif\Exception\InvalidNotificationException;
 use Joli\JoliNotif\Notification;
-use Joli\JoliNotif\Notifier as JoliNotifier;
-use Joli\JoliNotif\NotifierFactory;
-use Ninja\Cosmic\Environment\Env;
-use Ninja\Cosmic\Terminal\Terminal;
 
 /**
  * Class Notifier
  *
  * Provides a simple interface for sending notifications.
  */
-class Notifier
+final class Notifier
 {
     private static ?self $instance = null;
 
-    private readonly JoliNotifier $notifier;
+    private readonly DefaultNotifier $notifier;
 
     /**
      * Notifier constructor.
@@ -29,7 +26,7 @@ class Notifier
      */
     private function __construct()
     {
-        $this->notifier = NotifierFactory::create();
+        $this->notifier = new DefaultNotifier();
     }
 
     /**
@@ -39,7 +36,7 @@ class Notifier
      */
     public static function getInstance(): self
     {
-        if (!self::$instance instanceof \Ninja\Cosmic\Notifier\Notifier) {
+        if (!self::$instance instanceof Notifier) {
             self::$instance = new self();
         }
 
@@ -105,10 +102,10 @@ class Notifier
      */
     private function getSuccessNotification(string $message): Notification
     {
-        return (new Notification())
-            ->setTitle(ucfirst((string)Env::get("APP_NAME")))
+        return new Notification()
+            ->setTitle('Seaman Success')
             ->setBody($message)
-            ->setIcon(Terminal::getTheme()?->getNotificationIcon() ?? "");
+            ->setIcon(__DIR__ . "/../../assets/notification.png");
     }
 
     /**
@@ -120,9 +117,9 @@ class Notifier
      */
     private function getErrorNotification(string $message): Notification
     {
-        return (new Notification())
-            ->setTitle(ucfirst((string)Env::get("APP_NAME")))
+        return new Notification()
+            ->setTitle('Seaman Error')
             ->setBody($message)
-            ->setIcon(Terminal::getTheme()?->getNotificationIcon() ?? "");
+            ->setIcon(__DIR__ . "/../../assets/notification.png");
     }
 }

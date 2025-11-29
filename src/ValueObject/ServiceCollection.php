@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class ServiceCollection
+final readonly class ServiceCollection
 {
     /**
      * @param array<string, ServiceConfig> $services

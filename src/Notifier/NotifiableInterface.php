@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ninja\Cosmic\Notifier;
+namespace Seaman\Notifier;
 
 /**
  * Interface NotifiableInterface

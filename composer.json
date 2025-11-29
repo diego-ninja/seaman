@@ -11,6 +11,7 @@
   ],
   "require": {
     "php": "^8.4",
+    "ext-posix": "*",
     "diego-ninja/docker": "^2.1",
     "diego-ninja/granite": "^1.5",
     "innmind/signals": "^4.1",

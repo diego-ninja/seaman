@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class ProcessResult
+final readonly class ProcessResult
 {
     public function __construct(
         public int $exitCode,

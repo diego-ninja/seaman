@@ -12,6 +12,11 @@ return [
         priority: 100,
     ),
     new EventListenerMetadata(
+        className: \Seaman\Listener\CommandDecorationListener::class,
+        event: 'console.command',
+        priority: 100,
+    ),
+    new EventListenerMetadata(
         className: \Seaman\Listener\NotifyOnErrorListener::class,
         event: 'console.error',
         priority: 0,

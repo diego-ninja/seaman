@@ -15,7 +15,7 @@ class SeamanException extends Exception
         return new self(
             message: $ex->getMessage(),
             code: $ex->getCode(),
-            previous: $ex
+            previous: $ex,
         );
     }
 

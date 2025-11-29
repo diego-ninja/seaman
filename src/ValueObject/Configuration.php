@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
-readonly class Configuration
+final readonly class Configuration
 {
     public function __construct(
         public string $version,

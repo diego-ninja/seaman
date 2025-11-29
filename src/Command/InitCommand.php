@@ -7,35 +7,36 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Enum\ProjectType;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerComposeGenerator;
 use Seaman\Service\DockerImageBuilder;
-use Seaman\Service\TemplateRenderer;
-use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\SymfonyDetector;
 use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyDetector;
+use Seaman\Service\TemplateRenderer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ProjectType;
-use Seaman\ValueObject\XdebugConfig;
 use Seaman\ValueObject\ServiceCollection;
+use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
+use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
-use function Laravel\Prompts\select;
 use function Laravel\Prompts\multiselect;
+use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
     description: 'Initialize Seaman configuration interactively',
     aliases: ['init'],
 )]
-class InitCommand extends Command
+class InitCommand extends AbstractSeamanCommand
 {
     public function __construct(
         private readonly ServiceRegistry $registry,
@@ -49,8 +50,6 @@ class InitCommand extends Command
     {
         $projectRoot = (string) getcwd();
 
-        info('Initializing seaman application...');
-
         // Check if seaman.yaml already exists
         if (file_exists($projectRoot . '/seaman.yaml')) {
             if (!confirm(
@@ -62,81 +61,38 @@ class InitCommand extends Command
             }
         }
 
-        // Detect Symfony application
-        $detection = $this->detector->detect($projectRoot);
-
-        if (!$detection->isSymfonyProject) {
-            if ($detection->matchedIndicators === 1) {
-                info('Found some Symfony files but project seems incomplete.');
-            }
-
-            $shouldBootstrap = confirm(
-                label: 'No Symfony application detected. Create new project?',
-                default: true,
-            );
-
-            if (!$shouldBootstrap) {
-                info('Please create a Symfony project first, then run init again.');
-                return Command::SUCCESS;
-            }
-
-            // Bootstrap new Symfony project
-            $projectType = $this->selectProjectType();
-            $projectName = $this->getProjectName($projectRoot);
-
-            info('Creating Symfony project...');
-
-            if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
-                info('Failed to create Symfony project.');
-                return Command::FAILURE;
-            }
-
-            // Change to new project directory
-            $projectRoot = dirname($projectRoot) . '/' . $projectName;
-            chdir($projectRoot);
-
-            info('Symfony project created successfully!');
+        $projectType = $this->bootstrapSymfonyProject($projectRoot);
+        if ($projectType === null) {
+            return Command::FAILURE;
         }
 
         // Continue with Docker configuration...
         $database = $this->selectDatabase();
-        $services = $this->selectServices($projectType ?? null);
+        $services = $this->selectServices($projectType);
         $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
 
         // Build configuration
         $xdebug = new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
+        $php = new PhpConfig('8.4', [], $xdebug);
 
-        $extensions = [];
-        if ($database === 'postgresql') {
-            $extensions[] = 'pdo_pgsql';
-        } elseif (in_array($database, ['mysql', 'mariadb'], true)) {
-            $extensions[] = 'pdo_mysql';
-        }
-
-        if (in_array('redis', $services, true)) {
-            $extensions[] = 'redis';
-        }
-
-        $php = new PhpConfig('8.4', $extensions, $xdebug);
-
-        /** @var array<string, \Seaman\ValueObject\ServiceConfig> $serviceConfigs */
+        /** @var array<string, ServiceConfig> $serviceConfigs */
         $serviceConfigs = [];
-        /** @var list<string> $persistVolumes */
+        /** @var list<Service> $persistVolumes */
         $persistVolumes = [];
 
-        if ($database !== 'none') {
+        if ($database !== Service::None) {
             $serviceImpl = $this->registry->get($database);
             $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$database] = $defaultConfig;
+            $serviceConfigs[$database->name] = $defaultConfig;
             $persistVolumes[] = $database;
         }
 
         foreach ($services as $serviceName) {
             $serviceImpl = $this->registry->get($serviceName);
             $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$serviceName] = $defaultConfig;
+            $serviceConfigs[$serviceName->value] = $defaultConfig;
 
-            if (in_array($serviceName, ['redis', 'minio', 'elasticsearch', 'rabbitmq'], true)) {
+            if (in_array($serviceName, [Service::Redis, Service::Minio, Service::Elasticsearch, Service::RabbitMq], true)) {
                 $persistVolumes[] = $serviceName;
             }
         }
@@ -149,9 +105,9 @@ class InitCommand extends Command
         );
 
         // Show configuration summary
-        $this->showSummary($config, $database, $services, $xdebugEnabled, $projectType ?? null);
+        $this->showSummary($config, $database, $services, $xdebugEnabled, $projectType);
 
-        if (!confirm(label: 'Continue with this configuration?', default: true)) {
+        if (!confirm(label: 'Continue with this configuration?')) {
             info('Initialization cancelled.');
             return Command::SUCCESS;
         }
@@ -206,73 +162,69 @@ class InitCommand extends Command
         return basename($currentDir);
     }
 
-    private function selectDatabase(): string
+    private function selectDatabase(): Service
     {
         $choice = select(
             label: 'Select database (default: postgresql)',
-            options: ['postgresql', 'mysql', 'mariadb', 'sqlite', 'none'],
-            default: 'postgresql',
+            options: service::databases(),
+            default: Service::PostgreSQL->value,
         );
 
-        return (string) $choice;
+        return Service::from($choice);
     }
 
     /**
-     * @param ProjectType|null $projectType
-     * @return list<string>
+     * @param ProjectType $projectType
+     * @return list<Service>
      */
-    private function selectServices(?ProjectType $projectType): array
+    private function selectServices(ProjectType $projectType): array
     {
         $defaults = $this->getDefaultServices($projectType);
-
         $selected = multiselect(
             label: 'Select additional services',
-            options: ['redis', 'mailpit', 'minio', 'elasticsearch', 'rabbitmq'],
-            default: $defaults,
+            options: Service::services(),
+            default: array_map(fn(Service $service) => $service->value, $defaults),
         );
 
-        // Convert to list<string>
-        return array_values(array_map('strval', $selected));
+        // Convert to list<Service>
+        return array_values(
+            array_map(function (string $service) {
+                return Service::from($service);
+            }, $selected),
+        );
     }
 
     /**
-     * @param ProjectType|null $projectType
-     * @return list<string>
+     * @param ProjectType $projectType
+     * @return list<Service>
      */
-    private function getDefaultServices(?ProjectType $projectType): array
+    private function getDefaultServices(ProjectType $projectType): array
     {
-        if ($projectType === null) {
-            return ['redis'];
-        }
-
         return match ($projectType) {
-            ProjectType::WebApplication => ['redis', 'mailpit'],
-            ProjectType::ApiPlatform, ProjectType::Microservice => ['redis'],
-            ProjectType::Skeleton => [],
+            ProjectType::WebApplication => [Service::Redis, Service::Mailpit],
+            ProjectType::ApiPlatform, ProjectType::Microservice => [Service::Redis],
+            ProjectType::Skeleton, ProjectType::Existing => [],
         };
     }
 
     /**
-     * @param list<string> $services
+     * @param list<Service> $services
      */
     private function showSummary(
         Configuration $config,
-        string $database,
+        Service $database,
         array $services,
         bool $xdebugEnabled,
         ?ProjectType $projectType,
     ): void {
-        info('');
-        info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        info('Configuration Summary');
-        info('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
         if ($projectType !== null) {
             info('Project Type: ' . $projectType->getLabel());
         }
 
-        info('Database: ' . ($database === 'none' ? 'None' : ucfirst($database)));
-        info('Services: ' . (empty($services) ? 'None' : implode(', ', array_map('ucfirst', $services))));
+        info('Database: ' . ($database === Service::None ? 'None' : ucfirst($database->value)));
+        info('Services: ' . (empty($services) ? 'None' : implode(', ', array_map(function (Service $service) {
+            return ucfirst($service->value);
+        }, $services))));
         info('Xdebug: ' . ($xdebugEnabled ? 'Enabled' : 'Disabled'));
         info('PHP Version: 8.4');
         info('');
@@ -297,7 +249,6 @@ class InitCommand extends Command
         if (!file_exists($rootDockerfile)) {
             $shouldUseTemplate = confirm(
                 label: 'No Dockerfile found. Use Seaman\'s template Dockerfile?',
-                default: true,
             );
 
             if (!$shouldUseTemplate) {
@@ -364,5 +315,40 @@ class InitCommand extends Command
         }
 
         info('✓ Docker image built successfully!');
+    }
+
+    private function bootstrapSymfonyProject(string $projectRoot): ?ProjectType
+    {
+        $detection = $this->detector->detect($projectRoot);
+        if (!$detection->isSymfonyProject) {
+            $shouldBootstrap = confirm(
+                label: 'No Symfony application detected. Create new project?',
+            );
+
+            if (!$shouldBootstrap) {
+                info('Please create a Symfony project first, then run init again.');
+                return null;
+            }
+
+            // Bootstrap new Symfony project
+            $projectType = $this->selectProjectType();
+            $projectName = $this->getProjectName($projectRoot);
+
+            info('Creating Symfony project...');
+
+            if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
+                info('Failed to create Symfony project.');
+                return null;
+            }
+
+            // Change to new project directory
+            $projectRoot = dirname($projectRoot) . '/' . $projectName;
+            chdir($projectRoot);
+
+            info('Symfony project created successfully!');
+            return $projectType;
+        }
+
+        return ProjectType::Existing;
     }
 }

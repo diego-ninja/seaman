@@ -279,9 +279,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use Seaman\Service\ProjectBootstrapper;
-use Seaman\ValueObject\ProjectType;
-use Symfony\Component\Process\Process;
+use Seaman\Enum\ProjectType;use Seaman\Service\ProjectBootstrapper;
 
 test('bootstrap creates web application project', function (): void {
     $bootstrapper = new ProjectBootstrapper();
@@ -425,8 +423,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
-use Seaman\ValueObject\ProjectType;
-use Symfony\Component\Process\Process;
+use Seaman\Enum\ProjectType;use Symfony\Component\Process\Process;
 
 final readonly class ProjectBootstrapper
 {
@@ -705,9 +702,8 @@ private function getDefaultServices(?ProjectType $projectType): array
 Add these imports at the top of `src/Command/InitCommand.php`:
 
 ```php
-use Seaman\Service\SymfonyDetector;
-use Seaman\Service\ProjectBootstrapper;
-use Seaman\ValueObject\ProjectType;
+
+
 ```
 
 **Step 6: Run PHPStan to check types**

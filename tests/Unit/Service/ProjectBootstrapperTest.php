@@ -7,9 +7,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
+use Seaman\Enum\ProjectType;
 use Seaman\Service\ProjectBootstrapper;
-use Seaman\ValueObject\ProjectType;
-use Symfony\Component\Process\Process;
 
 test('bootstrap creates web application project', function (): void {
     $bootstrapper = new ProjectBootstrapper();
