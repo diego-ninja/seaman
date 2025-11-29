@@ -50,6 +50,14 @@ class BuildCommand extends Command
         $io->section('Building PHAR');
         $io->text('Using Box to compile seaman.phar...');
 
+        // Workaround: Remove problematic vendor-hotfix directory temporarily
+        $vendorHotfixPath = $projectRoot . '/vendor/humbug/php-scoper/vendor-hotfix';
+        $vendorHotfixBackup = null;
+        if (is_dir($vendorHotfixPath)) {
+            $vendorHotfixBackup = $projectRoot . '/vendor/humbug/php-scoper/.vendor-hotfix-backup';
+            rename($vendorHotfixPath, $vendorHotfixBackup);
+        }
+
         // Run box compile
         $process = new Process(
             [$boxPath, 'compile', '--working-dir=' . $projectRoot],
@@ -62,6 +70,11 @@ class BuildCommand extends Command
         $process->run(function (string $type, string $buffer) use ($output): void {
             $output->write($buffer);
         });
+
+        // Restore vendor-hotfix directory if it was backed up
+        if ($vendorHotfixBackup !== null && is_dir($vendorHotfixBackup)) {
+            rename($vendorHotfixBackup, $vendorHotfixPath);
+        }
 
         if (!$process->isSuccessful()) {
             $io->error('Failed to build PHAR');

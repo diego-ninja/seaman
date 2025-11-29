@@ -1,18 +1,14 @@
 {
-  "chmod": "0755",
-  "main": "bin/seaman.php",
   "output": "build/seaman.phar",
   "directories": [
     "src",
-    "vendor"
-  ],
-  "files": [
-    "composer.json"
+    "helpers"
   ],
   "finder": [
     {
       "name": "*.php",
       "exclude": [
+        "vendor-hotfix",
         "Tests",
         "tests",
         "test"
@@ -20,9 +16,11 @@
       "in": "vendor"
     }
   ],
+  "files": [
+    "composer.json"
+  ],
   "compression": "GZ",
   "compactors": [
     "KevinGH\\Box\\Compactor\\Php"
-  ],
-  "stub": true
+  ]
 }
