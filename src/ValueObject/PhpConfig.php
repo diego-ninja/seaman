@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // ABOUTME: PHP configuration value object.
-// ABOUTME: Validates PHP version and manages extensions.
+// ABOUTME: Validates PHP version and manages Xdebug configuration.
 
 namespace Seaman\ValueObject;
 
@@ -12,12 +12,8 @@ use Seaman\Enum\PhpVersion;
 
 final readonly class PhpConfig
 {
-    /**
-     * @param list<string> $extensions
-     */
     public function __construct(
         public PhpVersion $version,
-        public array $extensions,
         public XdebugConfig $xdebug,
     ) {
         if (!PhpVersion::isSupported($this->version)) {

@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class RabbitmqService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'rabbitmq';
+        return Service::RabbitMq->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'RabbitMQ';
+        return Service::RabbitMq->name;
     }
 
     public function getDescription(): string

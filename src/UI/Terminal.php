@@ -8,8 +8,8 @@ use Symfony\Component\Console\Formatter\OutputFormatterStyleInterface;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\StreamableInputInterface;
 use Symfony\Component\Console\Output\ConsoleOutput;
-
 use Symfony\Component\Console\Style\SymfonyStyle;
+
 use function Termwind\terminal;
 
 final class Terminal

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Ninja\Cosmic\Environment\Exception;
+namespace Seaman\Environment\Exception;
 
 use RuntimeException;
 
@@ -13,8 +13,8 @@ class EnvironmentNotFoundException extends RuntimeException
         return new self(
             message: sprintf(
                 'Environment file "%s" not found.',
-                $env_file
-            )
+                $env_file,
+            ),
         );
     }
 }

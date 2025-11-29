@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class MailpitService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'mailpit';
+        return Service::Mailpit->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'Mailpit';
+        return Service::Mailpit->name;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class MailpitService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'mailpit',
+            name: Service::Mailpit->value,
             enabled: false,
             type: 'mailpit',
             version: 'latest',

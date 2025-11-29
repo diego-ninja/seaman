@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class ElasticsearchService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'elasticsearch';
+        return Service::Elasticsearch->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'Elasticsearch';
+        return Service::Elasticsearch->name;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class ElasticsearchService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'elasticsearch',
+            name: Service::Elasticsearch->value,
             enabled: false,
             type: 'elasticsearch',
             version: '8.11',

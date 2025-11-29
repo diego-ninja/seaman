@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class MinioService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'minio';
+        return Service::MinIO->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'MinIO';
+        return Service::MinIO->name;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class MinioService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'minio',
+            name: Service::MinIO->value,
             enabled: false,
             type: 'minio',
             version: 'latest',

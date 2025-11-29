@@ -1,6 +1,8 @@
 <?php
 
-namespace Seaman\Environment\Enum;
+declare(strict_types=1);
+
+namespace Seaman\Enum;
 
 enum Environment: string
 {
@@ -12,10 +14,5 @@ enum Environment: string
     public static function default(): self
     {
         return self::Local;
-    }
-
-    public static function current(): self
-    {
-
     }
 }

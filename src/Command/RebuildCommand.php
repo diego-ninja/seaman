@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\DockerManager;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -28,14 +29,18 @@ class RebuildCommand extends Command
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/seaman.yaml')) {
+        if (!file_exists($projectRoot . '/.seaman/seaman.yaml')) {
             $io->error('seaman.yaml not found. Run "seaman init" first.');
             return Command::FAILURE;
         }
 
+        // Load configuration to get PHP version
+        $configManager = new ConfigManager($projectRoot);
+        $config = $configManager->load();
+
         // Build Docker image
         $io->info('Building Docker image...');
-        $builder = new DockerImageBuilder($projectRoot);
+        $builder = new DockerImageBuilder($projectRoot, $config->php->version);
         $buildResult = $builder->build();
 
         if (!$buildResult->isSuccessful()) {

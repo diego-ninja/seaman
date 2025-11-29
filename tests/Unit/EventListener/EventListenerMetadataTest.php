@@ -14,7 +14,7 @@ test('metadata can be created with all properties', function (): void {
     $metadata = new EventListenerMetadata(
         className: 'App\\Listener\\MyListener',
         event: ConsoleEvents::COMMAND,
-        priority: 100
+        priority: 100,
     );
 
     expect($metadata->className)->toBe('App\\Listener\\MyListener');

@@ -29,7 +29,8 @@ class Spinner
     private int $padding = self::DEFAULT_SPINNER_PADDING;
     private string $message;
 
-    public function __construct(string $style = self::DEFAULT_SPINNER_STYLE) {
+    public function __construct(string $style = self::DEFAULT_SPINNER_STYLE)
+    {
         $spinners = json_decode(file_get_contents(__DIR__ . "/spinners.json"), true);
         $this->spinner = $spinners[$style] ?? null;
     }

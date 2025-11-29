@@ -36,6 +36,9 @@ final readonly class ProjectBootstrapper
             ProjectType::ApiPlatform => throw new \InvalidArgumentException(
                 'API Platform requires multiple commands. Use getBootstrapCommands() instead.',
             ),
+            ProjectType::Existing => throw new \InvalidArgumentException(
+                'Cannot bootstrap an existing project.',
+            ),
         };
     }
 

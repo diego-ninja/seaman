@@ -63,7 +63,13 @@ class ServiceAddCommand extends Command
         $selected = array_map('trim', explode(',', $selected));
 
         foreach ($selected as $serviceName) {
-            $service = $this->registry->get($serviceName);
+            $serviceEnum = \Seaman\Enum\Service::tryFrom($serviceName);
+            if ($serviceEnum === null) {
+                $io->error("Unknown service: {$serviceName}");
+                continue;
+            }
+
+            $service = $this->registry->get($serviceEnum);
             $defaultConfig = $service->getDefaultConfig();
 
             $serviceConfig = new \Seaman\ValueObject\ServiceConfig(

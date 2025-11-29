@@ -13,7 +13,7 @@ use Symfony\Component\Console\ConsoleEvents;
 test('attribute can be instantiated with event and priority', function (): void {
     $attribute = new AsEventListener(
         event: ConsoleEvents::COMMAND,
-        priority: 100
+        priority: 100,
     );
 
     expect($attribute->event)->toBe(ConsoleEvents::COMMAND);
@@ -41,7 +41,5 @@ test('attribute can be read from class via reflection', function (): void {
 #[\Seaman\Attribute\AsEventListener(event: ConsoleEvents::TERMINATE, priority: 50)]
 class TestListener
 {
-    public function __invoke(object $event): void
-    {
-    }
+    public function __invoke(object $event): void {}
 }

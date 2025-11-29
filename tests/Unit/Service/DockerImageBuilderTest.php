@@ -11,6 +11,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
+use Seaman\Enum\PhpVersion;
 use Seaman\Service\DockerImageBuilder;
 use Seaman\ValueObject\ProcessResult;
 
@@ -33,14 +34,14 @@ afterEach(function (): void {
 });
 
 test('build returns ProcessResult', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
     $result = $builder->build();
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
 });
 
 test('build uses correct docker command', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
     $result = $builder->build();
 
     // Should tag as seaman/seaman:latest (can appear in either output or errorOutput)
@@ -49,7 +50,7 @@ test('build uses correct docker command', function (): void {
 });
 
 test('build completes successfully', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
     $result = $builder->build();
 
     // Build should complete successfully with Docker available

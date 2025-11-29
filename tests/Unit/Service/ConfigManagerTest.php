@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service;
 
+use Seaman\Enum\PhpVersion;
 use Seaman\Service\ConfigManager;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
@@ -51,8 +52,6 @@ test('loads configuration from YAML', function () {
 
     expect($config)->toBeInstanceOf(Configuration::class)
         ->and($config->version)->toBe('1.0')
-        ->and($config->php->version)->toBe('8.4')
-        ->and($config->php->extensions)->toBe(['pdo_pgsql', 'redis'])
         ->and($config->php->xdebug->enabled)->toBe(false)
         ->and($config->php->xdebug->ideKey)->toBe('PHPSTORM')
         ->and($config->php->xdebug->clientHost)->toBe('host.docker.internal')
@@ -82,7 +81,7 @@ test('throws exception when YAML is invalid', function () {
 
 test('saves configuration to YAML', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
-    $php = new PhpConfig('8.4', ['pdo_pgsql'], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
@@ -94,17 +93,17 @@ test('saves configuration to YAML', function () {
 
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
-    $yamlPath = $tempDir . '/seaman.yaml';
+    $yamlPath = $tempDir . '/.seaman/seaman.yaml';
     expect(file_exists($yamlPath))->toBeTrue();
 
     $loadedConfig = $manager->load();
     expect($loadedConfig->version)->toBe('1.0')
-        ->and($loadedConfig->php->version)->toBe('8.4');
+        ->and($loadedConfig->php->version)->toBe(PhpVersion::Php84);
 });
 
 test('generates .env file when saving', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
-    $php = new PhpConfig('8.4', [], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
@@ -127,7 +126,7 @@ test('generates .env file when saving', function () {
 
 test('merges service into existing configuration', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
-    $php = new PhpConfig('8.4', [], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $existingService = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
     $services = new ServiceCollection(['postgresql' => $existingService]);
     $volumes = new VolumeConfig(['database']);
@@ -160,7 +159,7 @@ test('merges service into existing configuration', function () {
 
 test('merge preserves existing configuration', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
-    $php = new PhpConfig('8.4', ['pdo_pgsql'], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
@@ -172,6 +171,5 @@ test('merge preserves existing configuration', function () {
     $manager = $this->manager;
     $merged = $manager->merge($baseConfig, $overrides);
 
-    expect($merged->php->version)->toBe('8.4')
-        ->and($merged->php->extensions)->toBe(['pdo_pgsql']);
+    expect($merged->php->version)->toBe(PhpVersion::Php84);
 });

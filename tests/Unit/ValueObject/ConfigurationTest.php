@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\ValueObject;
 
+use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -15,7 +16,7 @@ use Seaman\ValueObject\XdebugConfig;
 
 test('creates complete configuration', function (): void {
     $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
-    $php = new PhpConfig('8.4', ['intl', 'opcache'], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
@@ -34,7 +35,7 @@ test('creates complete configuration', function (): void {
 
 test('configuration is immutable', function (): void {
     $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
-    $php = new PhpConfig('8.4', ['intl'], $xdebug);
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// ABOUTME: MySQL database service implementation.
-// ABOUTME: Configures MySQL container for Seaman.
+// ABOUTME: MongoDB NoSQL database service implementation.
+// ABOUTME: Configures MongoDB container for Seaman.
 
 namespace Seaman\Service\Container;
 
@@ -11,21 +11,21 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MysqlService implements ServiceInterface
+readonly class MongodbService implements ServiceInterface
 {
     public function getName(): string
     {
-        return Service::MySQL->value;
+        return Service::MongoDB->value;
     }
 
     public function getDisplayName(): string
     {
-        return Service::MySQL->name;
+        return Service::MongoDB->name;
     }
 
     public function getDescription(): string
     {
-        return 'MySQL relational database';
+        return 'MongoDB NoSQL database';
     }
 
     /**
@@ -39,17 +39,16 @@ readonly class MysqlService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::MySQL->value,
+            name: Service::MongoDB->value,
             enabled: false,
-            type: 'mysql',
-            version: '8.0',
-            port: 3306,
+            type: 'mongodb',
+            version: '7',
+            port: 27017,
             additionalPorts: [],
             environmentVariables: [
-                'MYSQL_DATABASE' => 'seaman',
-                'MYSQL_USER' => 'seaman',
-                'MYSQL_PASSWORD' => 'seaman',
-                'MYSQL_ROOT_PASSWORD' => 'root',
+                'MONGO_INITDB_ROOT_USERNAME' => 'seaman',
+                'MONGO_INITDB_ROOT_PASSWORD' => 'seaman',
+                'MONGO_INITDB_DATABASE' => 'seaman',
             ],
         );
     }
@@ -63,13 +62,13 @@ readonly class MysqlService implements ServiceInterface
         $healthCheck = $this->getHealthCheck();
 
         $composeConfig = [
-            'image' => 'mysql:' . $config->version,
+            'image' => 'mongo:' . $config->version,
             'environment' => $config->environmentVariables,
             'ports' => [
-                $config->port . ':3306',
+                $config->port . ':27017',
             ],
             'volumes' => [
-                'mysql_data:/var/lib/mysql',
+                'mongodb_data:/data/db',
             ],
         ];
 
@@ -90,13 +89,13 @@ readonly class MysqlService implements ServiceInterface
      */
     public function getRequiredPorts(): array
     {
-        return [3306];
+        return [27017];
     }
 
     public function getHealthCheck(): ?HealthCheck
     {
         return new HealthCheck(
-            test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
+            test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")'],
             interval: '10s',
             timeout: '5s',
             retries: 5,

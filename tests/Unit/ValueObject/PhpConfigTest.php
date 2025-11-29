@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\ValueObject;
 
+use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\XdebugConfig;
 
@@ -22,35 +23,32 @@ test('creates xdebug config', function () {
         ->and($config->clientHost)->toBe('host.docker.internal');
 });
 
-test('creates php config with extensions', function () {
+test('creates php config', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $config = new PhpConfig(
-        version: '8.4',
-        extensions: ['pdo_pgsql', 'redis', 'intl'],
+        version: PhpVersion::Php84,
         xdebug: $xdebug,
     );
 
-    expect($config->version)->toBe('8.4')
-        ->and($config->extensions)->toBe(['pdo_pgsql', 'redis', 'intl'])
+    expect($config->version)->toBe(PhpVersion::Php84)
         ->and($config->xdebug)->toBe($xdebug);
 });
 
 test('rejects invalid php version', function () {
+    // PHP 8.2 is not supported (only 8.3, 8.4, 8.5)
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     new PhpConfig(
-        version: '7.4',
-        extensions: [],
+        version: PhpVersion::Php82,
         xdebug: $xdebug,
     );
 })->throws(\InvalidArgumentException::class, 'Unsupported PHP version');
 
-test('accepts valid php versions', function (string $version) {
+test('accepts valid php versions', function (PhpVersion $version) {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $config = new PhpConfig(
         version: $version,
-        extensions: [],
         xdebug: $xdebug,
     );
 
     expect($config->version)->toBe($version);
-})->with(['8.2', '8.3', '8.4']);
+})->with([PhpVersion::Php83, PhpVersion::Php84, PhpVersion::Php85]);

@@ -7,6 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Exception;
+use RuntimeException;
+use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -23,25 +26,25 @@ readonly class ConfigManager
 
     public function load(): Configuration
     {
-        $yamlPath = $this->projectRoot . '/seaman.yaml';
+        $yamlPath = $this->projectRoot . '/.seaman/seaman.yaml';
 
         if (!file_exists($yamlPath)) {
-            throw new \RuntimeException('seaman.yaml not found at ' . $yamlPath);
+            throw new RuntimeException('seaman.yaml not found at ' . $yamlPath);
         }
 
         $content = file_get_contents($yamlPath);
         if ($content === false) {
-            throw new \RuntimeException('Failed to read seaman.yaml');
+            throw new RuntimeException('Failed to read seaman.yaml');
         }
 
         try {
             $data = Yaml::parse($content);
-        } catch (\Exception $e) {
-            throw new \RuntimeException('Failed to parse YAML: ' . $e->getMessage(), 0, $e);
+        } catch (Exception $e) {
+            throw new RuntimeException('Failed to parse YAML: ' . $e->getMessage(), 0, $e);
         }
 
         if (!is_array($data)) {
-            throw new \RuntimeException('Invalid YAML structure');
+            throw new RuntimeException('Invalid YAML structure');
         }
 
         /** @var array<string, mixed> $data */
@@ -53,37 +56,29 @@ readonly class ConfigManager
      */
     private function parseConfiguration(array $data): Configuration
     {
-        // Check for old config format with server field
-        if (isset($data['server'])) {
-            throw new \RuntimeException(
-                'Old configuration format detected. The "server" field is no longer supported. ' .
-                'Please run "seaman init" to reinitialize your configuration.'
-            );
-        }
-
         $phpData = $data['php'] ?? [];
         if (!is_array($phpData)) {
-            throw new \RuntimeException('Invalid PHP configuration');
+            throw new RuntimeException('Invalid PHP configuration');
         }
 
         $xdebugData = $phpData['xdebug'] ?? [];
         if (!is_array($xdebugData)) {
-            throw new \RuntimeException('Invalid xdebug configuration');
+            throw new RuntimeException('Invalid xdebug configuration');
         }
 
         $xdebugEnabled = $xdebugData['enabled'] ?? false;
         if (!is_bool($xdebugEnabled)) {
-            throw new \RuntimeException('Xdebug enabled must be a boolean');
+            throw new RuntimeException('Xdebug enabled must be a boolean');
         }
 
         $xdebugIdeKey = $xdebugData['ide_key'] ?? 'PHPSTORM';
         if (!is_string($xdebugIdeKey)) {
-            throw new \RuntimeException('Xdebug IDE key must be a string');
+            throw new RuntimeException('Xdebug IDE key must be a string');
         }
 
         $xdebugClientHost = $xdebugData['client_host'] ?? 'host.docker.internal';
         if (!is_string($xdebugClientHost)) {
-            throw new \RuntimeException('Xdebug client host must be a string');
+            throw new RuntimeException('Xdebug client host must be a string');
         }
 
         $xdebug = new XdebugConfig(
@@ -92,32 +87,18 @@ readonly class ConfigManager
             clientHost: $xdebugClientHost,
         );
 
-        $extensions = $phpData['extensions'] ?? [];
-        if (!is_array($extensions)) {
-            throw new \RuntimeException('Invalid extensions configuration');
-        }
-
-        $phpVersion = $phpData['version'] ?? '8.4';
-        if (!is_string($phpVersion)) {
-            throw new \RuntimeException('PHP version must be a string');
-        }
-
-        $extensionsList = [];
-        foreach ($extensions as $extension) {
-            if (is_string($extension)) {
-                $extensionsList[] = $extension;
-            }
-        }
+        $versionString = $phpData['version'] ?? null;
+        $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
+        $phpVersion = $phpVersion ?? PhpVersion::Php84;
 
         $php = new PhpConfig(
             version: $phpVersion,
-            extensions: $extensionsList,
             xdebug: $xdebug,
         );
 
         $servicesData = $data['services'] ?? [];
         if (!is_array($servicesData)) {
-            throw new \RuntimeException('Invalid services configuration');
+            throw new RuntimeException('Invalid services configuration');
         }
 
         /** @var array<string, ServiceConfig> $services */
@@ -164,12 +145,9 @@ readonly class ConfigManager
                 $environmentVariables = [];
             }
             /** @var array<string, string> $envVars */
-            $envVars = [];
-            foreach ($environmentVariables as $key => $value) {
-                if (is_string($key) && is_string($value)) {
-                    $envVars[$key] = $value;
-                }
-            }
+            $envVars = array_filter($environmentVariables, function ($value, $key) {
+                return is_string($key) && is_string($value);
+            }, ARRAY_FILTER_USE_BOTH);
 
             $services[$name] = new ServiceConfig(
                 name: $name,
@@ -184,12 +162,12 @@ readonly class ConfigManager
 
         $volumesData = $data['volumes'] ?? [];
         if (!is_array($volumesData)) {
-            throw new \RuntimeException('Invalid volumes configuration');
+            throw new RuntimeException('Invalid volumes configuration');
         }
 
         $persistData = $volumesData['persist'] ?? [];
         if (!is_array($persistData)) {
-            throw new \RuntimeException('Invalid persist configuration');
+            throw new RuntimeException('Invalid persist configuration');
         }
 
         /** @var list<string> $persistList */
@@ -222,8 +200,7 @@ readonly class ConfigManager
         $data = [
             'version' => $config->version,
             'php' => [
-                'version' => $config->php->version,
-                'extensions' => $config->php->extensions,
+                'version' => $config->php->version->value,
                 'xdebug' => [
                     'enabled' => $config->php->xdebug->enabled,
                     'ide_key' => $config->php->xdebug->ideKey,
@@ -254,10 +231,17 @@ readonly class ConfigManager
         }
 
         $yamlContent = Yaml::dump($data, 4, 2);
-        $yamlPath = $this->projectRoot . '/seaman.yaml';
+
+        // Ensure .seaman directory exists
+        $seamanDir = $this->projectRoot . '/.seaman';
+        if (!is_dir($seamanDir)) {
+            mkdir($seamanDir, 0755, true);
+        }
+
+        $yamlPath = $seamanDir . '/seaman.yaml';
 
         if (file_put_contents($yamlPath, $yamlContent) === false) {
-            throw new \RuntimeException('Failed to write seaman.yaml');
+            throw new RuntimeException('Failed to write seaman.yaml');
         }
 
         $this->generateEnv($config);
@@ -300,26 +284,12 @@ readonly class ConfigManager
             clientHost: $xdebugClientHost,
         );
 
-        $phpVersion = $phpData['version'] ?? $base->php->version;
-        if (!is_string($phpVersion)) {
-            $phpVersion = $base->php->version;
-        }
-
-        $phpExtensions = $phpData['extensions'] ?? $base->php->extensions;
-        if (!is_array($phpExtensions)) {
-            $phpExtensions = $base->php->extensions;
-        }
-
-        $extensionsList = [];
-        foreach ($phpExtensions as $extension) {
-            if (is_string($extension)) {
-                $extensionsList[] = $extension;
-            }
-        }
+        $versionString = $phpData['version'] ?? null;
+        $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
+        $phpVersion = $phpVersion ?? $base->php->version;
 
         $php = new PhpConfig(
             version: $phpVersion,
-            extensions: $extensionsList,
             xdebug: $xdebug,
         );
 
@@ -369,12 +339,9 @@ readonly class ConfigManager
                     $environmentVariables = [];
                 }
                 /** @var array<string, string> $envVars */
-                $envVars = [];
-                foreach ($environmentVariables as $key => $value) {
-                    if (is_string($key) && is_string($value)) {
-                        $envVars[$key] = $value;
-                    }
-                }
+                $envVars = array_filter($environmentVariables, function ($value, $key) {
+                    return is_string($key) && is_string($value);
+                }, ARRAY_FILTER_USE_BOTH);
 
                 $mergedServices[$name] = new ServiceConfig(
                     name: $name,
@@ -431,7 +398,7 @@ readonly class ConfigManager
             'APP_PORT=8000',
             '',
             '# PHP configuration',
-            'PHP_VERSION=' . $config->php->version,
+            'PHP_VERSION=' . $config->php->version->value,
             '',
             '# Xdebug configuration',
             'XDEBUG_MODE=' . ($config->php->xdebug->enabled ? 'debug' : 'off'),
@@ -455,7 +422,7 @@ readonly class ConfigManager
         $envPath = $this->projectRoot . '/.env';
 
         if (file_put_contents($envPath, $envContent) === false) {
-            throw new \RuntimeException('Failed to write .env');
+            throw new RuntimeException('Failed to write .env');
         }
     }
 }

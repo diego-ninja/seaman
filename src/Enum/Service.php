@@ -8,14 +8,14 @@ enum Service: string
 {
     case MySQL = 'mysql';
     case SQLite = 'sqlite';
-    case PostgreSQL = 'pgsql';
+    case PostgreSQL = 'postgresql';
     case MariaDB = 'mariadb';
     case MongoDB = 'mongodb';
 
     case Redis = 'redis';
     case Memcached = 'memcached';
     case Mailpit = 'mailpit';
-    case Minio = 'minio';
+    case MinIO = 'minio';
     case Elasticsearch = 'elasticsearch';
     case Kafka = 'kafka';
     case RabbitMq = 'rabbitmq';
@@ -31,7 +31,7 @@ enum Service: string
             self::Redis->value,
             self::Memcached->value,
             self::Mailpit->value,
-            self::Minio->value,
+            self::MinIO->value,
             self::Elasticsearch->value,
             self::Kafka->value,
             self::RabbitMq->value,

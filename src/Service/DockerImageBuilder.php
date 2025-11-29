@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\ProcessResult;
 use Symfony\Component\Process\Process;
 
@@ -14,6 +15,7 @@ readonly class DockerImageBuilder
 {
     public function __construct(
         private string $projectRoot,
+        private PhpVersion $phpVersion,
     ) {}
 
     /**
@@ -34,6 +36,8 @@ readonly class DockerImageBuilder
             '.seaman/Dockerfile',
             '--build-arg',
             "WWWGROUP={$wwwgroup}",
+            '--build-arg',
+            "PHP_VERSION={$this->phpVersion->value}",
             '.',
         ];
 

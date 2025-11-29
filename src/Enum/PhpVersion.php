@@ -1,10 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Seaman\Enum;
 
 enum PhpVersion: string
 {
-    case Php82 = '8.2';
     case Php83 = '8.3';
     case Php84 = '8.4';
     case Php85 = '8.5';
@@ -12,7 +13,7 @@ enum PhpVersion: string
 
     public static function isSupported(self $phpVersion): bool
     {
-        return $phpVersion === self::Php84;
+        return in_array($phpVersion, PhpVersion::supported(), true);
     }
 
     /**
@@ -21,6 +22,7 @@ enum PhpVersion: string
     public static function supported(): array
     {
         return [
+            self::Php83,
             self::Php84,
             self::Php85,
         ];

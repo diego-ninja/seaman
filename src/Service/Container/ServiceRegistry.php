@@ -7,7 +7,6 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
-use Seaman\Enum\Database;
 use Seaman\Enum\Service;
 use Seaman\ValueObject\Configuration;
 
@@ -21,7 +20,7 @@ class ServiceRegistry
         $this->services[$service->getName()] = $service;
     }
 
-    public function get(Database|Service $name): ServiceInterface
+    public function get(Service $name): ServiceInterface
     {
         if (!isset($this->services[$name->value])) {
             throw new \InvalidArgumentException("Service '{$name->value}' not found");

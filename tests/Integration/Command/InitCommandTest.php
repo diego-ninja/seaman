@@ -45,7 +45,7 @@ test('project bootstrapper generates correct commands', function (): void {
     $command = $bootstrapper->getBootstrapCommand(
         ProjectType::WebApplication,
         'test-app',
-        '/tmp'
+        '/tmp',
     );
 
     expect($command)->toContain('symfony');

@@ -7,7 +7,7 @@ namespace Seaman\Environment;
 use Dotenv\Repository\Adapter\PutenvAdapter;
 use Dotenv\Repository\RepositoryBuilder;
 use Dotenv\Repository\RepositoryInterface;
-use Seaman\Environment\Enum\Environment;
+use Seaman\Enum\Environment;
 use Phar;
 use PhpOption\Option;
 
@@ -74,8 +74,19 @@ class Env
      */
     public static function basePath(?string $dir = null): string
     {
-        $base_path = is_phar() ? Phar::running() : self::get("BASE_PATH", getcwd());
-        return $dir ? sprintf("%s/%s", $base_path, $dir) : $base_path;
+        $cwd = getcwd();
+        if ($cwd === false) {
+            throw new \RuntimeException('Unable to determine current working directory');
+        }
+
+        if (is_phar()) {
+            $basePath = Phar::running();
+        } else {
+            $basePathValue = self::get("BASE_PATH", $cwd);
+            $basePath = is_string($basePathValue) ? $basePathValue : $cwd;
+        }
+
+        return $dir ? sprintf("%s/%s", $basePath, $dir) : $basePath;
     }
 
     /**
@@ -83,11 +94,18 @@ class Env
      *
      * @param string|null $dir Subdirectory (optional)
      */
-    public static function buildPath(?string $dir = null): ?string
+    public static function buildPath(?string $dir = null): string
     {
-        $default    = self::basePath("build");
-        $build_path = is_phar() ? $default : self::get("BUILD_PATH", $default);
-        return $dir ? sprintf("%s/%s", $build_path, $dir) : $build_path;
+        $default = self::basePath("build");
+
+        if (is_phar()) {
+            $buildPath = $default;
+        } else {
+            $buildPathValue = self::get("BUILD_PATH", $default);
+            $buildPath = is_string($buildPathValue) ? $buildPathValue : $default;
+        }
+
+        return $dir ? sprintf("%s/%s", $buildPath, $dir) : $buildPath;
     }
 
     /**
@@ -95,7 +113,9 @@ class Env
      */
     public static function current(): Environment
     {
-        return Environment::tryFrom((string) self::get('APP_ENV')) ?? Environment::default();
+        $env = self::get('APP_ENV');
+        $envString = is_string($env) ? $env : '';
+        return Environment::tryFrom($envString) ?? Environment::default();
     }
 
     /**

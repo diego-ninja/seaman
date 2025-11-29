@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class RedisService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'redis';
+        return Service::Redis->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'Redis';
+        return Service::Redis->name;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class RedisService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'redis',
+            name: Service::Redis->value,
             enabled: true,
             type: 'redis',
             version: '7-alpine',

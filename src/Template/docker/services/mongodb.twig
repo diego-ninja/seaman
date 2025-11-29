@@ -1,0 +1,19 @@
+  {{ name }}:
+    image: mongo:{{ service.version }}
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-seaman}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-seaman}
+      - MONGO_INITDB_DATABASE=${MONGO_DB:-seaman}
+    ports:
+      - "${MONGO_PORT}:27017"
+    networks:
+      - seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+      - {{ name }}:/data/db
+{% endif %}
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

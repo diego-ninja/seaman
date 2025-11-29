@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class MariadbService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'mariadb';
+        return Service::MariaDB->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'MariaDB';
+        return Service::MariaDB->name;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class MariadbService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'mariadb',
+            name: Service::MariaDB->value,
             enabled: false,
             type: 'mariadb',
             version: '11',

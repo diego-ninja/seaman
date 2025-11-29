@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
+use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
@@ -26,6 +28,7 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
@@ -36,7 +39,7 @@ use function Laravel\Prompts\select;
     description: 'Initialize Seaman configuration interactively',
     aliases: ['init'],
 )]
-class InitCommand extends AbstractSeamanCommand
+class InitCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
         private readonly ServiceRegistry $registry,
@@ -51,7 +54,7 @@ class InitCommand extends AbstractSeamanCommand
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
-        if (file_exists($projectRoot . '/seaman.yaml')) {
+        if (file_exists($projectRoot . '/.seaman/seaman.yaml')) {
             if (!confirm(
                 label: 'seaman.yaml already exists. Overwrite?',
                 default: false,
@@ -62,18 +65,11 @@ class InitCommand extends AbstractSeamanCommand
         }
 
         $projectType = $this->bootstrapSymfonyProject($projectRoot);
-        if ($projectType === null) {
-            return Command::FAILURE;
-        }
-
-        // Continue with Docker configuration...
+        $phpVersion = $this->selectPhpVersion();
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
-        $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
-
-        // Build configuration
-        $xdebug = new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
-        $php = new PhpConfig('8.4', [], $xdebug);
+        $xdebug = $this->enableXdebug();
+        $php = new PhpConfig($phpVersion, $xdebug);
 
         /** @var array<string, ServiceConfig> $serviceConfigs */
         $serviceConfigs = [];
@@ -83,16 +79,32 @@ class InitCommand extends AbstractSeamanCommand
         if ($database !== Service::None) {
             $serviceImpl = $this->registry->get($database);
             $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$database->name] = $defaultConfig;
+            $serviceConfigs[$database->value] = new ServiceConfig(
+                name: $defaultConfig->name,
+                enabled: true,
+                type: $defaultConfig->type,
+                version: $defaultConfig->version,
+                port: $defaultConfig->port,
+                additionalPorts: $defaultConfig->additionalPorts,
+                environmentVariables: $defaultConfig->environmentVariables,
+            );
             $persistVolumes[] = $database;
         }
 
         foreach ($services as $serviceName) {
             $serviceImpl = $this->registry->get($serviceName);
             $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$serviceName->value] = $defaultConfig;
+            $serviceConfigs[$serviceName->value] = new ServiceConfig(
+                name: $defaultConfig->name,
+                enabled: true,
+                type: $defaultConfig->type,
+                version: $defaultConfig->version,
+                port: $defaultConfig->port,
+                additionalPorts: $defaultConfig->additionalPorts,
+                environmentVariables: $defaultConfig->environmentVariables,
+            );
 
-            if (in_array($serviceName, [Service::Redis, Service::Minio, Service::Elasticsearch, Service::RabbitMq], true)) {
+            if (in_array($serviceName, [Service::Redis, Service::Memcached, Service::MinIO, Service::Elasticsearch, Service::RabbitMq, Service::MongoDB], true)) {
                 $persistVolumes[] = $serviceName;
             }
         }
@@ -105,7 +117,7 @@ class InitCommand extends AbstractSeamanCommand
         );
 
         // Show configuration summary
-        $this->showSummary($config, $database, $services, $xdebugEnabled, $projectType);
+        $this->showSummary($config, $database, $services, $xdebug->enabled, $projectType);
 
         if (!confirm(label: 'Continue with this configuration?')) {
             info('Initialization cancelled.');
@@ -173,6 +185,70 @@ class InitCommand extends AbstractSeamanCommand
         return Service::from($choice);
     }
 
+    private function selectPhpVersion(): PhpVersion
+    {
+        $detectedVersion = $this->detectPhpVersionFromComposer();
+        $defaultVersion = $detectedVersion ?? PhpVersion::Php84;
+
+        $choice = select(
+            label: sprintf('Select PHP version (default: %s)', $defaultVersion->value),
+            options: array_map(fn(PhpVersion $version): string => $version->value, PhpVersion::supported()),
+            default: $defaultVersion->value,
+        );
+
+        return PhpVersion::from($choice);
+    }
+
+    private function detectPhpVersionFromComposer(): ?PhpVersion
+    {
+        $composerPath = (string) getcwd() . '/composer.json';
+        if (!file_exists($composerPath)) {
+            return null;
+        }
+
+        $composerContent = file_get_contents($composerPath);
+        if ($composerContent === false) {
+            return null;
+        }
+
+        /** @var mixed $composer */
+        $composer = json_decode($composerContent, true);
+        if (!is_array($composer)) {
+            return null;
+        }
+
+        /** @var array<string, mixed> $composer */
+        $require = $composer['require'] ?? null;
+        if (!is_array($require)) {
+            return null;
+        }
+
+        $phpRequirement = $require['php'] ?? null;
+        if (!is_string($phpRequirement)) {
+            return null;
+        }
+
+        // Parse PHP version from requirement like "^8.4", ">=8.3", "~8.4.0", etc.
+        if (preg_match('/(\d+\.\d+)/', $phpRequirement, $matches)) {
+            $versionString = $matches[1];
+            $phpVersion = PhpVersion::tryFrom($versionString);
+
+            // If detected version is supported, return it
+            if ($phpVersion !== null && PhpVersion::isSupported($phpVersion)) {
+                return $phpVersion;
+            }
+        }
+
+        return null;
+    }
+
+    private function enableXdebug(): XdebugConfig
+    {
+        $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
+        return new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
+
+    }
+
     /**
      * @param ProjectType $projectType
      * @return list<Service>
@@ -180,6 +256,7 @@ class InitCommand extends AbstractSeamanCommand
     private function selectServices(ProjectType $projectType): array
     {
         $defaults = $this->getDefaultServices($projectType);
+        /** @var array<int, string> $selected */
         $selected = multiselect(
             label: 'Select additional services',
             options: Service::services(),
@@ -188,9 +265,7 @@ class InitCommand extends AbstractSeamanCommand
 
         // Convert to list<Service>
         return array_values(
-            array_map(function (string $service) {
-                return Service::from($service);
-            }, $selected),
+            array_map(fn(string $service): Service => Service::from($service), $selected),
         );
     }
 
@@ -244,29 +319,6 @@ class InitCommand extends AbstractSeamanCommand
             mkdir($seamanDir, 0755, true);
         }
 
-        // Handle Dockerfile
-        $rootDockerfile = $projectRoot . '/Dockerfile';
-        if (!file_exists($rootDockerfile)) {
-            $shouldUseTemplate = confirm(
-                label: 'No Dockerfile found. Use Seaman\'s template Dockerfile?',
-            );
-
-            if (!$shouldUseTemplate) {
-                info('Please add a Dockerfile to your project root and run init again.');
-                throw new \RuntimeException('Dockerfile required');
-            }
-
-            // Copy Seaman's template Dockerfile
-            $templateDockerfile = __DIR__ . '/../../Dockerfile';
-            if (!file_exists($templateDockerfile)) {
-                info('Seaman template Dockerfile not found.');
-                throw new \RuntimeException('Template Dockerfile missing');
-            }
-
-            copy($templateDockerfile, $rootDockerfile);
-            info('✓ Copied Seaman template Dockerfile to project root');
-        }
-
         $templateDir = __DIR__ . '/../Template';
         $renderer = new TemplateRenderer($templateDir);
 
@@ -300,12 +352,17 @@ class InitCommand extends AbstractSeamanCommand
         file_put_contents($seamanScriptDir . '/xdebug-toggle.sh', $xdebugScript);
         chmod($seamanScriptDir . '/xdebug-toggle.sh', 0755);
 
-        // Copy root Dockerfile to .seaman/ (after xdebug script is created)
-        copy($rootDockerfile, $seamanDir . '/Dockerfile');
+        // Copy Dockerfile template to .seaman/
+        $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
+        if (!file_exists($templateDockerfile)) {
+            info('Seaman Dockerfile template not found.');
+            throw new \RuntimeException('Template Dockerfile missing');
+        }
+        copy($templateDockerfile, $seamanDir . '/Dockerfile');
 
         // Build Docker image
         info('Building Docker image...');
-        $builder = new DockerImageBuilder($projectRoot);
+        $builder = new DockerImageBuilder($projectRoot, $config->php->version);
         $result = $builder->build();
 
         if (!$result->isSuccessful()) {
@@ -317,7 +374,7 @@ class InitCommand extends AbstractSeamanCommand
         info('✓ Docker image built successfully!');
     }
 
-    private function bootstrapSymfonyProject(string $projectRoot): ?ProjectType
+    private function bootstrapSymfonyProject(string $projectRoot): ProjectType
     {
         $detection = $this->detector->detect($projectRoot);
         if (!$detection->isSymfonyProject) {
@@ -327,7 +384,7 @@ class InitCommand extends AbstractSeamanCommand
 
             if (!$shouldBootstrap) {
                 info('Please create a Symfony project first, then run init again.');
-                return null;
+                exit(Command::FAILURE);
             }
 
             // Bootstrap new Symfony project
@@ -338,7 +395,7 @@ class InitCommand extends AbstractSeamanCommand
 
             if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
                 info('Failed to create Symfony project.');
-                return null;
+                exit(Command::FAILURE);
             }
 
             // Change to new project directory

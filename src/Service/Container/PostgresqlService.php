@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
@@ -14,12 +15,12 @@ readonly class PostgresqlService implements ServiceInterface
 {
     public function getName(): string
     {
-        return 'postgresql';
+        return Service::PostgreSQL->value;
     }
 
     public function getDisplayName(): string
     {
-        return 'PostgreSQL';
+        return Service::PostgreSQL->value;
     }
 
     public function getDescription(): string
@@ -38,7 +39,7 @@ readonly class PostgresqlService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'postgresql',
+            name: Service::PostgreSQL->value,
             enabled: false,
             type: 'postgresql',
             version: '16',
