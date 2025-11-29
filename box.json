@@ -8,10 +8,10 @@
     {
       "name": "*.php",
       "exclude": [
-        "vendor-hotfix",
         "Tests",
         "tests",
-        "test"
+        "test",
+        "humbug"
       ],
       "in": "vendor"
     }

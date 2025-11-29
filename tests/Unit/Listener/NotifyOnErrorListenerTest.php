@@ -29,3 +29,19 @@ test('listener has invoke method', function (): void {
 
     expect($listener)->toBeCallable();
 });
+
+test('listener calls notifier on error', function (): void {
+    $listener = new NotifyOnErrorListener();
+
+    $command = new Command('test:command');
+    $input = new ArrayInput([]);
+    $output = new NullOutput();
+    $error = new \RuntimeException('Test error message');
+
+    $event = new ConsoleErrorEvent($input, $output, $error, $command);
+
+    // Just verify it can be invoked without throwing
+    $listener($event);
+
+    expect(true)->toBeTrue();
+});

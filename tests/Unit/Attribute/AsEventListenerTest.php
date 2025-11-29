@@ -41,7 +41,7 @@ test('attribute can be read from class via reflection', function (): void {
 #[\Seaman\Attribute\AsEventListener(event: ConsoleEvents::TERMINATE, priority: 50)]
 class TestListener
 {
-    public function __invoke($event): void
+    public function __invoke(object $event): void
     {
     }
 }

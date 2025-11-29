@@ -39,7 +39,7 @@ PHP;
 
     file_put_contents($this->tempDir . '/TestListener.php', $listenerCode);
 
-    $discovery = new ListenerDiscovery($this->tempDir);
+    $discovery = new ListenerDiscovery((string) $this->tempDir); // @phpstan-ignore cast.string (Pest test context property)
     $listeners = $discovery->discover();
 
     expect($listeners)->toHaveCount(1);
@@ -60,7 +60,7 @@ PHP;
 
     file_put_contents($this->tempDir . '/RegularClass.php', $classCode);
 
-    $discovery = new ListenerDiscovery($this->tempDir);
+    $discovery = new ListenerDiscovery((string) $this->tempDir); // @phpstan-ignore cast.string (Pest test context property)
     $listeners = $discovery->discover();
 
     expect($listeners)->toBeEmpty();
@@ -92,7 +92,7 @@ PHP;
     file_put_contents($this->tempDir . '/Listener1.php', $listener1);
     file_put_contents($this->tempDir . '/Listener2.php', $listener2);
 
-    $discovery = new ListenerDiscovery($this->tempDir);
+    $discovery = new ListenerDiscovery((string) $this->tempDir); // @phpstan-ignore cast.string (Pest test context property)
     $listeners = $discovery->discover();
 
     expect($listeners)->toHaveCount(2);
@@ -101,7 +101,7 @@ PHP;
 });
 
 test('handles empty directory', function (): void {
-    $discovery = new ListenerDiscovery($this->tempDir);
+    $discovery = new ListenerDiscovery((string) $this->tempDir); // @phpstan-ignore cast.string (Pest test context property)
     $listeners = $discovery->discover();
 
     expect($listeners)->toBeEmpty();

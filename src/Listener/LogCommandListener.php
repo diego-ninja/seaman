@@ -20,7 +20,7 @@ final readonly class LogCommandListener
 
         error_log(sprintf(
             '[Seaman] Executing command: %s',
-            $command?->getName() ?? 'unknown'
+            $command?->getName() ?? 'unknown',
         ));
     }
 }

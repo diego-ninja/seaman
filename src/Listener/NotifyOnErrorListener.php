@@ -23,7 +23,7 @@ final readonly class NotifyOnErrorListener
         Notifier::error(sprintf(
             'Command "%s" failed: %s',
             $command?->getName() ?? 'unknown',
-            $error->getMessage()
+            $error->getMessage(),
         ));
     }
 }

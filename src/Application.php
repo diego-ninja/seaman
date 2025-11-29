@@ -47,7 +47,11 @@ use Symfony\Component\Console\Application as BaseApplication;
 
 class Application extends BaseApplication
 {
-    private EventDispatcher $eventDispatcher;
+    public EventDispatcher $eventDispatcher {
+        get {
+            return $this->eventDispatcher;
+        }
+    }
 
     public function __construct()
     {
@@ -99,11 +103,6 @@ class Application extends BaseApplication
         }
 
         $this->addCommands($commands);
-    }
-
-    public function getEventDispatcher(): EventDispatcher
-    {
-        return $this->eventDispatcher;
     }
 
     private function createServiceRegistry(): ServiceRegistry
