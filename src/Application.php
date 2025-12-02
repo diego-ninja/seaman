@@ -32,8 +32,13 @@ use Seaman\Command\XdebugCommand;
 use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\InitializationSummary;
+use Seaman\Service\InitializationWizard;
+use Seaman\Service\PhpVersionDetector;
 use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
 use Symfony\Component\Console\Application as BaseApplication;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -64,14 +69,19 @@ class Application extends BaseApplication
 
         // $dockerManager = new DockerManager($projectRoot);
 
+        $phpVersionDetector = new PhpVersionDetector();
+
         $commands = [
             new ServiceListCommand($configManager, $registry),
             new ServiceAddCommand($configManager, $registry),
             new ServiceRemoveCommand($configManager, $registry),
             new InitCommand(
-                $registry,
                 new SymfonyDetector(),
                 new ProjectBootstrapper(),
+                new ConfigurationFactory($registry),
+                new InitializationSummary(),
+                new InitializationWizard($phpVersionDetector),
+                new ProjectInitializer($registry),
             ),
             new DevContainerGenerateCommand($registry),
             new StartCommand(),

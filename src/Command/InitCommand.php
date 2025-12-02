@@ -8,24 +8,14 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contracts\Decorable;
-use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
-use Seaman\Enum\Service;
-use Seaman\Service\ConfigManager;
-use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DevContainerGenerator;
-use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\DockerImageBuilder;
+use Seaman\Service\ConfigurationFactory;
+use Seaman\Service\InitializationSummary;
+use Seaman\Service\InitializationWizard;
 use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
-use Seaman\Service\TemplateRenderer;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ServiceCollection;
-use Seaman\ValueObject\ServiceConfig;
-use Seaman\ValueObject\VolumeConfig;
-use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -34,8 +24,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
-use function Laravel\Prompts\multiselect;
-use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
@@ -45,9 +33,12 @@ use function Laravel\Prompts\select;
 class InitCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
-        private readonly ServiceRegistry $registry,
         private readonly SymfonyDetector $detector,
         private readonly ProjectBootstrapper $bootstrapper,
+        private readonly ConfigurationFactory $configFactory,
+        private readonly InitializationSummary $summary,
+        private readonly InitializationWizard $wizard,
+        private readonly ProjectInitializer $initializer,
     ) {
         parent::__construct();
     }
@@ -64,7 +55,6 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
@@ -78,64 +68,20 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             }
         }
 
+        // Bootstrap Symfony project if needed
         $projectType = $this->bootstrapSymfonyProject($projectRoot);
-        $phpVersion = $this->selectPhpVersion();
-        $database = $this->selectDatabase();
-        $services = $this->selectServices($projectType);
-        $xdebug = $this->enableXdebug();
-        $php = new PhpConfig($phpVersion, $xdebug);
 
-        /** @var array<string, ServiceConfig> $serviceConfigs */
-        $serviceConfigs = [];
-        /** @var list<Service> $persistVolumes */
-        $persistVolumes = [];
+        // Run initialization wizard to collect all choices
+        $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
-        if ($database !== Service::None) {
-            $serviceImpl = $this->registry->get($database);
-            $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$database->value] = new ServiceConfig(
-                name: $defaultConfig->name,
-                enabled: true,
-                type: $defaultConfig->type,
-                version: $defaultConfig->version,
-                port: $defaultConfig->port,
-                additionalPorts: $defaultConfig->additionalPorts,
-                environmentVariables: $defaultConfig->environmentVariables,
-            );
-            $persistVolumes[] = $database;
-        }
-
-        foreach ($services as $serviceName) {
-            $serviceImpl = $this->registry->get($serviceName);
-            $defaultConfig = $serviceImpl->getDefaultConfig();
-            $serviceConfigs[$serviceName->value] = new ServiceConfig(
-                name: $defaultConfig->name,
-                enabled: true,
-                type: $defaultConfig->type,
-                version: $defaultConfig->version,
-                port: $defaultConfig->port,
-                additionalPorts: $defaultConfig->additionalPorts,
-                environmentVariables: $defaultConfig->environmentVariables,
-            );
-
-            if (in_array($serviceName, [Service::Redis, Service::Memcached, Service::MinIO, Service::Elasticsearch, Service::RabbitMq, Service::MongoDB], true)) {
-                $persistVolumes[] = $serviceName;
-            }
-        }
-
-        $config = new Configuration(
-            version: '1.0',
-            php: $php,
-            services: new ServiceCollection($serviceConfigs),
-            volumes: new VolumeConfig($persistVolumes),
-            projectType: $projectType,
-        );
+        // Build configuration from choices
+        $config = $this->configFactory->createFromChoices($choices, $projectType);
 
         // Show configuration summary
-        $this->showSummary(
-            database: $database,
-            services: $services,
-            phpConfig: $php,
+        $this->summary->display(
+            database: $choices->database,
+            services: $choices->services,
+            phpConfig: $config->php,
             projectType: $projectType,
         );
 
@@ -144,261 +90,24 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        // Generate Docker files
-        $this->generateDockerFiles($config, $projectRoot);
+        // Initialize Docker environment
+        $this->initializer->initializeDockerEnvironment($config, $projectRoot);
 
-        // Generate DevContainer files if requested
-        $shouldGenerateDevContainer = $input->getOption('with-devcontainer')
-            || confirm(label: 'Do you want to generate DevContainer configuration for VS Code?', default: false);
-
-        if ($shouldGenerateDevContainer) {
-            $this->generateDevContainerFiles($projectRoot);
+        // Generate DevContainer if requested
+        if ($choices->generateDevContainer) {
+            $this->initializer->generateDevContainer($projectRoot);
         }
 
         Terminal::success('Seaman initialized successfully');
-        box(
-            title: 'Next steps',
-            message: 'Initialization cancelled.',
-        );
+        Terminal::output()->writeln([
+            '',
+            '  Run \'seaman start\' to start your containers',
+            '',
+            '  ❤️ Happy coding!',
 
-        info('');
-        info('Next steps:');
-        info('  1. Run \'seaman start\' to start your containers');
-        info('  2. Run \'seaman status\' to check service status');
-        info('  3. Your application will be available at http://localhost:8000');
-        info('');
-        info('Useful commands:');
-        info('  • seaman shell - Access container shell');
-        info('  • seaman logs - View container logs');
-        info('  • seaman composer - Run Composer commands');
-        info('  • seaman console - Run Symfony console commands');
-        info('  • seaman --help - See all available commands');
-
-        return Command::SUCCESS;
-    }
-
-    private function selectProjectType(): ProjectType
-    {
-        $choice = select(
-            label: 'Select project type',
-            options: [
-                'web' => ProjectType::WebApplication->getLabel() . ' - ' . ProjectType::WebApplication->getDescription(),
-                'api' => ProjectType::ApiPlatform->getLabel() . ' - ' . ProjectType::ApiPlatform->getDescription(),
-                'microservice' => ProjectType::Microservice->getLabel() . ' - ' . ProjectType::Microservice->getDescription(),
-                'skeleton' => ProjectType::Skeleton->getLabel() . ' - ' . ProjectType::Skeleton->getDescription(),
-            ],
-            default: 'web',
-        );
-
-        return ProjectType::from($choice);
-    }
-
-    private function getProjectName(string $currentDir): string
-    {
-        // Check if directory is empty
-        $files = array_diff(scandir($currentDir) ?: [], ['.', '..']);
-
-        if (count($files) > 0) {
-            info('Current directory is not empty.');
-            // For now, just use a default - we'll enhance this later
-            return 'symfony-app';
-        }
-
-        return basename($currentDir);
-    }
-
-    private function selectDatabase(): Service
-    {
-        $choice = select(
-            label: 'Select database (default: postgresql)',
-            options: service::databases(),
-            default: Service::PostgreSQL->value,
-        );
-
-        return Service::from($choice);
-    }
-
-    private function selectPhpVersion(): PhpVersion
-    {
-        $detectedVersion = $this->detectPhpVersionFromComposer();
-        $defaultVersion = $detectedVersion ?? PhpVersion::Php84;
-
-        $choice = select(
-            label: sprintf('Select PHP version (default: %s)', $defaultVersion->value),
-            options: array_map(fn(PhpVersion $version): string => $version->value, PhpVersion::supported()),
-            default: $defaultVersion->value,
-        );
-
-        return PhpVersion::from($choice);
-    }
-
-    private function detectPhpVersionFromComposer(): ?PhpVersion
-    {
-        $composerPath = (string) getcwd() . '/composer.json';
-        if (!file_exists($composerPath)) {
-            return null;
-        }
-
-        $composerContent = file_get_contents($composerPath);
-        if ($composerContent === false) {
-            return null;
-        }
-
-        /** @var mixed $composer */
-        $composer = json_decode($composerContent, true);
-        if (!is_array($composer)) {
-            return null;
-        }
-
-        /** @var array<string, mixed> $composer */
-        $require = $composer['require'] ?? null;
-        if (!is_array($require)) {
-            return null;
-        }
-
-        $phpRequirement = $require['php'] ?? null;
-        if (!is_string($phpRequirement)) {
-            return null;
-        }
-
-        // Parse PHP version from requirement like "^8.4", ">=8.3", "~8.4.0", etc.
-        if (preg_match('/(\d+\.\d+)/', $phpRequirement, $matches)) {
-            $versionString = $matches[1];
-            $phpVersion = PhpVersion::tryFrom($versionString);
-
-            // If detected version is supported, return it
-            if ($phpVersion !== null && PhpVersion::isSupported($phpVersion)) {
-                return $phpVersion;
-            }
-        }
-
-        return null;
-    }
-
-    private function enableXdebug(): XdebugConfig
-    {
-        $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
-        return new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
-
-    }
-
-    /**
-     * @param ProjectType $projectType
-     * @return list<Service>
-     */
-    private function selectServices(ProjectType $projectType): array
-    {
-        $defaults = $this->getDefaultServices($projectType);
-        /** @var array<int, string> $selected */
-        $selected = multiselect(
-            label: 'Select additional services',
-            options: Service::services(),
-            default: array_map(fn(Service $service) => $service->value, $defaults),
-        );
-
-        // Convert to list<Service>
-        return array_values(
-            array_map(fn(string $service): Service => Service::from($service), $selected),
-        );
-    }
-
-    /**
-     * @param ProjectType $projectType
-     * @return list<Service>
-     */
-    private function getDefaultServices(ProjectType $projectType): array
-    {
-        return match ($projectType) {
-            ProjectType::WebApplication => [Service::Redis, Service::Mailpit],
-            ProjectType::ApiPlatform, ProjectType::Microservice => [Service::Redis],
-            ProjectType::Skeleton, ProjectType::Existing => [],
-        };
-    }
-
-    /**
-     * @param list<Service> $services
-     */
-    private function showSummary(
-        Service $database,
-        array $services,
-        PhpConfig $phpConfig,
-        ProjectType $projectType,
-    ): void {
-        $services = (empty($services) ? 'None' : implode(', ', array_map(function (Service $service) {
-            return ucfirst($service->value);
-        }, $services)));
-
-        box(
-            title: Terminal::render('<fg=cyan>⚙</> Seaman Configuration') ?? 'Seaman Configuration',
-            message: "\n" . '🔹Project Type: ' . $projectType->getLabel() . "\n"
-            . '🔹Database: ' . $database->name . "\n"
-            . '🔹Services: ' . $services . "\n"
-            . '🔹PHP Version: ' . $phpConfig->version->value . "\n"
-            . '🔹Xdebug: ' . ($phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled') . "\n\n"
-            . 'This will create:' . "\n"
-            . '🔹.seaman/ directory' . "\n"
-            . '🔹docker-compose.yaml' . "\n"
-            . '🔹Docker image: seaman/seaman-php' . $phpConfig->version->value . ':latest' . "\n\n",
-            color: 'cyan',
-        );
-    }
-
-    private function generateDockerFiles(Configuration $config, string $projectRoot): void
-    {
-        $seamanDir = $projectRoot . '/.seaman';
-        if (!is_dir($seamanDir)) {
-            mkdir($seamanDir, 0755, true);
-        }
-
-        $templateDir = __DIR__ . '/../Template';
-        $renderer = new TemplateRenderer($templateDir);
-
-        // Generate docker-compose.yml (in project root)
-        $composeGenerator = new DockerComposeGenerator($renderer);
-        $composeYaml = $composeGenerator->generate($config);
-        file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
-
-        // Save configuration
-        $configManager = new ConfigManager($projectRoot, $this->registry);
-        $configManager->save($config);
-
-        // Generate xdebug-toggle script (needed by Dockerfile build and runtime)
-        $xdebugScript = $renderer->render('scripts/xdebug-toggle.sh.twig', [
-            'xdebug' => $config->php->xdebug,
         ]);
 
-        // Create in project root for Docker build
-        $rootScriptDir = $projectRoot . '/scripts';
-        if (!is_dir($rootScriptDir)) {
-            mkdir($rootScriptDir, 0755, true);
-        }
-        file_put_contents($rootScriptDir . '/xdebug-toggle.sh', $xdebugScript);
-        chmod($rootScriptDir . '/xdebug-toggle.sh', 0755);
-
-        // Also create in .seaman for volume mount reference
-        $seamanScriptDir = $seamanDir . '/scripts';
-        if (!is_dir($seamanScriptDir)) {
-            mkdir($seamanScriptDir, 0755, true);
-        }
-        file_put_contents($seamanScriptDir . '/xdebug-toggle.sh', $xdebugScript);
-        chmod($seamanScriptDir . '/xdebug-toggle.sh', 0755);
-
-        // Copy Dockerfile template to .seaman/
-        $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
-        if (!file_exists($templateDockerfile)) {
-            Terminal::error('Seaman Dockerfile template not found.');
-            throw new \RuntimeException('Template Dockerfile missing');
-        }
-        copy($templateDockerfile, $seamanDir . '/Dockerfile');
-
-        // Build Docker image
-        $builder = new DockerImageBuilder($projectRoot, $config->php->version);
-        $result = $builder->build();
-
-        if (!$result->isSuccessful()) {
-            Terminal::error('Failed to build Docker image');
-            throw new \RuntimeException('Docker build failed');
-        }
+        return Command::SUCCESS;
     }
 
     private function bootstrapSymfonyProject(string $projectRoot): ProjectType
@@ -415,8 +124,8 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             }
 
             // Bootstrap new Symfony project
-            $projectType = $this->selectProjectType();
-            $projectName = $this->getProjectName($projectRoot);
+            $projectType = $this->wizard->selectProjectType();
+            $projectName = $this->wizard->getProjectName($projectRoot);
 
             info('Creating Symfony project...');
 
@@ -434,17 +143,5 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         }
 
         return ProjectType::Existing;
-    }
-
-    private function generateDevContainerFiles(string $projectRoot): void
-    {
-        $templateDir = __DIR__ . '/../Template';
-        $renderer = new TemplateRenderer($templateDir);
-        $configManager = new ConfigManager($projectRoot, $this->registry);
-        $generator = new DevContainerGenerator($renderer, $configManager);
-
-        $generator->generate($projectRoot);
-
-        info('✓ DevContainer configuration created');
     }
 }
