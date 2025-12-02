@@ -130,6 +130,50 @@ When you run `seaman init`, the following files are created:
 - **`.env`**: Environment variables for your Symfony application
 - **`scripts/xdebug-toggle.sh`**: Script to toggle Xdebug without restarting
 
+## DevContainers Support
+
+Seaman supports VS Code Dev Containers for a fully configured development environment.
+
+### Enabling DevContainers
+
+**During initialization:**
+```bash
+seaman init --with-devcontainer
+```
+
+**For existing projects:**
+```bash
+seaman devcontainer:generate
+```
+
+### Using DevContainers
+
+1. Open your project in VS Code
+2. Click "Reopen in Container" when prompted (or use Command Palette: "Remote-Containers: Reopen in Container")
+3. VS Code will start your Docker environment and connect to it
+4. All services (database, Redis, etc.) will be available
+5. Pre-configured extensions will be installed automatically
+6. Start coding with Xdebug, IntelliSense, and all tools ready
+
+### What's Included
+
+- PHP with IntelliSense (Intelephense)
+- Xdebug for step debugging
+- PHPStan for static analysis
+- php-cs-fixer for code formatting
+- Service-specific extensions (database clients, Redis explorer, etc.)
+- All your configured services from seaman.yaml
+
+### Customization
+
+DevContainer configuration is in `.devcontainer/devcontainer.json`. You can customize:
+- VS Code settings
+- Additional extensions
+- Post-create commands
+- Environment variables
+
+See `.devcontainer/README.md` for more details.
+
 ## Available Commands
 
 ### Environment Management
@@ -151,6 +195,7 @@ When you run `seaman init`, the following files are created:
 | `service:add` | Interactively add new services to your configuration |
 | `service:remove` | Interactively remove services from your configuration |
 | `service:list` | List all configured services |
+| `devcontainer:generate` | Generate DevContainer configuration for VS Code |
 
 ### Development Tools
 
