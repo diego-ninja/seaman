@@ -1,0 +1,128 @@
+# DevContainer Configuration for {{ project_name }}
+
+This directory contains the DevContainer configuration for VS Code's "Remote - Containers" extension.
+
+## What are DevContainers?
+
+DevContainers allow you to use a Docker container as a complete development environment. When you open this project in VS Code, you can develop inside the container with all tools and extensions pre-configured.
+
+## Requirements
+
+- [VS Code](https://code.visualstudio.com/)
+- [Remote - Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+- Docker Desktop or Docker Engine running
+
+## How to Use
+
+1. **Open project in VS Code**
+2. **Reopen in Container**
+   - VS Code will prompt: "Folder contains a Dev Container configuration file. Reopen folder to develop in a container"
+   - Click "Reopen in Container"
+   - Or use Command Palette: `Remote-Containers: Reopen in Container`
+3. **Wait for setup**
+   - VS Code will start all Docker services
+   - Install configured extensions
+   - Run `composer install`
+4. **Start coding!**
+
+## What's Included
+
+### Pre-installed Extensions
+
+- **PHP IntelliSense** (Intelephense) - Advanced PHP code intelligence
+- **PHP Debug** - Xdebug integration for step debugging
+- **PHP CS Fixer** - Automatic code formatting (PER standard)
+- **PHPStan** - Static analysis for type safety
+
+{% if extensions|length > 4 %}
+Additional service-specific extensions:
+{% for extension in extensions %}
+{% if extension not in ['bmewburn.vscode-intelephense-client', 'xdebug.php-debug', 'junstyle.php-cs-fixer', 'swordev.phpstan'] %}
+- {{ extension }}
+{% endif %}
+{% endfor %}
+{% endif %}
+
+### Configured Tools
+
+- PHP {{ php_version }}
+- Composer
+- Symfony CLI
+- All services from docker-compose.yml (database, Redis, etc.)
+
+### VS Code Settings
+
+- PHP CS Fixer runs on save
+- PHPStan enabled with status bar
+- Xdebug configured and ready
+- Proper PHP language settings
+
+## Customization
+
+You can customize the DevContainer by editing `devcontainer.json`:
+
+- **Add more extensions**: Add to the `extensions` array
+- **Change settings**: Modify the `settings` object
+- **Add post-create commands**: Change `postCreateCommand`
+- **Environment variables**: Add `containerEnv` section
+
+Example:
+
+```json
+{
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "your.extension.id"
+      ],
+      "settings": {
+        "your.setting": "value"
+      }
+    }
+  },
+  "postCreateCommand": "composer install && php bin/console cache:clear"
+}
+```
+
+## Troubleshooting
+
+### Container won't start
+
+1. Check Docker is running: `docker ps`
+2. Check docker-compose.yml is valid: `docker-compose config`
+3. Rebuild container: Command Palette → `Remote-Containers: Rebuild Container`
+
+### Extensions not installing
+
+1. Check internet connection
+2. Rebuild container without cache
+3. Check VS Code extension marketplace is accessible
+
+### Xdebug not working
+
+1. Verify Xdebug is enabled in seaman.yaml
+2. Run `seaman xdebug on` if needed
+3. Check VS Code launch configuration exists
+4. Verify firewall allows Docker connections
+
+### Performance issues
+
+1. Ensure Docker has enough resources (CPU, RAM)
+2. Check volume mounting performance
+3. Consider using named volumes for vendor/
+
+## Regenerating Configuration
+
+If you change services in `seaman.yaml`, regenerate devcontainer files:
+
+```bash
+seaman devcontainer:generate
+```
+
+This will update the configuration based on your current services.
+
+## More Information
+
+- [VS Code DevContainers Documentation](https://code.visualstudio.com/docs/remote/containers)
+- [DevContainer Specification](https://containers.dev/)
+- [Seaman Documentation](https://github.com/diego-ninja/seaman)

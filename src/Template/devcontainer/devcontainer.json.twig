@@ -1,0 +1,33 @@
+{
+  "name": "{{ project_name }}",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/var/www/html",
+  "shutdownAction": "stopCompose",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+{% for extension in extensions %}
+        "{{ extension }}"{{ not loop.last ? ',' : '' }}
+{% endfor %}
+      ],
+      "settings": {
+        "php.suggest.basic": false,
+        "intelephense.telemetry.enabled": false,
+        "php.validate.enable": false,
+        "[php]": {
+          "editor.defaultFormatter": "junstyle.php-cs-fixer"
+        },
+        "php-cs-fixer.executablePath": "${workspaceFolder}/vendor/bin/php-cs-fixer",
+        "php-cs-fixer.onsave": true,
+        "phpstan.path": "${workspaceFolder}/vendor/bin/phpstan",
+        "phpstan.enableStatusBar": true,
+        "xdebug.mode": "{{ xdebug.enabled ? 'debug' : 'off' }}",
+        "php.debug.ideKey": "{{ xdebug.ideKey }}",
+        "php.debug.host": "{{ xdebug.clientHost }}"
+      }
+    }
+  },
+  "postCreateCommand": "composer install",
+  "remoteUser": "www-data"
+}
