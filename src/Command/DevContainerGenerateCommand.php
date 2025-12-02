@@ -34,6 +34,9 @@ class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decor
         parent::__construct();
     }
 
+    /**
+     * @throws SeamanException
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();
