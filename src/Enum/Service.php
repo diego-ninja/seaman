@@ -78,7 +78,7 @@ enum Service: string
             self::PostgreSQL => '🐘',
             self::Dozzle => '🗒️ ',
             self::MySQL, self::MariaDB => '🐬',
-            default => '⚙️ '
+            default => '⚙️ ',
         };
     }
 

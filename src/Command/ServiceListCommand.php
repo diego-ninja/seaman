@@ -15,6 +15,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
+
 use function Laravel\Prompts\table;
 
 #[AsCommand(
@@ -32,8 +33,6 @@ class ServiceListCommand extends AbstractSeamanCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         $config = $this->configManager->load();
         $allServices = $this->registry->all();
         $enabledServices = $config->services->enabled();

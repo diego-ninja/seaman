@@ -17,39 +17,14 @@ class ServiceRegistry
 
     public static function create(): ServiceRegistry
     {
-        {
-            $registry = new self();
+        $registry = new self();
+        $discovery = new ServiceDiscovery(__DIR__);
 
-            foreach (get_declared_classes() as $className) {
-                if (!str_starts_with($className, 'Seaman\\Service\\Container\\')) {
-                    continue;
-                }
-
-                try {
-                    $reflection = new \ReflectionClass($className);
-
-                    if (!$reflection->implementsInterface(ServiceInterface::class)) {
-                        continue;
-                    }
-
-                    if (!$reflection->isInstantiable()) {
-                        continue;
-                    }
-
-                    /** @var ServiceInterface $service */
-                    $service = $reflection->newInstance();
-                    $registry->register($service);
-
-                } catch (\Throwable) {
-                    continue;
-                }
-            }
-
-            return $registry;
+        foreach ($discovery->discover() as $service) {
+            $registry->register($service);
         }
 
-
-
+        return $registry;
     }
 
     public function register(ServiceInterface $service): void
