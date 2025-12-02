@@ -18,6 +18,7 @@ use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\ProjectBootstrapper;
 use Seaman\Service\SymfonyDetector;
 use Seaman\Service\TemplateRenderer;
+use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -51,6 +52,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
@@ -117,17 +119,27 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         );
 
         // Show configuration summary
-        $this->showSummary($config, $database, $services, $xdebug->enabled, $projectType);
+        $this->showSummary(
+            database: $database,
+            services: $services,
+            phpConfig: $php,
+            projectType: $projectType,
+        );
 
         if (!confirm(label: 'Continue with this configuration?')) {
-            info('Initialization cancelled.');
+            Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
         }
 
         // Generate Docker files
         $this->generateDockerFiles($config, $projectRoot);
 
-        info('✓ Seaman initialized successfully!');
+        Terminal::success('Seaman initialized successfully');
+        box(
+            title: 'Next steps',
+            message: 'Initialization cancelled.',
+        );
+
         info('');
         info('Next steps:');
         info('  1. Run \'seaman start\' to start your containers');
@@ -286,30 +298,28 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
      * @param list<Service> $services
      */
     private function showSummary(
-        Configuration $config,
         Service $database,
         array $services,
-        bool $xdebugEnabled,
-        ?ProjectType $projectType,
+        PhpConfig $phpConfig,
+        ProjectType $projectType,
     ): void {
-        if ($projectType !== null) {
-            info('Project Type: ' . $projectType->getLabel());
-        }
-
-        info('Database: ' . ($database === Service::None ? 'None' : ucfirst($database->value)));
-        info('Services: ' . (empty($services) ? 'None' : implode(', ', array_map(function (Service $service) {
+        $services = (empty($services) ? 'None' : implode(', ', array_map(function (Service $service) {
             return ucfirst($service->value);
-        }, $services))));
-        info('Xdebug: ' . ($xdebugEnabled ? 'Enabled' : 'Disabled'));
-        info('PHP Version: 8.4');
-        info('');
-        info('This will create:');
-        info('  • seaman.yaml');
-        info('  • docker-compose.yml');
-        info('  • .seaman/ directory');
-        info('  • Dockerfile (if not present)');
-        info('  • Docker image: seaman/seaman:latest');
-        info('');
+        }, $services)));
+
+        box(
+            title: Terminal::render('<fg=cyan>⚙</> Seaman Configuration'),
+            message: "\n" . '🔹Project Type: ' . $projectType->getLabel() . "\n"
+            . '🔹Database: ' . $database->name . "\n"
+            . '🔹Services: ' . $services . "\n"
+            . '🔹PHP Version: ' . $phpConfig->version->value . "\n"
+            . '🔹Xdebug: ' . ($phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled') . "\n\n"
+            . 'This will create:' . "\n"
+            . '🔹.seaman/ directory' . "\n"
+            . '🔹docker-compose.yaml' . "\n"
+            . '🔹Docker image: seaman/seaman-php' . $phpConfig->version->value . ':latest' . "\n\n",
+            color: 'cyan',
+        );
     }
 
     private function generateDockerFiles(Configuration $config, string $projectRoot): void
@@ -328,7 +338,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 
         // Save configuration
-        $configManager = new ConfigManager($projectRoot);
+        $configManager = new ConfigManager($projectRoot, $this->registry);
         $configManager->save($config);
 
         // Generate xdebug-toggle script (needed by Dockerfile build and runtime)
@@ -355,23 +365,19 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         // Copy Dockerfile template to .seaman/
         $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
         if (!file_exists($templateDockerfile)) {
-            info('Seaman Dockerfile template not found.');
+            Terminal::error('Seaman Dockerfile template not found.');
             throw new \RuntimeException('Template Dockerfile missing');
         }
         copy($templateDockerfile, $seamanDir . '/Dockerfile');
 
         // Build Docker image
-        info('Building Docker image...');
         $builder = new DockerImageBuilder($projectRoot, $config->php->version);
         $result = $builder->build();
 
         if (!$result->isSuccessful()) {
-            info('Failed to build Docker image');
-            info($result->errorOutput);
+            Terminal::error('Failed to build Docker image');
             throw new \RuntimeException('Docker build failed');
         }
-
-        info('✓ Docker image built successfully!');
     }
 
     private function bootstrapSymfonyProject(string $projectRoot): ProjectType

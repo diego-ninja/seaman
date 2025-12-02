@@ -11,6 +11,7 @@
   ],
   "require": {
     "php": "^8.4",
+    "ext-pcntl": "*",
     "ext-posix": "*",
     "diego-ninja/docker": "^2.1",
     "diego-ninja/granite": "^1.5",
@@ -18,6 +19,8 @@
     "jolicode/jolinotif": "^3",
     "laravel/prompts": "^0.3.8",
     "nunomaduro/termwind": "^2.3",
+    "phlak/config": "^0.3.0",
+    "ramsey/collection": "^2.1",
     "symfony/console": "^7",
     "symfony/process": "^7",
     "symfony/yaml": "^7",
@@ -49,16 +52,13 @@
   "config": {
     "sort-packages": true,
     "preferred-install": "dist",
-    "exclude-from-classmap": [
-      "vendor/humbug/php-scoper/vendor-hotfix"
-    ],
     "optimize-autoloader": true,
     "allow-plugins": {
       "pestphp/pest-plugin": true
     }
   },
   "bin": [
-    "bin/seaman.php"
+    "bin/seaman"
   ],
   "scripts": {
     "test": "pest",

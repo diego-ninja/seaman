@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class PostgresqlService implements ServiceInterface
+readonly class PostgresqlService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::PostgreSQL->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::PostgreSQL->value;
-    }
-
-    public function getDescription(): string
-    {
-        return 'PostgreSQL relational database';
+        return Service::PostgreSQL;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class PostgresqlService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::PostgreSQL->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'postgresql',
+            type: $this->getType(),
             version: '16',
-            port: 5432,
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
                 'POSTGRES_DB' => 'seaman',
@@ -100,5 +90,18 @@ readonly class PostgresqlService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'DB_PORT' => $config->port,
+            'DB_NAME' => $config->environmentVariables['POSTGRES_DB'] ?? 'seaman',
+            'DB_USER' => $config->environmentVariables['POSTGRES_USER'] ?? 'seaman',
+            'DB_PASSWORD' => $config->environmentVariables['POSTGRES_PASSWORD'] ?? 'seaman',
+        ];
     }
 }

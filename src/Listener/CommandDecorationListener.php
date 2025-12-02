@@ -10,6 +10,7 @@ use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
 
 use function Termwind\render;
+use function Termwind\terminal;
 
 #[AsEventListener(event: ConsoleEvents::COMMAND, priority: 100)]
 final readonly class CommandDecorationListener
@@ -18,8 +19,17 @@ final readonly class CommandDecorationListener
     {
         $command = $event->getCommand();
         if ($command instanceof Decorable) {
+            $width = 134;
+            $half = $width / 2;
+
+            $maxWidth = terminal()->width();
+            if ($maxWidth <= $width) {
+                $width = terminal()->width();
+                $half = terminal()->width() / 2;
+            }
+
             render('<br />');
-            render("<div class='w-100'><span class='w-50 text-left'>🔱 Seaman v1.0.0-beta</span><span class='w-50 text-right text-cyan'>" . $command->getName() . "</span><hr class='text-blue'></div>");
+            render("<div class='w-{$width}'><span class='w-{$half} text-left'>🔱 Seaman v1.0.0-beta</span><span class='w-{$half} text-right text-cyan'>" . $command->getName() . "</span><hr class='text-blue'></div>");
         }
     }
 }

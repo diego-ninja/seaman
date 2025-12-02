@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MongodbService implements ServiceInterface
+readonly class MongodbService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::MongoDB->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::MongoDB->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'MongoDB NoSQL database';
+        return Service::MongoDB;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class MongodbService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::MongoDB->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'mongodb',
+            type: $this->getType(),
             version: '7',
-            port: 27017,
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
                 'MONGO_INITDB_ROOT_USERNAME' => 'seaman',
@@ -100,5 +90,18 @@ readonly class MongodbService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'MONGO_PORT' => $config->port,
+            'MONGO_USER' => $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
+            'MONGO_PASSWORD' => $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
+            'MONGO_DB' => $config->environmentVariables['MONGO_INITDB_DATABASE'] ?? 'seaman',
+        ];
     }
 }

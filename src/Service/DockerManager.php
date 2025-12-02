@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Seaman\ValueObject\LogOptions;
 use Seaman\ValueObject\ProcessResult;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
@@ -28,6 +29,7 @@ readonly class DockerManager
      * @param string|null $service Optional service name to start only that service
      * @return ProcessResult The result of the start operation
      * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \Exception
      */
     public function start(?string $service = null): ProcessResult
     {
@@ -39,7 +41,7 @@ readonly class DockerManager
             $command[] = $service;
         }
 
-        return $this->runProcess($command);
+        return $this->runProcess($command, 'Starting seaman services...');
     }
 
     /**
@@ -47,7 +49,7 @@ readonly class DockerManager
      *
      * @param string|null $service Optional service name to stop only that service
      * @return ProcessResult The result of the stop operation
-     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \RuntimeException|\Exception When docker-compose.yml does not exist
      */
     public function stop(?string $service = null): ProcessResult
     {
@@ -59,7 +61,7 @@ readonly class DockerManager
             $command[] = $service;
         }
 
-        return $this->runProcess($command);
+        return $this->runProcess($command, 'Stopping seaman services...');
     }
 
     /**
@@ -67,7 +69,7 @@ readonly class DockerManager
      *
      * @param string|null $service Optional service name to restart only that service
      * @return ProcessResult The result of the restart operation
-     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \RuntimeException|\Exception When docker-compose.yml does not exist
      */
     public function restart(?string $service = null): ProcessResult
     {
@@ -79,7 +81,7 @@ readonly class DockerManager
             $command[] = $service;
         }
 
-        return $this->runProcess($command);
+        return $this->runProcess($command, 'Restarting seaman services...');
     }
 
     /**
@@ -88,16 +90,20 @@ readonly class DockerManager
      * @param string $service The service name
      * @param list<string> $command The command and arguments to execute
      * @return ProcessResult The result of the command execution
-     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \RuntimeException|\Exception When docker-compose.yml does not exist
      */
-    public function executeInService(string $service, array $command): ProcessResult
-    {
+    public function executeInService(
+        string $service,
+        array $command,
+        ?string $message = null,
+        ?float $timeout = null,
+    ): ProcessResult {
         $this->ensureComposeFileExists();
 
         $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', '-T', $service];
         $fullCommand = array_merge($fullCommand, $command);
 
-        return $this->runProcess($fullCommand);
+        return $this->runProcess($fullCommand, $message, $timeout);
     }
 
     /**
@@ -155,14 +161,14 @@ readonly class DockerManager
         // Use shorter timeout when following logs to prevent hanging
         $timeout = $options->follow ? 2.0 : 60.0;
 
-        return $this->runProcess($command, $timeout);
+        return $this->runProcess($command, null, $timeout);
     }
 
     /**
      * Gets the status of all Docker containers.
      *
-     * @return list<array<string, mixed>> A list of service statuses
-     * @throws \RuntimeException When docker-compose.yml does not exist or output is invalid
+     * @return list<array<string, string>> A list of service statuses
+     * @throws \RuntimeException|\Exception When docker-compose.yml does not exist or output is invalid
      */
     public function status(): array
     {
@@ -181,13 +187,15 @@ readonly class DockerManager
             return [];
         }
 
-        try {
-            /** @var array<array<string, mixed>> $decoded */
-            $decoded = json_decode($result->output, true, 512, JSON_THROW_ON_ERROR);
-            return array_values($decoded);
-        } catch (\JsonException $e) {
-            throw new \RuntimeException('Failed to parse docker-compose status JSON: ' . $e->getMessage(), 0, $e);
-        }
+        $serviceInfos = array_map(function (string $json) {
+            /** @var array<string,string> $data*/
+            $data = json_decode($json, true);
+            return $data;
+        }, explode("\n", $result->output));
+
+        array_pop($serviceInfos);
+
+        return $serviceInfos;
     }
 
     /**
@@ -195,7 +203,7 @@ readonly class DockerManager
      *
      * @param string|null $service Optional service name to rebuild only that service
      * @return ProcessResult The result of the rebuild operation
-     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \RuntimeException|\Exception When docker-compose.yml does not exist
      */
     public function rebuild(?string $service = null): ProcessResult
     {
@@ -207,7 +215,23 @@ readonly class DockerManager
             $command[] = $service;
         }
 
-        return $this->runProcess($command, 300.0); // 5 minutes for builds
+        return $this->runProcess($command, 'Rebuilding seaman stack...', 300.0); // 5 minutes for builds
+    }
+
+    /**
+     * Stops and removes all Docker containers and networks without deleting volumes.
+     *
+     * @return ProcessResult The result of the down operation
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \Exception
+     */
+    public function down(): ProcessResult
+    {
+        $this->ensureComposeFileExists();
+
+        $command = ['docker-compose', '-f', $this->composeFile, 'down', '--remove-orphans'];
+
+        return $this->runProcess($command, 'Stopping seaman stack...', 120.0);
     }
 
     /**
@@ -215,6 +239,7 @@ readonly class DockerManager
      *
      * @return ProcessResult The result of the destroy operation
      * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \Exception
      */
     public function destroy(): ProcessResult
     {
@@ -222,7 +247,7 @@ readonly class DockerManager
 
         $command = ['docker-compose', '-f', $this->composeFile, 'down', '-v', '--remove-orphans'];
 
-        return $this->runProcess($command);
+        return $this->runProcess($command, 'Destroying seaman stack...', 300.0);
     }
 
     /**
@@ -243,16 +268,18 @@ readonly class DockerManager
      * Runs a process and returns the result.
      *
      * @param list<string> $command The command to execute
+     * @param string|null $message Message to display
      * @param float|null $timeout Process timeout in seconds (null for no timeout)
      * @return ProcessResult The process execution result
+     * @throws \Exception
      */
-    private function runProcess(array $command, ?float $timeout = 60.0): ProcessResult
+    private function runProcess(array $command, ?string $message = null, ?float $timeout = 60.0): ProcessResult
     {
         $process = new Process($command);
         $process->setTimeout($timeout);
 
         try {
-            $process->run();
+            $message === null ? $process->run() : SpinnerFactory::for($process, $message);
         } catch (ProcessTimedOutException $e) {
             // Timeout is expected for commands like logs --follow
             // Return what we got before timeout

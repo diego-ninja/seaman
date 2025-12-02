@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman;
 
+use RuntimeException;
 use Seaman\Command\BuildCommand;
 use Seaman\Command\DbDumpCommand;
 use Seaman\Command\DbRestoreCommand;
@@ -28,18 +29,7 @@ use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\Container\ElasticsearchService;
-use Seaman\Service\Container\MailpitService;
-use Seaman\Service\Container\MariadbService;
-use Seaman\Service\Container\MemcachedService;
-use Seaman\Service\Container\MinioService;
-use Seaman\Service\Container\MongodbService;
-use Seaman\Service\Container\MysqlService;
-use Seaman\Service\Container\PostgresqlService;
-use Seaman\Service\Container\RabbitmqService;
-use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerManager;
 use Seaman\Service\ProjectBootstrapper;
 use Seaman\Service\SymfonyDetector;
 use Seaman\EventListener\ListenerDiscovery;
@@ -57,7 +47,7 @@ class Application extends BaseApplication
 
     public function __construct()
     {
-        parent::__construct('Seaman', '1.0.0');
+        parent::__construct('🔱 Seaman', '1.0.0');
 
         // Setup EventDispatcher with auto-discovered listeners
         $this->eventDispatcher = $this->createEventDispatcher();
@@ -65,13 +55,13 @@ class Application extends BaseApplication
 
         $projectRoot = getcwd();
         if ($projectRoot === false) {
-            throw new \RuntimeException('Unable to determine current working directory');
+            throw new RuntimeException('Unable to determine current working directory');
         }
 
-        $configManager = new ConfigManager($projectRoot);
-        $registry = $this->createServiceRegistry();
+        $registry = ServiceRegistry::create();
+        $configManager = new ConfigManager($projectRoot, $registry);
 
-        $dockerManager = new DockerManager($projectRoot);
+        // $dockerManager = new DockerManager($projectRoot);
 
         $commands = [
             new ServiceListCommand($configManager, $registry),
@@ -85,7 +75,7 @@ class Application extends BaseApplication
             new StartCommand(),
             new StopCommand(),
             new RestartCommand(),
-            new StatusCommand(),
+            new StatusCommand($registry),
             new RebuildCommand(),
             new DestroyCommand(),
             new ShellCommand(),
@@ -94,9 +84,9 @@ class Application extends BaseApplication
             new ExecuteComposerCommand(),
             new ExecuteConsoleCommand(),
             new ExecutePhpCommand(),
-            new DbDumpCommand($configManager, $dockerManager),
-            new DbRestoreCommand($configManager, $dockerManager),
-            new DbShellCommand($configManager, $dockerManager),
+            //new DbDumpCommand($configManager, $dockerManager),
+            //new DbRestoreCommand($configManager, $dockerManager),
+            //new DbShellCommand($configManager, $dockerManager),
         ];
 
         // Only register build command when not running from PHAR
@@ -105,24 +95,6 @@ class Application extends BaseApplication
         }
 
         $this->addCommands($commands);
-    }
-
-    private function createServiceRegistry(): ServiceRegistry
-    {
-        $registry = new ServiceRegistry();
-
-        $registry->register(new PostgresqlService());
-        $registry->register(new MysqlService());
-        $registry->register(new MariadbService());
-        $registry->register(new MongodbService());
-        $registry->register(new RedisService());
-        $registry->register(new MemcachedService());
-        $registry->register(new MailpitService());
-        $registry->register(new MinioService());
-        $registry->register(new ElasticsearchService());
-        $registry->register(new RabbitmqService());
-
-        return $registry;
     }
 
     private function createEventDispatcher(): EventDispatcher

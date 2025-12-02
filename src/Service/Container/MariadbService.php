@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MariadbService implements ServiceInterface
+readonly class MariadbService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::MariaDB->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::MariaDB->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'MariaDB relational database';
+        return Service::MariaDB;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class MariadbService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::MariaDB->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'mariadb',
+            type: $this->getType(),
             version: '11',
-            port: 3306,
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
                 'MARIADB_DATABASE' => 'seaman',
@@ -101,5 +91,19 @@ readonly class MariadbService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'DB_PORT' => $config->port,
+            'DB_NAME' => $config->environmentVariables['MARIADB_DATABASE'] ?? 'seaman',
+            'DB_USER' => $config->environmentVariables['MARIADB_USER'] ?? 'seaman',
+            'DB_PASSWORD' => $config->environmentVariables['MARIADB_PASSWORD'] ?? 'seaman',
+            'DB_ROOT_PASSWORD' => $config->environmentVariables['MARIADB_ROOT_PASSWORD'] ?? 'root',
+        ];
     }
 }

@@ -7,19 +7,27 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\DockerComposeGenerator;
+use Seaman\Service\DockerManager;
+use Seaman\Service\TemplateRenderer;
+use Seaman\UI\Terminal;
+use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function Laravel\Prompts\confirm;
+use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:remove',
     description: 'Remove services from configuration',
 )]
-class ServiceRemoveCommand extends Command
+class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
@@ -30,13 +38,11 @@ class ServiceRemoveCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         $config = $this->configManager->load();
         $enabled = $this->registry->enabled($config);
 
         if (empty($enabled)) {
-            $io->info('No services are currently enabled.');
+            Terminal::success('No services are currently enabled.');
             return Command::SUCCESS;
         }
 
@@ -49,42 +55,37 @@ class ServiceRemoveCommand extends Command
             );
         }
 
-        $selected = $io->choice(
-            'Which service would you like to remove?',
-            $choices,
-            null,
+        /** @var array<int, string> $selected */
+        $selected = multiselect(
+            label: 'Which services would you like to remove?',
+            options: $choices,
         );
 
-        if (!is_string($selected)) {
-            $io->error('Invalid selection');
-            return Command::FAILURE;
-        }
-
-        $selected = array_map('trim', explode(',', $selected));
-
-        if (!$io->confirm('Are you sure you want to remove these services?', false)) {
-            $io->info('Operation cancelled.');
+        if (empty($selected)) {
+            Terminal::success('No services selected.');
             return Command::SUCCESS;
         }
 
+        if (!confirm(label: 'Are you sure you want to remove these services?', default: false)) {
+            Terminal::success('Operation cancelled.');
+            return Command::SUCCESS;
+        }
+
+        $newConfig = $config;
+
         foreach ($selected as $serviceName) {
-            $services = $config->services->remove($serviceName);
-            $config = new \Seaman\ValueObject\Configuration(
-                version: $config->version,
-                php: $config->php,
+            $services = $newConfig->services->remove($serviceName);
+            $newConfig = new Configuration(
+                version: $newConfig->version,
+                php: $newConfig->php,
                 services: $services,
-                volumes: $config->volumes,
+                volumes: $newConfig->volumes,
             );
         }
 
-        $this->configManager->save($config);
+        $this->configManager->save($newConfig);
+        $this->regenerate($newConfig);
 
-        $io->success('Services removed successfully.');
-
-        if ($io->confirm('Stop removed services now?', false)) {
-            $io->note('Service stopping not yet implemented.');
-        }
-
-        return Command::SUCCESS;
+        return $this->restartServices();
     }
 }

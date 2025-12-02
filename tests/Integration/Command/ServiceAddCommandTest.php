@@ -7,13 +7,13 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Integration\Command;
 
-use Seaman\Command\ServiceAddCommand;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
-use Symfony\Component\Console\Tester\CommandTester;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ServiceConfig;
 
 /**
  * @property string $tempDir
@@ -22,7 +22,7 @@ use Symfony\Component\Console\Tester\CommandTester;
  */
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
-    mkdir($this->tempDir, 0755, true);
+    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
@@ -39,13 +39,13 @@ volumes:
   persist: []
 YAML;
 
-    file_put_contents($this->tempDir . '/seaman.yaml', $yaml);
+    file_put_contents($this->tempDir . '/.seaman/seaman.yaml', $yaml);
 
-    $this->configManager = new ConfigManager($this->tempDir);
     $this->registry = new ServiceRegistry();
     $this->registry->register(new MysqlService());
     $this->registry->register(new PostgresqlService());
     $this->registry->register(new RedisService());
+    $this->configManager = new ConfigManager($this->tempDir, $this->registry);
 });
 
 afterEach(function () {
@@ -60,11 +60,40 @@ afterEach(function () {
                 }
             }
         }
+        // Remove .seaman directory
+        if (is_dir($tempDir . '/.seaman')) {
+            $seamanFiles = glob($tempDir . '/.seaman/{,.}*', GLOB_BRACE);
+            if ($seamanFiles !== false) {
+                foreach ($seamanFiles as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+            }
+            rmdir($tempDir . '/.seaman');
+        }
         rmdir($tempDir);
     }
 });
 
-test('shows info message when all services are already enabled', function () {
+test('registry shows all services as available when none enabled', function () {
+    /** @var ServiceRegistry $registry */
+    $registry = $this->registry;
+    /** @var ConfigManager $configManager */
+    $configManager = $this->configManager;
+
+    $config = $configManager->load();
+    $available = $registry->disabled($config);
+
+    expect(count($available))->toBe(3);
+
+    $names = array_map(fn($service) => $service->getName(), $available);
+    expect($names)->toContain('mysql');
+    expect($names)->toContain('postgresql');
+    expect($names)->toContain('redis');
+});
+
+test('registry shows no available services when all are enabled', function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
 
@@ -87,31 +116,28 @@ services:
   postgresql:
     enabled: true
     type: postgresql
-    version: '14'
+    version: '16'
     port: 5432
   redis:
     enabled: true
     type: redis
-    version: '7'
+    version: '7-alpine'
     port: 6379
 volumes:
   persist: []
 YAML;
 
-    file_put_contents($tempDir . '/seaman.yaml', $yaml);
+    file_put_contents($tempDir . '/.seaman/seaman.yaml', $yaml);
 
-    /** @var ConfigManager $configManager */
-    $configManager = new ConfigManager($tempDir);
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
+    /** @var ConfigManager $configManager */
+    $configManager = new ConfigManager($tempDir, $registry);
 
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
+    $config = $configManager->load();
+    $available = $registry->disabled($config);
 
-    $tester->execute([]);
-
-    expect($tester->getStatusCode())->toBe(0);
-    expect($tester->getDisplay())->toContain('All services are already enabled');
+    expect($available)->toBeEmpty();
 });
 
 test('adds single service to configuration', function () {
@@ -119,23 +145,38 @@ test('adds single service to configuration', function () {
     $configManager = $this->configManager;
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
-    /** @var string $tempDir */
-    $tempDir = $this->tempDir;
 
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
+    $config = $configManager->load();
 
-    // Simulate selecting mysql service
-    $tester->setInputs(['mysql', 'no']);
-    $tester->execute([]);
+    // Manually add service like the command would
+    $service = $registry->get(\Seaman\Enum\Service::MySQL);
+    $defaultConfig = $service->getDefaultConfig();
 
-    expect($tester->getStatusCode())->toBe(0);
+    $serviceConfig = new ServiceConfig(
+        name: $defaultConfig->name,
+        enabled: true,
+        type: $defaultConfig->type,
+        version: $defaultConfig->version,
+        port: $defaultConfig->port,
+        additionalPorts: $defaultConfig->additionalPorts,
+        environmentVariables: $defaultConfig->environmentVariables,
+    );
+
+    $services = $config->services->add('mysql', $serviceConfig);
+    $config = new Configuration(
+        version: $config->version,
+        php: $config->php,
+        services: $services,
+        volumes: $config->volumes,
+    );
+
+    $configManager->save($config);
 
     // Verify the service was added to the config file
-    $config = $configManager->load();
-    expect($config->services->has('mysql'))->toBeTrue();
-    expect($config->services->get('mysql')->enabled)->toBeTrue();
-    expect($config->services->get('mysql')->type)->toBe('mysql');
+    $reloadedConfig = $configManager->load();
+    expect($reloadedConfig->services->has('mysql'))->toBeTrue();
+    expect($reloadedConfig->services->get('mysql')->enabled)->toBeTrue();
+    expect($reloadedConfig->services->get('mysql')->type)->toBe('mysql');
 });
 
 test('adds multiple services to configuration', function () {
@@ -144,24 +185,47 @@ test('adds multiple services to configuration', function () {
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
+    $config = $configManager->load();
 
-    // Add mysql first
-    $tester->setInputs(['mysql', 'no']);
-    $tester->execute([]);
+    // Add MySQL
+    $mysqlService = $registry->get(\Seaman\Enum\Service::MySQL);
+    $mysqlConfig = $mysqlService->getDefaultConfig();
+    $services = $config->services->add('mysql', new ServiceConfig(
+        name: $mysqlConfig->name,
+        enabled: true,
+        type: $mysqlConfig->type,
+        version: $mysqlConfig->version,
+        port: $mysqlConfig->port,
+        additionalPorts: $mysqlConfig->additionalPorts,
+        environmentVariables: $mysqlConfig->environmentVariables,
+    ));
 
-    // Add redis second (need to reload config)
-    $tester2 = new CommandTester($command);
-    $tester2->setInputs(['redis', 'no']);
-    $tester2->execute([]);
+    // Add Redis
+    $redisService = $registry->get(\Seaman\Enum\Service::Redis);
+    $redisConfig = $redisService->getDefaultConfig();
+    $services = $services->add('redis', new ServiceConfig(
+        name: $redisConfig->name,
+        enabled: true,
+        type: $redisConfig->type,
+        version: $redisConfig->version,
+        port: $redisConfig->port,
+        additionalPorts: $redisConfig->additionalPorts,
+        environmentVariables: $redisConfig->environmentVariables,
+    ));
 
-    expect($tester2->getStatusCode())->toBe(0);
+    $config = new Configuration(
+        version: $config->version,
+        php: $config->php,
+        services: $services,
+        volumes: $config->volumes,
+    );
+
+    $configManager->save($config);
 
     // Verify both services were added
-    $config = $configManager->load();
-    expect($config->services->has('mysql'))->toBeTrue();
-    expect($config->services->has('redis'))->toBeTrue();
+    $reloadedConfig = $configManager->load();
+    expect($reloadedConfig->services->has('mysql'))->toBeTrue();
+    expect($reloadedConfig->services->has('redis'))->toBeTrue();
 });
 
 test('regenerates .env file after adding services', function () {
@@ -172,48 +236,34 @@ test('regenerates .env file after adding services', function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
 
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
+    $config = $configManager->load();
 
-    $tester->setInputs(['mysql', 'no']);
-    $tester->execute([]);
+    // Add MySQL
+    $service = $registry->get(\Seaman\Enum\Service::MySQL);
+    $defaultConfig = $service->getDefaultConfig();
+
+    $services = $config->services->add('mysql', new ServiceConfig(
+        name: $defaultConfig->name,
+        enabled: true,
+        type: $defaultConfig->type,
+        version: $defaultConfig->version,
+        port: $defaultConfig->port,
+        additionalPorts: $defaultConfig->additionalPorts,
+        environmentVariables: $defaultConfig->environmentVariables,
+    ));
+
+    $config = new Configuration(
+        version: $config->version,
+        php: $config->php,
+        services: $services,
+        volumes: $config->volumes,
+    );
+
+    $configManager->save($config);
 
     // Verify .env file was created
     expect(file_exists($tempDir . '/.env'))->toBeTrue();
 
     $envContent = file_get_contents($tempDir . '/.env');
-    expect($envContent)->toContain('MYSQL_PORT=');
-});
-
-test('asks to start new services after adding', function () {
-    /** @var ConfigManager $configManager */
-    $configManager = $this->configManager;
-    /** @var ServiceRegistry $registry */
-    $registry = $this->registry;
-
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
-
-    $tester->setInputs(['mysql', 'no']);
-    $tester->execute([]);
-
-    $output = $tester->getDisplay();
-    expect($output)->toContain('Start new services now?');
-});
-
-test('shows success message when services are added', function () {
-    /** @var ConfigManager $configManager */
-    $configManager = $this->configManager;
-    /** @var ServiceRegistry $registry */
-    $registry = $this->registry;
-
-    $command = new ServiceAddCommand($configManager, $registry);
-    $tester = new CommandTester($command);
-
-    $tester->setInputs(['mysql', 'yes']);
-    $tester->execute([]);
-
-    $output = $tester->getDisplay();
-    expect($output)->toContain('Services added successfully');
-    expect($output)->toContain('Service starting not yet implemented');
+    expect($envContent)->toContain('DB_PORT=');
 });

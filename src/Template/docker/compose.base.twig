@@ -1,13 +1,13 @@
-version: '3.8'
-
 services:
   app:
-    image: seaman/seaman:latest
+    image: seaman/seaman-php{{ php_version }}:latest
+    container_name: seaman-app
     build:
       context: .
       dockerfile: .seaman/Dockerfile
       args:
         WWWGROUP: ${WWWGROUP:-1000}
+        PHP_VERSION: ${PHP_VERSION:-{{ php_version }}}
     volumes:
       - .:/var/www/html
       - .seaman/scripts/xdebug-toggle.sh:/usr/local/bin/xdebug-toggle
@@ -26,7 +26,7 @@ services:
       - seaman
 
 {% for name, service in services.enabled %}
-{% include 'docker/services/' ~ service.type ~ '.twig' with { name: name, service: service } %}
+{% include 'docker/services/' ~ service.type.value ~ '.twig' with { name: name, service: service } %}
 
 {% endfor %}
 networks:

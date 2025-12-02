@@ -1,5 +1,6 @@
   {{ name }}:
     image: mongo:{{ service.version }}
+    container_name: seaman-{{ name }}
     environment:
       - MONGO_INITDB_ROOT_USERNAME=${MONGO_USER:-seaman}
       - MONGO_INITDB_ROOT_PASSWORD=${MONGO_PASSWORD:-seaman}

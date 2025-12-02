@@ -25,13 +25,6 @@ if (false === in_array(PHP_SAPI, ['cli', 'phpdbg', 'embed'], true)) {
 })();
 
 
-SignalHandler::listen([Signal::interrupt, Signal::terminate], static function (Signal $signal, Info $info): void {
-    Terminal::output()->writeln("\n\n 💔 Interrupted by user.");
-    Terminal::restoreCursor();
-
-    exit($signal->toInt());
-});
-
 $dotenv = Phar::running() !== ''
         ? Dotenv\Dotenv::createMutable(Phar::running(), '.env')
         : Dotenv\Dotenv::createMutable(getcwd(), '.env');

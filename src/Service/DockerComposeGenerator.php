@@ -18,7 +18,7 @@ readonly class DockerComposeGenerator
     public function generate(Configuration $config): string
     {
         $context = [
-            'php' => $config->php,
+            'php_version' => $config->php->version->value,
             'services' => [
                 'enabled' => $config->services->enabled(),
             ],

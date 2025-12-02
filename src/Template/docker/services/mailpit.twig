@@ -1,5 +1,6 @@
   {{ name }}:
-    image: axllent/mailpit:latest
+    image: axllent/mailpit:{{ service.version }}
+    container_name: seaman-{{ name }}
     ports:
       - "${MAILPIT_PORT}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"

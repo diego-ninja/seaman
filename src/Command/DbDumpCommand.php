@@ -7,8 +7,13 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -20,7 +25,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     name: 'db:dump',
     description: 'Export database to a file',
 )]
-class DbDumpCommand extends Command
+class DbDumpCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
@@ -52,35 +57,38 @@ class DbDumpCommand extends Command
         $databaseService = $this->findDatabaseService($config);
 
         if ($databaseService === null) {
-            $io->error('No database service found in configuration.');
-            $io->note('Add a database service with: seaman service:add');
+            Terminal::error('No database service found in configuration.');
+            Terminal::output()->writeln('Add a database service with: seaman service:add');
             return Command::FAILURE;
         }
 
         if (!$databaseService->enabled) {
-            $io->error("Database service '{$databaseService->name}' is not enabled.");
+            Terminal::error("Database service '{$databaseService->name}' is not enabled.");
             return Command::FAILURE;
         }
 
         $file = $input->getArgument('file');
         if (!is_string($file) || $file === '') {
             $file = sprintf(
-                'database_%s.sql',
+                '%s_dump_%s.sql',
+                $databaseService->name,
                 date('Ymd_His'),
             );
         }
 
-        $io->info("Dumping database to: {$file}");
-
         $dumpCommand = $this->getDumpCommand($databaseService);
 
         if ($dumpCommand === null) {
-            $io->error("Unsupported database type: {$databaseService->type}");
+            $io->error("Unsupported database type: {$databaseService->type->value}");
             return Command::FAILURE;
         }
 
         try {
-            $result = $this->dockerManager->executeInService($databaseService->name, $dumpCommand);
+            $result = $this->dockerManager->executeInService(
+                service: $databaseService->name,
+                command: $dumpCommand,
+                message: "Dumping database to: {$file}",
+            );
         } catch (\RuntimeException $e) {
             $io->error($e->getMessage());
             return Command::FAILURE;
@@ -103,38 +111,30 @@ class DbDumpCommand extends Command
     }
 
     /**
-     * @param \Seaman\ValueObject\Configuration $config
-     * @return \Seaman\ValueObject\ServiceConfig|null
+     * @param Configuration $config
+     * @return ServiceConfig|null
      */
-    private function findDatabaseService($config): ?\Seaman\ValueObject\ServiceConfig
+    private function findDatabaseService(Configuration $config): ?ServiceConfig
     {
-        $databaseTypes = ['postgresql', 'mysql', 'mariadb'];
-
-        foreach ($config->services->all() as $service) {
-            if (in_array($service->type, $databaseTypes, true)) {
-                return $service;
-            }
-        }
-
-        return null;
+        return array_find($config->services->all(), fn(ServiceConfig $service) => in_array($service->type->value, Service::databases(), true));
     }
 
     /**
-     * @param \Seaman\ValueObject\ServiceConfig $service
+     * @param ServiceConfig $service
      * @return list<string>|null
      */
-    private function getDumpCommand(\Seaman\ValueObject\ServiceConfig $service): ?array
+    private function getDumpCommand(ServiceConfig $service): ?array
     {
         $envVars = $service->environmentVariables;
 
         return match ($service->type) {
-            'postgresql' => [
+            Service::PostgreSQL => [
                 'pg_dump',
                 '-U',
                 $envVars['POSTGRES_USER'] ?? 'postgres',
                 $envVars['POSTGRES_DB'] ?? 'postgres',
             ],
-            'mysql', 'mariadb' => [
+            Service::MySQL, Service::MariaDB => [
                 'mysqldump',
                 '-u',
                 $envVars['MYSQL_USER'] ?? 'root',

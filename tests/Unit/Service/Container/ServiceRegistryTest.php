@@ -114,6 +114,11 @@ test('can register a service', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $registry->register($service);
@@ -180,6 +185,11 @@ test('returns all registered services', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -229,6 +239,11 @@ test('returns all registered services', function () {
         public function getHealthCheck(): ?HealthCheck
         {
             return null;
+        }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
         }
     };
 
@@ -298,6 +313,11 @@ test('returns only enabled services', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $redisService = new class implements ServiceInterface {
@@ -347,6 +367,11 @@ test('returns only enabled services', function () {
         public function getHealthCheck(): ?HealthCheck
         {
             return null;
+        }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
         }
     };
 
@@ -414,6 +439,11 @@ test('returns only available services', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $redisService = new class implements ServiceInterface {
@@ -464,12 +494,17 @@ test('returns only available services', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $registry->register($mysqlService);
     $registry->register($redisService);
 
-    $available = $registry->available($config);
+    $available = $registry->disabled($config);
 
     expect($available)->toHaveCount(1)
         ->and($available[0]->getName())->toBe('redis');
@@ -527,6 +562,11 @@ test('replaces service with same name on re-registration', function () {
         {
             return null;
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -576,6 +616,11 @@ test('replaces service with same name on re-registration', function () {
         public function getHealthCheck(): ?HealthCheck
         {
             return null;
+        }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
         }
     };
 

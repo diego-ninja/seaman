@@ -45,6 +45,11 @@ test('mock service implements interface correctly', function () {
         {
             return new HealthCheck(['CMD', 'true'], '10s', '5s', 3);
         }
+
+        public function getEnvVariables(ServiceConfig $config): array
+        {
+            return [];
+        }
     };
 
     expect($service->getName())->toBe('test')

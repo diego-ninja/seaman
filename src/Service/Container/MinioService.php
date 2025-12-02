@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MinioService implements ServiceInterface
+readonly class MinioService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::MinIO->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::MinIO->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'S3-compatible object storage';
+        return Service::MinIO;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class MinioService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::MinIO->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'minio',
+            type: $this->getType(),
             version: 'latest',
-            port: 9000,
+            port: $this->getType()->port(),
             additionalPorts: [9001],
             environmentVariables: [
                 'MINIO_ROOT_USER' => 'minioadmin',
@@ -59,7 +49,7 @@ readonly class MinioService implements ServiceInterface
     {
         $healthCheck = $this->getHealthCheck();
         $composeConfig = [
-            'image' => 'minio/minio:latest',
+            'image' => 'minio/minio:' . $config->version,
             'command' => 'server /data --console-address ":9001"',
             'environment' => [
                 'MINIO_ROOT_USER=${MINIO_ROOT_USER:-minioadmin}',
@@ -100,5 +90,18 @@ readonly class MinioService implements ServiceInterface
             timeout: '20s',
             retries: 3,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'MINIO_PORT' => $config->port,
+            'MINIO_CONSOLE_PORT' => $config->additionalPorts[0] ?? 9001,
+            'MINIO_ROOT_USER' => $config->environmentVariables['MINIO_ROOT_USER'] ?? 'minioadmin',
+            'MINIO_ROOT_PASSWORD' => $config->environmentVariables['MINIO_ROOT_PASSWORD'] ?? 'minioadmin',
+        ];
     }
 }

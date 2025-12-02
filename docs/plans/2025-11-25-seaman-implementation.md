@@ -3148,7 +3148,7 @@ test('returns available services (not enabled)', function () {
     $php = new PhpConfig('8.4', [], $xdebug);
     $config = new Configuration('1.0', $server, $php, new ServiceCollection($enabledServices), new VolumeConfig([]));
 
-    $available = $registry->available($config);
+    $available = $registry->disabled($config);
 
     expect($available)->toHaveCount(2)
         ->and(array_key_exists('redis', $available))->toBeTrue()

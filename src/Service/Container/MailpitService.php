@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MailpitService implements ServiceInterface
+readonly class MailpitService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::Mailpit->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::Mailpit->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'Email testing tool - captures and displays emails';
+        return Service::Mailpit;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class MailpitService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::Mailpit->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'mailpit',
+            type: $this->getType(),
             version: 'latest',
-            port: 8025,
+            port: $this->getType()->port(),
             additionalPorts: [1025],
             environmentVariables: [],
         );
@@ -56,7 +46,7 @@ readonly class MailpitService implements ServiceInterface
     {
         $healthCheck = $this->getHealthCheck();
         $composeConfig = [
-            'image' => 'axllent/mailpit:latest',
+            'image' => 'axllent/mailpit:' . $config->version,
             'ports' => [
                 '${MAILPIT_PORT}:8025',
                 '${MAILPIT_SMTP_PORT:-1025}:1025',
@@ -95,5 +85,16 @@ readonly class MailpitService implements ServiceInterface
             timeout: '5s',
             retries: 3,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'MAILPIT_PORT' => $config->port,
+            'MAILPIT_SMTP_PORT' => $config->additionalPorts[0] ?? 1025,
+        ];
     }
 }

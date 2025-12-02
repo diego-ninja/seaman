@@ -1,5 +1,6 @@
   {{ name }}:
     image: memcached:{{ service.version }}
+    container_name: seaman-{{ name }}
     ports:
       - "${MEMCACHED_PORT}:11211"
     networks:

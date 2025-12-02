@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class RedisService implements ServiceInterface
+readonly class RedisService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::Redis->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::Redis->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'Redis cache and session storage';
+        return Service::Redis;
     }
 
     /**
@@ -36,14 +26,19 @@ readonly class RedisService implements ServiceInterface
         return [];
     }
 
+    public function getIcon(): string
+    {
+        return '🧵';
+    }
+
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::Redis->value,
+            name: $this->getType()->value,
             enabled: true,
-            type: 'redis',
+            type: $this->getType(),
             version: '7-alpine',
-            port: 6379,
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [],
         );
@@ -89,5 +84,15 @@ readonly class RedisService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'REDIS_PORT' => $config->port,
+        ];
     }
 }

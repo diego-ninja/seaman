@@ -7,7 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -20,7 +22,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'Toggle xdebug on application container',
     aliases: ['xdebug'],
 )]
-class XdebugCommand extends Command
+class XdebugCommand extends AbstractSeamanCommand implements Decorable
 {
     protected function configure(): void
     {
@@ -29,25 +31,14 @@ class XdebugCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $projectRoot = (string) getcwd();
-
-        // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/seaman.yaml')) {
-            $io->error('seaman.yaml not found. Run "seaman init" first.');
+        $mode = $input->getArgument('mode');
+        if (!is_string($mode)) {
+            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', $mode));
             return Command::FAILURE;
         }
-
-        $modeArgument = $input->getArgument('mode');
-
-        if (!is_string($modeArgument)) {
-            $io->error('Invalid mode argument.');
-            return Command::FAILURE;
-        }
-        $mode = $modeArgument;
 
         if (!in_array(strtolower($mode), ['on', 'off'], true)) {
-            $io->error("Invalid mode: {$mode}. Use 'on' or 'off'.");
+            Terminal::error(sprintf('Argument "%s" must be one of "on", "off".', $mode));
             return Command::FAILURE;
         }
 
@@ -55,12 +46,12 @@ class XdebugCommand extends Command
         $result = $manager->executeInService('app', ['xdebug-toggle', strtolower($mode)]);
 
         if ($result->isSuccessful()) {
-            $io->success("Xdebug is now {$mode}");
+            Terminal::success("Xdebug is now <fg=bright-green>{$mode}</>");
             return Command::SUCCESS;
         }
 
-        $io->error('Failed to toggle Xdebug');
-        $io->writeln($result->errorOutput);
+        Terminal::error('Failed to toggle Xdebug');
+        Terminal::output()->writeln($result->errorOutput);
 
         return Command::FAILURE;
     }

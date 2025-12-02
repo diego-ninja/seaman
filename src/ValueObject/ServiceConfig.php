@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
+use Seaman\Enum\Service;
+
 final readonly class ServiceConfig
 {
     /**
@@ -16,7 +18,7 @@ final readonly class ServiceConfig
     public function __construct(
         public string $name,
         public bool $enabled,
-        public string $type,
+        public Service $type,
         public string $version,
         public int $port,
         public array $additionalPorts,

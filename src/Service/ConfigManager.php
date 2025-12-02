@@ -10,6 +10,8 @@ namespace Seaman\Service;
 use Exception;
 use RuntimeException;
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\Service;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -22,6 +24,7 @@ readonly class ConfigManager
 {
     public function __construct(
         private string $projectRoot,
+        private ServiceRegistry $serviceRegistry,
     ) {}
 
     public function load(): Configuration
@@ -152,7 +155,7 @@ readonly class ConfigManager
             $services[$name] = new ServiceConfig(
                 name: $name,
                 enabled: $enabled,
-                type: $type,
+                type: Service::from($type),
                 version: $version,
                 port: $port,
                 additionalPorts: $portsList,
@@ -216,7 +219,7 @@ readonly class ConfigManager
         foreach ($config->services->all() as $name => $service) {
             $data['services'][$name] = [
                 'enabled' => $service->enabled,
-                'type' => $service->type,
+                'type' => $service->type->value,
                 'version' => $service->version,
                 'port' => $service->port,
             ];
@@ -346,7 +349,7 @@ readonly class ConfigManager
                 $mergedServices[$name] = new ServiceConfig(
                     name: $name,
                     enabled: $enabled,
-                    type: $type,
+                    type: Service::from($type),
                     version: $version,
                     port: $port,
                     additionalPorts: $portsList,
@@ -405,17 +408,23 @@ readonly class ConfigManager
             '',
         ];
 
-        foreach ($config->services->all() as $name => $service) {
-            $lines[] = '# ' . ucfirst($name) . ' configuration';
-            $lines[] = strtoupper($name) . '_PORT=' . $service->port;
-
-            if (!empty($service->environmentVariables)) {
-                foreach ($service->environmentVariables as $key => $value) {
-                    $lines[] = strtoupper($name) . '_' . $key . '=' . $value;
-                }
+        foreach ($config->services->all() as $name => $serviceConfig) {
+            if (!$serviceConfig->enabled) {
+                continue;
             }
 
-            $lines[] = '';
+            try {
+                $service = $this->serviceRegistry->get($serviceConfig->type);
+                $envVars = $service->getEnvVariables($serviceConfig);
+
+                $lines[] = '# ' . ucfirst($name) . ' configuration';
+                foreach ($envVars as $key => $value) {
+                    $lines[] = $key . '=' . $value;
+                }
+                $lines[] = '';
+            } catch (\ValueError|\InvalidArgumentException $e) {
+                continue;
+            }
         }
 
         $envContent = implode("\n", $lines);

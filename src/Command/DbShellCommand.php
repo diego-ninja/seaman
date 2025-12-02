@@ -9,6 +9,8 @@ namespace Seaman\Command;
 
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -72,27 +74,22 @@ class DbShellCommand extends Command
     }
 
     /**
-     * @param \Seaman\ValueObject\Configuration $config
-     * @return \Seaman\ValueObject\ServiceConfig|null
+     * @param Configuration $config
+     * @return ServiceConfig|null
      */
-    private function findDatabaseService($config): ?\Seaman\ValueObject\ServiceConfig
+    private function findDatabaseService(Configuration $config): ?ServiceConfig
     {
         $databaseTypes = ['postgresql', 'mysql', 'mariadb'];
 
-        foreach ($config->services->all() as $service) {
-            if (in_array($service->type, $databaseTypes, true)) {
-                return $service;
-            }
-        }
+        return array_find($config->services->all(), fn($service) => in_array($service->type, $databaseTypes, true));
 
-        return null;
     }
 
     /**
-     * @param \Seaman\ValueObject\ServiceConfig $service
+     * @param ServiceConfig $service
      * @return list<string>|null
      */
-    private function getShellCommand(\Seaman\ValueObject\ServiceConfig $service): ?array
+    private function getShellCommand(ServiceConfig $service): ?array
     {
         $envVars = $service->environmentVariables;
 

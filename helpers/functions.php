@@ -1,6 +1,7 @@
 <?php
 
 use Seaman\Exception\BinaryNotFoundException;
+use Seaman\UI\Widget\Box\Box;
 use Symfony\Component\Process\Process;
 
 if (!function_exists('Seaman\is_seaman')) {
@@ -112,6 +113,28 @@ if (!function_exists("Seaman\git_version")) {
         }
 
         return trim($process->getOutput());
+    }
+}
+
+if (!function_exists('Seaman\box')) {
+    /**
+     * Display text in a bordered box.
+     *
+     * @param string $title The title displayed in the top border
+     * @param string $message The main content of the box
+     * @param string $footer Optional footer content
+     * @param string $color Border color (gray, cyan, yellow, red, green)
+     * @param string $info Optional info text in the bottom border
+     * @return void
+     */
+    function box(
+        string $title,
+        string $message,
+        string $footer = '',
+        string $color = 'gray',
+        string $info = '',
+    ): void {
+        new Box($title, $message, $footer, $color, $info)->display();
     }
 }
 

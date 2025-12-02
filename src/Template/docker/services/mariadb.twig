@@ -1,5 +1,6 @@
   {{ name }}:
     image: mariadb:{{ service.version }}
+    container_name: seaman-{{ name }}
     environment:
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
       - MARIADB_DATABASE=${DB_NAME:-seaman}

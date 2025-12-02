@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Seaman\UI\Spinner;
+namespace Seaman\UI\Widget\Spinner;
 
 use Exception;
 use RuntimeException;
@@ -154,9 +154,9 @@ class Spinner
         $this->reset();
         Terminal::output()->writeln(
             sprintf(
-                "%s<success>%s</success> %s",
+                "%s<fg=bright-green>%s</> %s",
                 $this->addPadding(),
-                '',
+                '⬡',
                 $this->message,
             ),
         );
@@ -167,9 +167,9 @@ class Spinner
         $this->reset();
         Terminal::output()->writeln(
             sprintf(
-                "%s<warn>%s</warn> %s",
+                "%s<fg=bright-red;options=blink>%s</> %s",
                 $this->addPadding(),
-                '',
+                '⬡',
                 $this->message,
             ),
         );

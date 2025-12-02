@@ -7,9 +7,23 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\Container\DozzleService;
+use Seaman\Service\Container\ElasticsearchService;
+use Seaman\Service\Container\MailpitService;
+use Seaman\Service\Container\MariadbService;
+use Seaman\Service\Container\MemcachedService;
+use Seaman\Service\Container\MinioService;
+use Seaman\Service\Container\MongodbService;
+use Seaman\Service\Container\MysqlService;
+use Seaman\Service\Container\PostgresqlService;
+use Seaman\Service\Container\RabbitmqService;
+use Seaman\Service\Container\RedisService;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -21,56 +35,46 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'Rebuild docker images',
     aliases: ['rebuild'],
 )]
-class RebuildCommand extends Command
+class RebuildCommand extends AbstractSeamanCommand implements Decorable
 {
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
         $projectRoot = (string) getcwd();
 
-        // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/.seaman/seaman.yaml')) {
-            $io->error('seaman.yaml not found. Run "seaman init" first.');
-            return Command::FAILURE;
-        }
+        // Create service registry
+        $registry = new ServiceRegistry();
+        $registry->register(new PostgresqlService());
+        $registry->register(new MysqlService());
+        $registry->register(new MariadbService());
+        $registry->register(new MongodbService());
+        $registry->register(new RedisService());
+        $registry->register(new MemcachedService());
+        $registry->register(new MailpitService());
+        $registry->register(new MinioService());
+        $registry->register(new ElasticsearchService());
+        $registry->register(new RabbitmqService());
+        $registry->register(new DozzleService());
 
         // Load configuration to get PHP version
-        $configManager = new ConfigManager($projectRoot);
+        $configManager = new ConfigManager($projectRoot, $registry);
         $config = $configManager->load();
 
         // Build Docker image
-        $io->info('Building Docker image...');
         $builder = new DockerImageBuilder($projectRoot, $config->php->version);
         $buildResult = $builder->build();
 
         if (!$buildResult->isSuccessful()) {
-            $io->error('Failed to build Docker image');
-            $io->writeln($buildResult->errorOutput);
             return Command::FAILURE;
         }
 
-        $io->success('Docker image built successfully!');
-
-        // Restart services
         $manager = new DockerManager($projectRoot);
+        $restartResult = $manager->restart();
 
-        $io->info('Stopping services...');
-        $stopResult = $manager->stop();
-
-        if (!$stopResult->isSuccessful()) {
-            $io->warning('Failed to stop services (they may not be running)');
-        }
-
-        $io->info('Starting services...');
-        $startResult = $manager->start();
-
-        if ($startResult->isSuccessful()) {
-            $io->success('Rebuild and restart complete!');
+        if ($restartResult->isSuccessful()) {
             return Command::SUCCESS;
         }
 
-        $io->error('Failed to start services');
-        $io->writeln($startResult->errorOutput);
+        Terminal::output()->writeln($restartResult->errorOutput);
         return Command::FAILURE;
     }
 }

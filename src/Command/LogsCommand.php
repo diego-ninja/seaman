@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
 use Seaman\Service\DockerManager;
 use Seaman\ValueObject\LogOptions;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -22,7 +23,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'View service logs',
     aliases: ['logs'],
 )]
-class LogsCommand extends Command
+class LogsCommand extends AbstractSeamanCommand implements Decorable
 {
     protected function configure(): void
     {
@@ -37,12 +38,6 @@ class LogsCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
         $projectRoot = (string) getcwd();
-
-        // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/seaman.yaml')) {
-            $io->error('seaman.yaml not found. Run "seaman init" first.');
-            return Command::FAILURE;
-        }
 
         /** @var string $service */
         $service = $input->getArgument('service');

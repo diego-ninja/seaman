@@ -1,5 +1,6 @@
   {{ name }}:
     image: redis:{{ service.version }}
+    container_name: seaman-{{ name }}
     ports:
       - "${REDIS_PORT}:6379"
     networks:

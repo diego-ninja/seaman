@@ -7,19 +7,25 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\Terminal;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:add',
     description: 'Interactively add services to configuration',
 )]
-class ServiceAddCommand extends Command
+class ServiceAddCommand extends AbstractServiceCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
@@ -30,13 +36,11 @@ class ServiceAddCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         $config = $this->configManager->load();
-        $available = $this->registry->available($config);
+        $available = $this->registry->disabled($config);
 
         if (empty($available)) {
-            $io->info('All services are already enabled.');
+            Terminal::success('All services are already enabled.');
             return Command::SUCCESS;
         }
 
@@ -49,30 +53,24 @@ class ServiceAddCommand extends Command
             );
         }
 
-        $selected = $io->choice(
-            'Which service would you like to add? (separate multiple with comma)',
-            $choices,
-            null,
+        /** @var array<int, string> $selected */
+        $selected = multiselect(
+            label: 'Which service would you like to add?',
+            options: $choices,
         );
 
-        if (!is_string($selected)) {
-            $io->error('Invalid selection');
-            return Command::FAILURE;
-        }
-
-        $selected = array_map('trim', explode(',', $selected));
+        $newConfig = $config;
 
         foreach ($selected as $serviceName) {
-            $serviceEnum = \Seaman\Enum\Service::tryFrom($serviceName);
+            $serviceEnum = Service::tryFrom($serviceName);
             if ($serviceEnum === null) {
-                $io->error("Unknown service: {$serviceName}");
+                Terminal::error("Unknown service: {$serviceName}");
                 continue;
             }
 
             $service = $this->registry->get($serviceEnum);
             $defaultConfig = $service->getDefaultConfig();
-
-            $serviceConfig = new \Seaman\ValueObject\ServiceConfig(
+            $serviceConfig = new ServiceConfig(
                 name: $defaultConfig->name,
                 enabled: true,
                 type: $defaultConfig->type,
@@ -81,24 +79,18 @@ class ServiceAddCommand extends Command
                 additionalPorts: $defaultConfig->additionalPorts,
                 environmentVariables: $defaultConfig->environmentVariables,
             );
-
-            $services = $config->services->add($serviceName, $serviceConfig);
-            $config = new \Seaman\ValueObject\Configuration(
-                version: $config->version,
-                php: $config->php,
+            $services = $newConfig->services->add($serviceName, $serviceConfig);
+            $newConfig = new Configuration(
+                version: $newConfig->version,
+                php: $newConfig->php,
                 services: $services,
-                volumes: $config->volumes,
+                volumes: $newConfig->volumes,
             );
         }
 
-        $this->configManager->save($config);
+        $this->configManager->save($newConfig);
+        $this->regenerate($newConfig);
 
-        $io->success('Services added successfully.');
-
-        if ($io->confirm('Start new services now?', false)) {
-            $io->note('Service starting not yet implemented.');
-        }
-
-        return Command::SUCCESS;
+        return $this->restartServices();
     }
 }

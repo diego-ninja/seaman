@@ -7,7 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -19,7 +21,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Run php commands on application container',
     aliases: ['php'],
 )]
-class ExecutePhpCommand extends Command
+class ExecutePhpCommand extends AbstractSeamanCommand implements Decorable
 {
     protected function configure(): void
     {
@@ -31,23 +33,19 @@ class ExecutePhpCommand extends Command
     {
         $projectRoot = (string) getcwd();
 
-        // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/seaman.yaml')) {
-            $output->writeln('<error>seaman.yaml not found. Run "seaman init" first.</error>');
-            return Command::FAILURE;
-        }
-
         /** @var list<string> $args */
         $args = $input->getArgument('args');
         $manager = new DockerManager($projectRoot);
 
         $result = $manager->executeInService('app', ['php', ...$args]);
-        $output->write($result->output);
+        print_r($result);
+        Terminal::output()->writeln($result->output);
 
         if (!$result->isSuccessful()) {
-            $output->write($result->errorOutput);
+            Terminal::error($result->output);
+            return Command::FAILURE;
         }
 
-        return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
+        return Command::SUCCESS;
     }
 }

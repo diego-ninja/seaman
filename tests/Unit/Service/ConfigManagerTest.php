@@ -9,6 +9,7 @@ namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -23,14 +24,29 @@ use Seaman\ValueObject\XdebugConfig;
 beforeEach(function () {
     $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
     mkdir($this->tempDir, 0755, true);
-    $this->manager = new ConfigManager($this->tempDir);
+    $registry = new ServiceRegistry();
+    $this->manager = new ConfigManager($this->tempDir, $registry);
 });
 
 afterEach(function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
     if (is_dir($tempDir)) {
-        // Remove all files including hidden files
+        // Remove .seaman directory if it exists
+        $seamanDir = $tempDir . '/.seaman';
+        if (is_dir($seamanDir)) {
+            $seamanFiles = glob($seamanDir . '/*');
+            if ($seamanFiles !== false) {
+                foreach ($seamanFiles as $file) {
+                    if (is_file($file)) {
+                        unlink($file);
+                    }
+                }
+            }
+            rmdir($seamanDir);
+        }
+
+        // Remove all files including hidden files in temp dir
         $files = glob($tempDir . '/{,.}*', GLOB_BRACE);
         if ($files !== false) {
             foreach ($files as $file) {
@@ -46,7 +62,13 @@ afterEach(function () {
 test('loads configuration from YAML', function () {
     /** @var ConfigManager $manager */
     $manager = $this->manager;
-    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $this->tempDir . '/seaman.yaml');
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $seamanDir = $tempDir . '/.seaman';
+    if (!is_dir($seamanDir)) {
+        mkdir($seamanDir, 0755, true);
+    }
+    copy(__DIR__ . '/../../Fixtures/configs/minimal-seaman.yaml', $seamanDir . '/seaman.yaml');
 
     $config = $manager->load();
 

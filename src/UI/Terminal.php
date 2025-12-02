@@ -32,7 +32,6 @@ final class Terminal
         return self::$instance;
     }
 
-
     /**
      * Get the console output object.
      *
@@ -96,6 +95,31 @@ final class Terminal
     public static function width(): int
     {
         return terminal()->width();
+    }
+
+    public static function success(string $message): void
+    {
+        self::output()->writeln(
+            sprintf(
+                "%s<fg=bright-green>%s</> %s",
+                str_repeat(' ', 2),
+                '⬡',
+                $message,
+            ),
+        );
+
+    }
+
+    public static function error(string $message): void
+    {
+        self::output()->writeln(
+            sprintf(
+                "%s<fg=bright-red;options=blink>%s</> <fg=bright-red>%s</>",
+                str_repeat(' ', 2),
+                '⬡',
+                $message,
+            ),
+        );
     }
 
     /**

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Seaman\UI\Spinner;
+namespace Seaman\UI\Widget\Spinner;
 
 use Exception;
 use Symfony\Component\Process\Process;

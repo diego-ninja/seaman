@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class MysqlService implements ServiceInterface
+readonly class MysqlService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::MySQL->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::MySQL->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'MySQL relational database';
+        return Service::MySQL;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class MysqlService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::MySQL->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'mysql',
+            type: $this->getType(),
             version: '8.0',
-            port: 3306,
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
                 'MYSQL_DATABASE' => 'seaman',
@@ -101,5 +91,19 @@ readonly class MysqlService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'DB_PORT' => $config->port,
+            'DB_NAME' => $config->environmentVariables['MYSQL_DATABASE'] ?? 'seaman',
+            'DB_USER' => $config->environmentVariables['MYSQL_USER'] ?? 'seaman',
+            'DB_PASSWORD' => $config->environmentVariables['MYSQL_PASSWORD'] ?? 'seaman',
+            'DB_ROOT_PASSWORD' => $config->environmentVariables['MYSQL_ROOT_PASSWORD'] ?? 'root',
+        ];
     }
 }

@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class RabbitmqService implements ServiceInterface
+readonly class RabbitmqService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::RabbitMq->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::RabbitMq->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'RabbitMQ message queue';
+        return Service::RabbitMq;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class RabbitmqService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: 'rabbitmq',
+            name: $this->getType()->value,
             enabled: false,
-            type: 'rabbitmq',
+            type: $this->getType(),
             version: '3-management',
-            port: 5672,
+            port: $this->getType()->port(),
             additionalPorts: [15672],
             environmentVariables: [
                 'RABBITMQ_DEFAULT_USER' => 'seaman',
@@ -99,5 +89,18 @@ readonly class RabbitmqService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'RABBITMQ_PORT' => $config->port,
+            'RABBITMQ_MANAGEMENT_PORT' => $config->additionalPorts[0] ?? 15672,
+            'RABBITMQ_USER' => $config->environmentVariables['RABBITMQ_DEFAULT_USER'] ?? 'seaman',
+            'RABBITMQ_PASSWORD' => $config->environmentVariables['RABBITMQ_DEFAULT_PASS'] ?? 'seaman',
+        ];
     }
 }

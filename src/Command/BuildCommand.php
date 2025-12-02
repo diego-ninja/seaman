@@ -7,11 +7,14 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
+use Seaman\EventListener\ListenerDiscovery;
+use Seaman\UI\Terminal;
+use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Process\Process;
 
 #[AsCommand(
@@ -19,36 +22,16 @@ use Symfony\Component\Process\Process;
     description: 'Build PHAR executable using Box',
     aliases: ['build'],
 )]
-class BuildCommand extends Command
+class BuildCommand extends AbstractSeamanCommand implements Decorable
 {
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
         $projectRoot = (string) getcwd();
 
-        // Ensure build directory exists
-        $buildDir = $projectRoot . '/build';
-        if (!is_dir($buildDir)) {
-            if (!mkdir($buildDir, 0755, true)) {
-                $io->error('Failed to create build directory');
-                return Command::FAILURE;
-            }
-        }
+        $buildDir = $this->ensureBuildDirectory($projectRoot);
+        $boxPath =  $this->ensureBoxIsInstalled($projectRoot);
 
-        // Check if box is available
-        $boxPath = $projectRoot . '/vendor/bin/box';
-        if (!file_exists($boxPath)) {
-            $io->error('Box not found. Please run: composer install --dev');
-            return Command::FAILURE;
-        }
-
-        // Generate listeners config
-        $io->section('Generating listeners configuration');
         $this->generateListenersConfig($projectRoot);
-        $io->success('Listeners configuration generated');
-
-        $io->section('Building PHAR');
-        $io->text('Using Box to compile seaman.phar...');
 
         // Run box compile
         $process = new Process(
@@ -59,31 +42,29 @@ class BuildCommand extends Command
             300, // 5 minutes timeout
         );
 
-        $process->run(function (string $type, string $buffer) use ($output): void {
-            $output->write($buffer);
-        });
+        SpinnerFactory::for($process, sprintf('Compiling seaman.phar using Box at: %s', $boxPath));
 
         if (!$process->isSuccessful()) {
-            $io->error('Failed to build PHAR');
-            $io->text($process->getErrorOutput());
+            Terminal::error('Failed to build PHAR');
+            // Terminal::output()->writeln($process->getErrorOutput());
             return Command::FAILURE;
         }
 
         $pharPath = $buildDir . '/seaman.phar';
         if (!file_exists($pharPath)) {
-            $io->error('PHAR file was not created at expected location: ' . $pharPath);
+            Terminal::error('PHAR file was not created at expected location: ' . $pharPath);
             return Command::FAILURE;
         }
 
-        $io->success('PHAR built successfully: ' . $pharPath);
-        $io->text('You can now distribute build/seaman.phar');
+        Terminal::success('PHAR built successfully: ' . $pharPath);
+        Terminal::output()->writeln('You can now distribute build/seaman.phar');
 
         return Command::SUCCESS;
     }
 
     private function generateListenersConfig(string $projectRoot): void
     {
-        $discovery = new \Seaman\EventListener\ListenerDiscovery($projectRoot . '/src/Listener');
+        $discovery = new ListenerDiscovery($projectRoot . '/src/Listener');
         $listeners = $discovery->discover();
 
         $configDir = $projectRoot . '/config';
@@ -113,5 +94,33 @@ class BuildCommand extends Command
         $content .= "];\n";
 
         file_put_contents($configDir . '/listeners.php', $content);
+        Terminal::success('Listeners configuration generated');
     }
+
+    private function ensureBuildDirectory(string $projectRoot): string
+    {
+        // Ensure build directory exists
+        $buildDir = $projectRoot . '/build';
+        if (!is_dir($buildDir)) {
+            if (!mkdir($buildDir, 0755, true)) {
+                Terminal::error('Failed to create build directory');
+                exit(Command::FAILURE);
+            }
+        }
+
+        return $buildDir;
+    }
+
+    private function ensureBoxIsInstalled(string $projectRoot): string
+    {
+        // Check if box is available
+        $boxPath = $projectRoot . '/vendor/bin/box';
+        if (!file_exists($boxPath)) {
+            Terminal::error('Box not found. Please run: composer install --dev');
+            exit(Command::FAILURE);
+        }
+
+        return $boxPath;
+    }
+
 }

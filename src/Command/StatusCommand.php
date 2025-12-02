@@ -7,82 +7,97 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contracts\Decorable;
+use Seaman\Enum\Service;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'seaman:status',
     description: 'Show status of all services',
     aliases: ['status'],
 )]
-class StatusCommand extends Command
+class StatusCommand extends AbstractSeamanCommand implements Decorable
 {
+    public function __construct(private readonly ServiceRegistry $serviceRegistry)
+    {
+        parent::__construct();
+    }
+
+    /**
+     * @throws \Exception
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $projectRoot = (string) getcwd();
-
-        // Check if seaman.yaml exists
-        if (!file_exists($projectRoot . '/seaman.yaml')) {
-            $io->error('seaman.yaml not found. Run "seaman init" first.');
-            return Command::FAILURE;
-        }
-
         $manager = new DockerManager((string) getcwd());
-
         $services = $manager->status();
 
         if (empty($services)) {
-            $io->warning('No services are running or defined.');
+            Terminal::output()->writeln('No services are running or defined.');
             return Command::SUCCESS;
         }
 
         $rows = [];
         foreach ($services as $service) {
-            $ports = array_map(function ($p) {
-                if (!is_array($p)) {
-                    return '';
-                }
-                $url = isset($p['URL']) && is_string($p['URL']) ? $p['URL'] : '';
-                $publishedPort = isset($p['PublishedPort']) && is_int($p['PublishedPort']) ? $p['PublishedPort'] : 0;
-                $targetPort = isset($p['TargetPort']) && is_int($p['TargetPort']) ? $p['TargetPort'] : 0;
-                $protocol = isset($p['Protocol']) && is_string($p['Protocol']) ? $p['Protocol'] : '';
+            $ports = array_unique(array_map(function (array $port) {
+                $publishedPort = isset($port['PublishedPort']) && is_int($port['PublishedPort']) ? $port['PublishedPort'] : 0;
+                $protocol = isset($port['Protocol']) && is_string($port['Protocol']) ? $port['Protocol'] : '';
 
                 return sprintf(
-                    '%s:%d->%d/%s',
-                    $url,
+                    '%d/%s',
                     $publishedPort,
-                    $targetPort,
                     $protocol,
                 );
-            }, $service['Publishers'] ?? []);
-
-            $serviceName = isset($service['Service']) && is_string($service['Service']) ? $service['Service'] : '';
-            $state = isset($service['State']) && is_string($service['State']) ? $service['State'] : '';
+            }, $service['Publishers'] ?? []));
 
             $rows[] = [
-                $serviceName,
-                $this->formatStatus($state),
-                implode(', ', $ports),
+                sprintf('%s %s', Service::from($service['Service'])->icon(), $service['Name']),
+                $service['Image'],
+                $this->formatStatus($service['State'], $service['Health'] ?? 'unknown'),
+                $service["RunningFor"],
+                $this->formatPorts($ports),
+                $this->formatContainerLink($service['ID']),
             ];
         }
 
-        $io->table(['Service', 'Status', 'Ports'], $rows);
+        table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
 
         return Command::SUCCESS;
     }
 
-    private function formatStatus(string $status): string
+    private function formatStatus(string $status, string $health): string
     {
         return match (strtolower($status)) {
-            'running' => '<fg=green>● Running</>',
-            'exited' => '<fg=red>● Exited</>',
-            'restarting' => '<fg=yellow>● Restarting</>',
-            default => "<fg=gray>● " . ucfirst($status) . "</>",
+            'running' => $health !== ''
+                ? sprintf('<fg=green>⚙</> running (<fg=green>%s</>)', $health)
+                : '<fg=yellow>⚙</> running (<fg=yellow>unknown</>)',
+            'exited' => '<fg=red>⚙</> exited',
+            'restarting' => '<fg=yellow>⚙</> restarting',
+            default => "<fg=gray>⚙</> " . $status,
         };
+    }
+
+    private function formatContainerLink(string $containerId): string
+    {
+        return sprintf("<href=http://localhost:8080/container/%s>%s</>", $containerId, $containerId);
+    }
+
+    /**
+     * @param array<non-falsy-string> $ports
+     * @return string
+     */
+    private function formatPorts(array $ports): string
+    {
+        $ports = array_filter($ports, function ($port) {
+            return !in_array($port, ['0/tcp', '0/udp'], true);
+        });
+        return implode(', ', $ports);
     }
 }

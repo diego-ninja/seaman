@@ -11,21 +11,11 @@ use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
 
-readonly class ElasticsearchService implements ServiceInterface
+readonly class ElasticsearchService extends AbstractService
 {
-    public function getName(): string
+    public function getType(): Service
     {
-        return Service::Elasticsearch->value;
-    }
-
-    public function getDisplayName(): string
-    {
-        return Service::Elasticsearch->name;
-    }
-
-    public function getDescription(): string
-    {
-        return 'Elasticsearch search engine';
+        return Service::Elasticsearch;
     }
 
     /**
@@ -39,11 +29,11 @@ readonly class ElasticsearchService implements ServiceInterface
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
-            name: Service::Elasticsearch->value,
+            name: $this->getType()->value,
             enabled: false,
-            type: 'elasticsearch',
-            version: '8.11',
-            port: 9200,
+            type: $this->getType(),
+            version: '9.2.1',
+            port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
                 'discovery.type' => 'single-node',
@@ -60,7 +50,7 @@ readonly class ElasticsearchService implements ServiceInterface
         $healthCheck = $this->getHealthCheck();
 
         $composeConfig = [
-            'image' => 'elasticsearch:' . $config->version,
+            'image' => 'docker.elastic.co/elasticsearch/elasticsearch:' . $config->version,
             'environment' => $config->environmentVariables,
             'ports' => [
                 $config->port . ':9200',
@@ -98,5 +88,15 @@ readonly class ElasticsearchService implements ServiceInterface
             timeout: '5s',
             retries: 5,
         );
+    }
+
+    /**
+     * @return array<string, string|int>
+     */
+    public function getEnvVariables(ServiceConfig $config): array
+    {
+        return [
+            'ELASTICSEARCH_PORT' => $config->port,
+        ];
     }
 }

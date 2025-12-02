@@ -15,6 +15,43 @@ class ServiceRegistry
     /** @var array<string, ServiceInterface> */
     private array $services = [];
 
+    public static function create(): ServiceRegistry
+    {
+        {
+            $registry = new self();
+
+            foreach (get_declared_classes() as $className) {
+                if (!str_starts_with($className, 'Seaman\\Service\\Container\\')) {
+                    continue;
+                }
+
+                try {
+                    $reflection = new \ReflectionClass($className);
+
+                    if (!$reflection->implementsInterface(ServiceInterface::class)) {
+                        continue;
+                    }
+
+                    if (!$reflection->isInstantiable()) {
+                        continue;
+                    }
+
+                    /** @var ServiceInterface $service */
+                    $service = $reflection->newInstance();
+                    $registry->register($service);
+
+                } catch (\Throwable) {
+                    continue;
+                }
+            }
+
+            return $registry;
+        }
+
+
+
+    }
+
     public function register(ServiceInterface $service): void
     {
         $this->services[$service->getName()] = $service;
@@ -40,7 +77,7 @@ class ServiceRegistry
     /**
      * @return list<ServiceInterface> Services not currently enabled
      */
-    public function available(Configuration $config): array
+    public function disabled(Configuration $config): array
     {
         $enabledNames = array_keys($config->services->enabled());
         $available = [];
