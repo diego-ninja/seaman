@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
+use Seaman\Enum\ProjectType;
+
 final readonly class Configuration
 {
     public function __construct(
@@ -14,5 +16,6 @@ final readonly class Configuration
         public PhpConfig $php,
         public ServiceCollection $services,
         public VolumeConfig $volumes,
+        public ProjectType $projectType = ProjectType::Existing,
     ) {}
 }

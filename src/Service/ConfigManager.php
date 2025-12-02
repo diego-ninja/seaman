@@ -10,6 +10,7 @@ namespace Seaman\Service;
 use Exception;
 use RuntimeException;
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
@@ -190,11 +191,16 @@ readonly class ConfigManager
             $version = '1.0';
         }
 
+        $projectTypeString = $data['project_type'] ?? null;
+        $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
+        $projectType = $projectType ?? ProjectType::Existing;
+
         return new Configuration(
             version: $version,
             php: $php,
             services: new ServiceCollection($services),
             volumes: $volumes,
+            projectType: $projectType,
         );
     }
 
@@ -202,6 +208,7 @@ readonly class ConfigManager
     {
         $data = [
             'version' => $config->version,
+            'project_type' => $config->projectType->value,
             'php' => [
                 'version' => $config->php->version->value,
                 'xdebug' => [
@@ -386,11 +393,16 @@ readonly class ConfigManager
             $version = $base->version;
         }
 
+        $projectTypeString = $overrides['project_type'] ?? null;
+        $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
+        $projectType = $projectType ?? $base->projectType;
+
         return new Configuration(
             version: $version,
             php: $php,
             services: $services,
             volumes: $volumes,
+            projectType: $projectType,
         );
     }
 

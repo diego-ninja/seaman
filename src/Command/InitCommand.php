@@ -116,6 +116,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             php: $php,
             services: new ServiceCollection($serviceConfigs),
             volumes: new VolumeConfig($persistVolumes),
+            projectType: $projectType,
         );
 
         // Show configuration summary
