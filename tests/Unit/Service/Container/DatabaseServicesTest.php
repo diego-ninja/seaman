@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\MariadbService;
@@ -51,7 +52,7 @@ test('PostgresqlService returns default config with correct values', function ()
     expect($config)->toBeInstanceOf(ServiceConfig::class)
         ->and($config->name)->toBe('postgresql')
         ->and($config->enabled)->toBe(false)
-        ->and($config->type)->toBe('postgresql')
+        ->and($config->type)->toBe(Service::PostgreSQL)
         ->and($config->version)->toBe('16')
         ->and($config->port)->toBe(5432)
         ->and($config->additionalPorts)->toBe([])
@@ -86,7 +87,7 @@ test('PostgresqlService generates docker compose config', function () {
     $config = new ServiceConfig(
         name: 'postgresql',
         enabled: true,
-        type: 'postgresql',
+        type: Service::PostgreSQL,
         version: '16',
         port: 5432,
         additionalPorts: [],
@@ -148,7 +149,7 @@ test('MysqlService returns default config with correct values', function () {
     expect($config)->toBeInstanceOf(ServiceConfig::class)
         ->and($config->name)->toBe('mysql')
         ->and($config->enabled)->toBe(false)
-        ->and($config->type)->toBe('mysql')
+        ->and($config->type)->toBe(Service::MySQL)
         ->and($config->version)->toBe('8.0')
         ->and($config->port)->toBe(3306)
         ->and($config->additionalPorts)->toBe([])
@@ -185,7 +186,7 @@ test('MysqlService generates docker compose config', function () {
     $config = new ServiceConfig(
         name: 'mysql',
         enabled: true,
-        type: 'mysql',
+        type: Service::MySQL,
         version: '8.0',
         port: 3306,
         additionalPorts: [],
@@ -249,7 +250,7 @@ test('MariadbService returns default config with correct values', function () {
     expect($config)->toBeInstanceOf(ServiceConfig::class)
         ->and($config->name)->toBe('mariadb')
         ->and($config->enabled)->toBe(false)
-        ->and($config->type)->toBe('mariadb')
+        ->and($config->type)->toBe(Service::MariaDB)
         ->and($config->version)->toBe('11')
         ->and($config->port)->toBe(3306)
         ->and($config->additionalPorts)->toBe([])
@@ -285,7 +286,7 @@ test('MariadbService generates docker compose config', function () {
     $config = new ServiceConfig(
         name: 'mariadb',
         enabled: true,
-        type: 'mariadb',
+        type: Service::MariaDB,
         version: '11',
         port: 3306,
         additionalPorts: [],

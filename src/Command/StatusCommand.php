@@ -40,7 +40,7 @@ class StatusCommand extends AbstractSeamanCommand implements Decorable
         $services = $manager->status();
 
         if (empty($services)) {
-            Terminal::output()->writeln('No services are running or defined.');
+            Terminal::output()->writeln('  No services are running or defined.');
             return Command::SUCCESS;
         }
 

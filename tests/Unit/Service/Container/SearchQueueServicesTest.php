@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\RabbitmqService;
 
@@ -19,8 +20,8 @@ test('elasticsearch service has correct configuration', function () {
         ->and($service->getRequiredPorts())->toBe([9200])
         ->and($service->getDependencies())->toBe([])
         ->and($service->getDefaultConfig()->name)->toBe('elasticsearch')
-        ->and($service->getDefaultConfig()->type)->toBe('elasticsearch')
-        ->and($service->getDefaultConfig()->version)->toBe('8.11')
+        ->and($service->getDefaultConfig()->type)->toBe(Service::Elasticsearch)
+        ->and($service->getDefaultConfig()->version)->toBe('9.2.1')
         ->and($service->getDefaultConfig()->port)->toBe(9200)
         ->and($service->getDefaultConfig()->enabled)->toBeFalse()
         ->and($service->getDefaultConfig()->additionalPorts)->toBe([])
@@ -54,7 +55,7 @@ test('elasticsearch service generates compose config', function () {
         ->and($composeConfig)->toHaveKey('ports')
         ->and($composeConfig)->toHaveKey('volumes')
         ->and($composeConfig)->toHaveKey('healthcheck')
-        ->and($composeConfig['image'])->toBe('elasticsearch:8.11')
+        ->and($composeConfig['image'])->toBe('docker.elastic.co/elasticsearch/elasticsearch:9.2.1')
         ->and($composeConfig['volumes'])->toBe(['elasticsearch_data:/usr/share/elasticsearch/data']);
 });
 
@@ -62,13 +63,13 @@ test('rabbitmq service has correct configuration', function () {
     $service = new RabbitmqService();
 
     expect($service->getName())->toBe('rabbitmq')
-        ->and($service->getDisplayName())->toBe('RabbitMQ')
+        ->and($service->getDisplayName())->toBe('RabbitMq')
         ->and($service->getDescription())->toBe('RabbitMQ message queue')
         ->and($service->getRequiredPorts())->toContain(5672)
         ->and($service->getRequiredPorts())->toContain(15672)
         ->and($service->getDependencies())->toBe([])
         ->and($service->getDefaultConfig()->name)->toBe('rabbitmq')
-        ->and($service->getDefaultConfig()->type)->toBe('rabbitmq')
+        ->and($service->getDefaultConfig()->type)->toBe(Service::RabbitMq)
         ->and($service->getDefaultConfig()->version)->toBe('3-management')
         ->and($service->getDefaultConfig()->port)->toBe(5672)
         ->and($service->getDefaultConfig()->additionalPorts)->toBe([15672])

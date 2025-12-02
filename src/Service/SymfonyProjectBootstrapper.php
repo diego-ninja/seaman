@@ -10,7 +10,7 @@ namespace Seaman\Service;
 use Seaman\Enum\ProjectType;
 use Symfony\Component\Process\Process;
 
-final readonly class ProjectBootstrapper
+final readonly class SymfonyProjectBootstrapper
 {
     /**
      * Get bootstrap command for single-command project types.

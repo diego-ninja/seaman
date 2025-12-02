@@ -37,7 +37,7 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PhpVersionDetector;
-use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
 use Symfony\Component\Console\Application as BaseApplication;
@@ -77,7 +77,7 @@ class Application extends BaseApplication
             new ServiceRemoveCommand($configManager, $registry),
             new InitCommand(
                 new SymfonyDetector(),
-                new ProjectBootstrapper(),
+                new SymfonyProjectBootstrapper(),
                 new ConfigurationFactory($registry),
                 new InitializationSummary(),
                 new InitializationWizard($phpVersionDetector),

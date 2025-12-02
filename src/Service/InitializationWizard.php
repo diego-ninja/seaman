@@ -19,10 +19,10 @@ use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;
 use function Laravel\Prompts\select;
 
-class InitializationWizard
+final readonly class InitializationWizard
 {
     public function __construct(
-        private readonly PhpVersionDetector $detector,
+        private PhpVersionDetector $detector,
     ) {}
 
     /**
@@ -114,7 +114,7 @@ class InitializationWizard
     public function enableDevContainer(InputInterface $input): bool
     {
         return $input->getOption('with-devcontainer')
-            || confirm(label: 'Do you want to generate DevContainer configuration for VS Code?', default: false);
+            || confirm(label: 'Do you want to enable DevContainer support?', default: false);
     }
 
     /**

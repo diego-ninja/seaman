@@ -27,7 +27,7 @@ final class EnsureSeamanListener
         $commandName = $event->getCommand();
         if (!$this->isExcluded($commandName)) {
             if (!file_exists($projectRoot . '/.seaman/seaman.yaml')) {
-                Terminal::output()->writeln('<error>seaman.yaml not found. Run "seaman init" first.</error>');
+                Terminal::error('seaman.yaml not found. Run "seaman init" first.');
                 exit(Command::FAILURE);
             }
         }

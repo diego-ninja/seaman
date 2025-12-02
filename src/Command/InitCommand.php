@@ -12,7 +12,7 @@ use Seaman\Enum\ProjectType;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
 use Seaman\UI\Terminal;
@@ -33,12 +33,12 @@ use function Laravel\Prompts\info;
 class InitCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
-        private readonly SymfonyDetector $detector,
-        private readonly ProjectBootstrapper $bootstrapper,
-        private readonly ConfigurationFactory $configFactory,
-        private readonly InitializationSummary $summary,
-        private readonly InitializationWizard $wizard,
-        private readonly ProjectInitializer $initializer,
+        private readonly SymfonyDetector            $detector,
+        private readonly SymfonyProjectBootstrapper $bootstrapper,
+        private readonly ConfigurationFactory       $configFactory,
+        private readonly InitializationSummary      $summary,
+        private readonly InitializationWizard       $wizard,
+        private readonly ProjectInitializer         $initializer,
     ) {
         parent::__construct();
     }
@@ -60,7 +60,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         // Check if seaman.yaml already exists
         if (file_exists($projectRoot . '/.seaman/seaman.yaml')) {
             if (!confirm(
-                label: 'seaman.yaml already exists. Overwrite?',
+                label: 'Seaman already initialized. Overwrite configuration?',
                 default: false,
             )) {
                 info('Initialization cancelled.');
@@ -83,6 +83,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             services: $choices->services,
             phpConfig: $config->php,
             projectType: $projectType,
+            devContainer: $choices->generateDevContainer
         );
 
         if (!confirm(label: 'Continue with this configuration?')) {
@@ -103,7 +104,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             '',
             '  Run \'seaman start\' to start your containers',
             '',
-            '  ❤️ Happy coding!',
+            '  ❤️  Happy coding!',
 
         ]);
 

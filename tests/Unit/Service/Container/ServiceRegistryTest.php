@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service\Container;
 
+use Seaman\Enum\PhpVersion;
+use Seaman\Enum\Service;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
@@ -28,8 +30,7 @@ beforeEach(function () {
     $this->config = new Configuration(
         version: '1.0',
         php: new PhpConfig(
-            version: '8.4',
-            extensions: [],
+            version: PhpVersion::Php84,
             xdebug: new XdebugConfig(
                 enabled: false,
                 ideKey: 'PHPSTORM',
@@ -40,7 +41,7 @@ beforeEach(function () {
             'mysql' => new ServiceConfig(
                 name: 'mysql',
                 enabled: true,
-                type: 'mysql',
+                type: Service::MySQL,
                 version: '8.0',
                 port: 3306,
                 additionalPorts: [],
@@ -49,7 +50,7 @@ beforeEach(function () {
             'redis' => new ServiceConfig(
                 name: 'redis',
                 enabled: false,
-                type: 'redis',
+                type: Service::Redis,
                 version: '7.0',
                 port: 6379,
                 additionalPorts: [],
@@ -92,7 +93,7 @@ test('can register a service', function () {
             return new ServiceConfig(
                 name: 'test-service',
                 enabled: false,
-                type: 'test',
+                type: Service::None,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -119,19 +120,29 @@ test('can register a service', function () {
         {
             return [];
         }
+
+        public function getType(): Service
+        {
+            return Service::None;
+        }
+
+        public function getIcon(): string
+        {
+            return 'test';
+        }
     };
 
     $registry->register($service);
 
-    expect($registry->get('test-service'))->toBe($service);
+    expect($registry->get(Service::None))->toBe($service);
 });
 
 test('throws exception when getting non-existent service', function () {
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
-    $registry->get('non-existent');
-})->throws(\InvalidArgumentException::class, "Service 'non-existent' not found");
+    $registry->get(Service::Redis);
+})->throws(\InvalidArgumentException::class, "Service 'redis' not found");
 
 test('returns all registered services', function () {
     /** @var ServiceRegistry $registry */
@@ -163,7 +174,7 @@ test('returns all registered services', function () {
             return new ServiceConfig(
                 name: 'service1',
                 enabled: false,
-                type: 'test',
+                type: Service::None,
                 version: '1.0',
                 port: 8001,
                 additionalPorts: [],
@@ -189,6 +200,16 @@ test('returns all registered services', function () {
         public function getEnvVariables(ServiceConfig $config): array
         {
             return [];
+        }
+
+        public function getType(): Service
+        {
+            return Service::None;
+        }
+
+        public function getIcon(): string
+        {
+            // TODO: Implement getIcon() method.
         }
     };
 
@@ -218,7 +239,7 @@ test('returns all registered services', function () {
             return new ServiceConfig(
                 name: 'service2',
                 enabled: false,
-                type: 'test',
+                type: Service::Redis,
                 version: '1.0',
                 port: 8002,
                 additionalPorts: [],
@@ -244,6 +265,16 @@ test('returns all registered services', function () {
         public function getEnvVariables(ServiceConfig $config): array
         {
             return [];
+        }
+
+        public function getType(): Service
+        {
+            return Service::Redis;
+        }
+
+        public function getIcon(): string
+        {
+            return 'test';
         }
     };
 

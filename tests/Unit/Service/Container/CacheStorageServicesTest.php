@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service\Container;
 
+use Seaman\Enum\Service;
 use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\MailpitService;
 use Seaman\Service\Container\MinioService;
@@ -20,7 +21,7 @@ test('redis service has correct configuration', function () {
         ->and($service->getRequiredPorts())->toBe([6379])
         ->and($service->getDependencies())->toBe([])
         ->and($service->getDefaultConfig()->name)->toBe('redis')
-        ->and($service->getDefaultConfig()->type)->toBe('redis')
+        ->and($service->getDefaultConfig()->type)->toBe(Service::Redis)
         ->and($service->getDefaultConfig()->version)->toBe('7-alpine')
         ->and($service->getDefaultConfig()->port)->toBe(6379)
         ->and($service->getDefaultConfig()->enabled)->toBeTrue()
@@ -63,7 +64,7 @@ test('mailpit service has correct configuration', function () {
         ->and($service->getRequiredPorts())->toContain(1025)
         ->and($service->getDependencies())->toBe([])
         ->and($service->getDefaultConfig()->name)->toBe('mailpit')
-        ->and($service->getDefaultConfig()->type)->toBe('mailpit')
+        ->and($service->getDefaultConfig()->type)->toBe(Service::Mailpit)
         ->and($service->getDefaultConfig()->version)->toBe('latest')
         ->and($service->getDefaultConfig()->port)->toBe(8025)
         ->and($service->getDefaultConfig()->additionalPorts)->toBe([1025])
@@ -103,7 +104,7 @@ test('minio service has correct configuration', function () {
         ->and($service->getRequiredPorts())->toContain(9001)
         ->and($service->getDependencies())->toBe([])
         ->and($service->getDefaultConfig()->name)->toBe('minio')
-        ->and($service->getDefaultConfig()->type)->toBe('minio')
+        ->and($service->getDefaultConfig()->type)->toBe(Service::MinIO)
         ->and($service->getDefaultConfig()->version)->toBe('latest')
         ->and($service->getDefaultConfig()->port)->toBe(9000)
         ->and($service->getDefaultConfig()->additionalPorts)->toBe([9001])

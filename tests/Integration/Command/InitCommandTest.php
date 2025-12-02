@@ -9,7 +9,7 @@ namespace Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Enum\ProjectType;
-use Seaman\Service\ProjectBootstrapper;
+use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\SymfonyDetector;
 
 test('init command is registered in application', function (): void {
@@ -40,7 +40,7 @@ test('symfony detector works correctly', function (): void {
 });
 
 test('project bootstrapper generates correct commands', function (): void {
-    $bootstrapper = new ProjectBootstrapper();
+    $bootstrapper = new SymfonyProjectBootstrapper();
 
     $command = $bootstrapper->getBootstrapCommand(
         ProjectType::WebApplication,

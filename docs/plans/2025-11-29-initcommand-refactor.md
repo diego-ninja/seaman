@@ -279,10 +279,10 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use Seaman\Enum\ProjectType;use Seaman\Service\ProjectBootstrapper;
+use Seaman\Enum\ProjectType;use Seaman\Service\SymfonyProjectBootstrapper;
 
 test('bootstrap creates web application project', function (): void {
-    $bootstrapper = new ProjectBootstrapper();
+    $bootstrapper = new SymfonyProjectBootstrapper();
 
     $tempDir = sys_get_temp_dir() . '/test-bootstrap-' . uniqid();
     mkdir($tempDir);
@@ -303,7 +303,7 @@ test('bootstrap creates web application project', function (): void {
 });
 
 test('bootstrap creates api platform project', function (): void {
-    $bootstrapper = new ProjectBootstrapper();
+    $bootstrapper = new SymfonyProjectBootstrapper();
 
     $tempDir = sys_get_temp_dir() . '/test-bootstrap-api-' . uniqid();
     mkdir($tempDir);
@@ -322,7 +322,7 @@ test('bootstrap creates api platform project', function (): void {
 });
 
 test('bootstrap creates microservice project', function (): void {
-    $bootstrapper = new ProjectBootstrapper();
+    $bootstrapper = new SymfonyProjectBootstrapper();
 
     $tempDir = sys_get_temp_dir() . '/test-bootstrap-micro-' . uniqid();
     mkdir($tempDir);
@@ -341,7 +341,7 @@ test('bootstrap creates microservice project', function (): void {
 });
 
 test('bootstrap creates skeleton project', function (): void {
-    $bootstrapper = new ProjectBootstrapper();
+    $bootstrapper = new SymfonyProjectBootstrapper();
 
     $tempDir = sys_get_temp_dir() . '/test-bootstrap-skeleton-' . uniqid();
     mkdir($tempDir);

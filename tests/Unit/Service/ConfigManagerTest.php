@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
@@ -149,7 +150,7 @@ test('generates .env file when saving', function () {
 test('merges service into existing configuration', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig(PhpVersion::Php84, $xdebug);
-    $existingService = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
+    $existingService = new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []);
     $services = new ServiceCollection(['postgresql' => $existingService]);
     $volumes = new VolumeConfig(['database']);
 
