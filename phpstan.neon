@@ -12,6 +12,8 @@ parameters:
     tmpDir: build/phpstan
     ignoreErrors:
         - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'
+        - '#Function Laravel\\Prompts\\box not found#'
+        - '#Used function Laravel\\Prompts\\box not found#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$tempDir#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$testDir#'
         - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$originalDir#'
