@@ -1,0 +1,23 @@
+  {{ name }}:
+    image: bitnami/kafka:{{ service.version }}
+    container_name: seaman-{{ name }}
+    environment:
+      - KAFKA_CFG_NODE_ID=${KAFKA_NODE_ID:-0}
+      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_PROCESS_ROLES:-controller,broker}
+      - KAFKA_CFG_LISTENERS=${KAFKA_LISTENERS:-PLAINTEXT://:9092,CONTROLLER://:9093}
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:-CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT}
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CONTROLLER_QUORUM_VOTERS:-0@kafka:9093}
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CONTROLLER_LISTENER_NAMES:-CONTROLLER}
+    ports:
+      - "${KAFKA_PORT}:9092"
+    networks:
+      - seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+      - {{ name }}:/bitnami/kafka
+{% endif %}
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
