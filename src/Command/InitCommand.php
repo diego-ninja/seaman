@@ -13,6 +13,7 @@ use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\DevContainerGenerator;
 use Seaman\Service\DockerComposeGenerator;
 use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\ProjectBootstrapper;
@@ -28,6 +29,7 @@ use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\confirm;
@@ -48,6 +50,16 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         private readonly ProjectBootstrapper $bootstrapper,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption(
+            'with-devcontainer',
+            null,
+            InputOption::VALUE_NONE,
+            'Generate DevContainer configuration for VS Code',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -134,6 +146,14 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
 
         // Generate Docker files
         $this->generateDockerFiles($config, $projectRoot);
+
+        // Generate DevContainer files if requested
+        $shouldGenerateDevContainer = $input->getOption('with-devcontainer')
+            || confirm(label: 'Do you want to generate DevContainer configuration for VS Code?', default: false);
+
+        if ($shouldGenerateDevContainer) {
+            $this->generateDevContainerFiles($projectRoot);
+        }
 
         Terminal::success('Seaman initialized successfully');
         box(
@@ -309,7 +329,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         }, $services)));
 
         box(
-            title: Terminal::render('<fg=cyan>⚙</> Seaman Configuration'),
+            title: Terminal::render('<fg=cyan>⚙</> Seaman Configuration') ?? 'Seaman Configuration',
             message: "\n" . '🔹Project Type: ' . $projectType->getLabel() . "\n"
             . '🔹Database: ' . $database->name . "\n"
             . '🔹Services: ' . $services . "\n"
@@ -414,5 +434,17 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         }
 
         return ProjectType::Existing;
+    }
+
+    private function generateDevContainerFiles(string $projectRoot): void
+    {
+        $templateDir = __DIR__ . '/../Template';
+        $renderer = new TemplateRenderer($templateDir);
+        $configManager = new ConfigManager($projectRoot, $this->registry);
+        $generator = new DevContainerGenerator($renderer, $configManager);
+
+        $generator->generate($projectRoot);
+
+        info('✓ DevContainer configuration created');
     }
 }
