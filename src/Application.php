@@ -12,12 +12,13 @@ use Seaman\Command\BuildCommand;
 use Seaman\Command\DbDumpCommand;
 use Seaman\Command\DbRestoreCommand;
 use Seaman\Command\DbShellCommand;
+use Seaman\Command\DestroyCommand;
+use Seaman\Command\DevContainerGenerateCommand;
 use Seaman\Command\ExecuteComposerCommand;
 use Seaman\Command\ExecuteConsoleCommand;
-use Seaman\Command\DestroyCommand;
+use Seaman\Command\ExecutePhpCommand;
 use Seaman\Command\InitCommand;
 use Seaman\Command\LogsCommand;
-use Seaman\Command\ExecutePhpCommand;
 use Seaman\Command\RebuildCommand;
 use Seaman\Command\RestartCommand;
 use Seaman\Command\ServiceAddCommand;
@@ -28,14 +29,14 @@ use Seaman\Command\StartCommand;
 use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
+use Seaman\EventListener\EventListenerMetadata;
+use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\ProjectBootstrapper;
 use Seaman\Service\SymfonyDetector;
-use Seaman\EventListener\ListenerDiscovery;
-use Seaman\EventListener\EventListenerMetadata;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\Console\Application as BaseApplication;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class Application extends BaseApplication
 {
@@ -72,6 +73,7 @@ class Application extends BaseApplication
                 new SymfonyDetector(),
                 new ProjectBootstrapper(),
             ),
+            new DevContainerGenerateCommand($registry),
             new StartCommand(),
             new StopCommand(),
             new RestartCommand(),
