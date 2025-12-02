@@ -33,7 +33,7 @@ enum Service: string
         return match ($this) {
             self::App => 'Symfony 7+ application',
             self::MySQL => 'MySQL relational database',
-            self::SQLite => 'SQLite in-memory relational database',
+            self::SQLite => 'SQLite file-based relational database',
             self::PostgreSQL => 'PostgreSQL relational database',
             self::MariaDB => 'MariaDB relational database',
             self::MongoDB => 'MongoDB NoSQL database',
@@ -44,7 +44,8 @@ enum Service: string
             self::Dozzle => 'Realtime log viewer for containers',
             self::Elasticsearch => 'Elasticsearch search engine',
             self::RabbitMq => 'RabbitMQ message queue',
-            self::Kafka, self::None => throw new \Exception('To be implemented'),
+            self::Kafka => 'Apache Kafka distributed event streaming platform',
+            self::None => throw new \Exception('To be implemented'),
         };
     }
 

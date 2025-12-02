@@ -9,7 +9,7 @@ namespace Seaman\ValueObject;
 
 use Seaman\Enum\Service;
 
-readonly class VolumeConfig
+final readonly class VolumeConfig
 {
     /** @var list<string> */
     public array $persist;
