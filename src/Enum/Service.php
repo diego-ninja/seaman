@@ -77,6 +77,7 @@ enum Service: string
             self::Mailpit => '📧',
             self::PostgreSQL => '🐘',
             self::Dozzle => '🗒️ ',
+            self::Elasticsearch => '🔎',
             self::MySQL, self::MariaDB => '🐬',
             default => '⚙️ ',
         };

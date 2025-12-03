@@ -137,6 +137,12 @@ if (!function_exists('Seaman\box')) {
         new Box($title, $message, $footer, $color, $info)->display();
     }
 }
-
+if (!function_exists('Seaman\base_path')) {
+    function base_path(?string $dir = null): string
+    {
+        $base_path = is_phar() ? Phar::running() : getcwd();
+        return $dir ? sprintf("%s/%s", $base_path, $dir) : $base_path;
+    }
+}
 
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Seaman\Listener;
 
 use Seaman\Attribute\AsEventListener;
-use Seaman\Contracts\Decorable;
+use Seaman\Contract\Decorable;
 use Symfony\Component\Console\ConsoleEvents;
 use Symfony\Component\Console\Event\ConsoleCommandEvent;
 

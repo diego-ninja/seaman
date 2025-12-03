@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Contracts\Decorable;
+use Seaman\Contract\Decorable;
 use Seaman\Enum\ProjectType;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\InitializationSummary;

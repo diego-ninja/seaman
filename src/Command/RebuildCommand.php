@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Contracts\Decorable;
+use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\DozzleService;
 use Seaman\Service\Container\ElasticsearchService;
@@ -42,18 +42,7 @@ class RebuildCommand extends AbstractSeamanCommand implements Decorable
         $projectRoot = (string) getcwd();
 
         // Create service registry
-        $registry = new ServiceRegistry();
-        $registry->register(new PostgresqlService());
-        $registry->register(new MysqlService());
-        $registry->register(new MariadbService());
-        $registry->register(new MongodbService());
-        $registry->register(new RedisService());
-        $registry->register(new MemcachedService());
-        $registry->register(new MailpitService());
-        $registry->register(new MinioService());
-        $registry->register(new ElasticsearchService());
-        $registry->register(new RabbitmqService());
-        $registry->register(new DozzleService());
+        $registry = ServiceRegistry::create();
 
         // Load configuration to get PHP version
         $configManager = new ConfigManager($projectRoot, $registry);

@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Contracts\Decorable;
+use Seaman\Contract\Decorable;
 use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;

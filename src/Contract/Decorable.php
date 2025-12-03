@@ -2,6 +2,6 @@
 
 declare(strict_types=1);
 
-namespace Seaman\Contracts;
+namespace Seaman\Contract;
 
 interface Decorable {}

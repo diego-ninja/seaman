@@ -22,6 +22,7 @@
     "phlak/config": "^0.3.0",
     "ramsey/collection": "^2.1",
     "symfony/console": "^7",
+    "symfony/event-dispatcher": "^8.0",
     "symfony/process": "^7",
     "symfony/yaml": "^7",
     "twig/twig": "^3",
@@ -29,7 +30,6 @@
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3.64",
-    "humbug/box": "^4.6",
     "mockery/mockery": "^1.6",
     "pestphp/pest": "^4.0",
     "pestphp/pest-plugin-arch": "^4.0",
@@ -70,6 +70,7 @@
       "@phpstan",
       "@cs:check",
       "@test:coverage"
-    ]
+    ],
+    "build": "bin/seaman build"
   }
 }

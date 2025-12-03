@@ -105,7 +105,7 @@ final class Notifier
         return new Notification()
             ->setTitle('Seaman Success')
             ->setBody($message)
-            ->setIcon(__DIR__ . "/../../assets/notification.png");
+            ->setIcon(base_path("assets/notification.png"));
     }
 
     /**
@@ -120,6 +120,6 @@ final class Notifier
         return new Notification()
             ->setTitle('Seaman Error')
             ->setBody($message)
-            ->setIcon(__DIR__ . "/../../assets/notification.png");
+            ->setIcon(base_path("assets/notification.png"));
     }
 }

@@ -55,7 +55,6 @@ class Application extends BaseApplication
     {
         parent::__construct('🔱 Seaman', '1.0.0');
 
-        // Setup EventDispatcher with auto-discovered listeners
         $this->eventDispatcher = $this->createEventDispatcher();
         $this->setDispatcher($this->eventDispatcher);
 

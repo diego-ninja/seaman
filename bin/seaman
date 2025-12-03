@@ -6,11 +6,6 @@
 
 declare(strict_types=1);
 
-use Innmind\Signals\Info;
-use Innmind\Signals\Signal;
-use Seaman\Signal\SignalHandler;
-use Seaman\UI\Terminal;
-
 if (false === in_array(PHP_SAPI, ['cli', 'phpdbg', 'embed'], true)) {
     echo PHP_EOL . 'This app may only be invoked from a command line, got "' . PHP_SAPI . '"' . PHP_EOL;
     exit(1);
@@ -23,13 +18,6 @@ if (false === in_array(PHP_SAPI, ['cli', 'phpdbg', 'embed'], true)) {
     }
     throw new RuntimeException('Unable to find the Composer autoloader.');
 })();
-
-
-$dotenv = Phar::running() !== ''
-        ? Dotenv\Dotenv::createMutable(Phar::running(), '.env')
-        : Dotenv\Dotenv::createMutable(getcwd(), '.env');
-
-$dotenv->safeLoad();
 
 $application = new Seaman\Application();
 exit($application->run());

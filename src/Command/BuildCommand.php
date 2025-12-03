@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Contracts\Decorable;
+use Seaman\Contract\Decorable;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\UI\Terminal;
 use Seaman\UI\Widget\Spinner\SpinnerFactory;
@@ -28,7 +28,7 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
     {
         $projectRoot = (string) getcwd();
 
-        $buildDir = $this->ensureBuildDirectory($projectRoot);
+        $buildDir = $this->ensureDistDirectory($projectRoot);
         $boxPath =  $this->ensureBoxIsInstalled($projectRoot);
 
         $this->generateListenersConfig($projectRoot);
@@ -57,7 +57,7 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
         }
 
         Terminal::success('PHAR built successfully: ' . $pharPath);
-        Terminal::output()->writeln('You can now distribute build/seaman.phar');
+        Terminal::output()->writeln(['', '  💙 Crafted a new seaman release. You can now distribute dist/seaman.phar']);
 
         return Command::SUCCESS;
     }
@@ -97,13 +97,13 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
         Terminal::success('Listeners configuration generated');
     }
 
-    private function ensureBuildDirectory(string $projectRoot): string
+    private function ensureDistDirectory(string $projectRoot): string
     {
         // Ensure build directory exists
-        $buildDir = $projectRoot . '/build';
+        $buildDir = $projectRoot . '/dist';
         if (!is_dir($buildDir)) {
             if (!mkdir($buildDir, 0755, true)) {
-                Terminal::error('Failed to create build directory');
+                Terminal::error('Failed to create dist directory');
                 exit(Command::FAILURE);
             }
         }
@@ -114,13 +114,15 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
     private function ensureBoxIsInstalled(string $projectRoot): string
     {
         // Check if box is available
-        $boxPath = $projectRoot . '/vendor/bin/box';
-        if (!file_exists($boxPath)) {
-            Terminal::error('Box not found. Please run: composer install --dev');
-            exit(Command::FAILURE);
+        $boxPaths = [$projectRoot . '/vendor/bin/box','/usr/local/bin/box'];
+        foreach ($boxPaths as $path) {
+            if (file_exists($path)) {
+                return $path;
+            }
         }
 
-        return $boxPath;
+        Terminal::error('Box not found. Please run: composer install --dev');
+        exit(Command::FAILURE);
     }
 
 }
