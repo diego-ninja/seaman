@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\EventListener\ListenerDiscovery;
+use Seaman\Exception\BinaryNotFoundException;
 use Seaman\UI\Terminal;
 use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -24,9 +25,12 @@ use Symfony\Component\Process\Process;
 )]
 class BuildCommand extends AbstractSeamanCommand implements Decorable
 {
+    /**
+     * @throws BinaryNotFoundException
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $projectRoot = (string) getcwd();
+        $projectRoot = base_path();
 
         $buildDir = $this->ensureDistDirectory($projectRoot);
         $boxPath =  $this->ensureBoxIsInstalled($projectRoot);
@@ -114,7 +118,7 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
     private function ensureBoxIsInstalled(string $projectRoot): string
     {
         // Check if box is available
-        $boxPaths = [$projectRoot . '/vendor/bin/box','/usr/local/bin/box'];
+        $boxPaths = [$projectRoot . '/vendor/bin/box', $projectRoot . '/bin/box', '/usr/local/bin/box'];
         foreach ($boxPaths as $path) {
             if (file_exists($path)) {
                 return $path;

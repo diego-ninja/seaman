@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Attribute;
+namespace Seaman\Tests\Unit\Attribute;
 
 use Seaman\Attribute\AsEventListener;
 use Symfony\Component\Console\ConsoleEvents;

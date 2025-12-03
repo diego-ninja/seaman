@@ -140,7 +140,7 @@ if (!function_exists('Seaman\box')) {
 if (!function_exists('Seaman\base_path')) {
     function base_path(?string $dir = null): string
     {
-        $base_path = is_phar() ? Phar::running() : getcwd();
+        $base_path = is_phar() ? Phar::running() : (string) getcwd();
         return $dir ? sprintf("%s/%s", $base_path, $dir) : $base_path;
     }
 }

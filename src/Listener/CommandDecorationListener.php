@@ -18,6 +18,8 @@ final readonly class CommandDecorationListener
     public function __invoke(ConsoleCommandEvent $event): void
     {
         $command = $event->getCommand();
+        $version = $command?->getApplication()?->getVersion() ?? 'Unreleased';
+
         if ($command instanceof Decorable) {
             $width = 134;
             $half = $width / 2;
@@ -29,7 +31,7 @@ final readonly class CommandDecorationListener
             }
 
             render('<br />');
-            render("<div class='w-{$width}'><span class='w-{$half} text-left'>🔱 Seaman v1.0.0-beta</span><span class='w-{$half} text-right text-cyan'>" . $command->getName() . "</span><hr class='text-blue'></div>");
+            render("<div class='w-{$width}'><span class='w-{$half} text-left'>🔱 Seaman v{$version}</span><span class='w-{$half} text-right text-cyan'>" . $command->getName() . "</span><hr class='text-blue'></div>");
         }
     }
 }

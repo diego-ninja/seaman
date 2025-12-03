@@ -39,3 +39,4 @@ coverage/
 /docker-compose.yml
 /seaman.yaml
 /.seaman/
+/config/listeners.php

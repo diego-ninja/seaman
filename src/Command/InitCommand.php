@@ -83,7 +83,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             services: $choices->services,
             phpConfig: $config->php,
             projectType: $projectType,
-            devContainer: $choices->generateDevContainer
+            devContainer: $choices->generateDevContainer,
         );
 
         if (!confirm(label: 'Continue with this configuration?')) {

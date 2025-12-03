@@ -53,7 +53,7 @@ class Application extends BaseApplication
 
     public function __construct()
     {
-        parent::__construct('🔱 Seaman', '1.0.0');
+        parent::__construct('🔱 Seaman', '1.0.0-beta');
 
         $this->eventDispatcher = $this->createEventDispatcher();
         $this->setDispatcher($this->eventDispatcher);
