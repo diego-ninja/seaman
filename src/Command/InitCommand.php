@@ -53,6 +53,9 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         );
     }
 
+    /**
+     * @throws \Exception
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();
@@ -69,7 +72,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         }
 
         // Bootstrap Symfony project if needed
-        $projectType = $this->bootstrapSymfonyProject($projectRoot);
+        $projectType = $this->enableSymfonyProject($projectRoot);
 
         // Run initialization wizard to collect all choices
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
@@ -89,6 +92,10 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         if (!confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
+        }
+
+        if ($projectType !== ProjectType::Existing) {
+            $this->bootstrapSymfonyProject($projectType, $projectRoot);
         }
 
         // Initialize Docker environment
@@ -111,7 +118,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         return Command::SUCCESS;
     }
 
-    private function bootstrapSymfonyProject(string $projectRoot): ProjectType
+    private function enableSymfonyProject(string $projectRoot): ProjectType
     {
         $detection = $this->detector->detect($projectRoot);
         if (!$detection->isSymfonyProject) {
@@ -125,24 +132,29 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             }
 
             // Bootstrap new Symfony project
-            $projectType = $this->wizard->selectProjectType();
+            return $this->wizard->selectProjectType();
+        }
+
+        return ProjectType::Existing;
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function bootstrapSymfonyProject(ProjectType $projectType, string $projectRoot): void
+    {
+        $detection = $this->detector->detect($projectRoot);
+        if (!$detection->isSymfonyProject) {
             $projectName = $this->wizard->getProjectName($projectRoot);
 
-            info('Creating Symfony project...');
-
             if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
-                info('Failed to create Symfony project.');
+                Terminal::error('Failed to create Symfony project.');
                 exit(Command::FAILURE);
             }
 
             // Change to new project directory
             $projectRoot = dirname($projectRoot) . '/' . $projectName;
             chdir($projectRoot);
-
-            info('Symfony project created successfully!');
-            return $projectType;
         }
-
-        return ProjectType::Existing;
     }
 }

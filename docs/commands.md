@@ -1,0 +1,339 @@
+# Commands Reference
+
+## Environment Management
+
+### init
+
+Initialize Seaman in your project with interactive setup.
+
+```bash
+seaman init [options]
+```
+
+**Options:**
+- `--with-devcontainer` - Generate DevContainer configuration during init
+
+**Example:**
+```bash
+seaman init --with-devcontainer
+```
+
+### start
+
+Start all services or a specific service.
+
+```bash
+seaman start [service]
+```
+
+**Examples:**
+```bash
+seaman start              # Start all services
+seaman start postgresql   # Start only PostgreSQL
+```
+
+### stop
+
+Stop all services or a specific service.
+
+```bash
+seaman stop [service]
+```
+
+**Examples:**
+```bash
+seaman stop              # Stop all services
+seaman stop redis        # Stop only Redis
+```
+
+### restart
+
+Restart all services or a specific service.
+
+```bash
+seaman restart [service]
+```
+
+**Examples:**
+```bash
+seaman restart           # Restart all services
+seaman restart app       # Restart only the app container
+```
+
+### status
+
+Show status of all services with health, ports, and uptime.
+
+```bash
+seaman status
+```
+
+Displays:
+- Service name
+- Container status (running/stopped)
+- Health status
+- Exposed ports
+- Uptime
+
+### rebuild
+
+Rebuild Docker images from Dockerfile. Useful after changing the Dockerfile or PHP version.
+
+```bash
+seaman rebuild
+```
+
+### destroy
+
+Remove all containers, networks, and volumes. **This is destructive and requires confirmation.**
+
+```bash
+seaman destroy
+```
+
+Removes:
+- All containers
+- Docker networks
+- All volumes (including database data)
+
+## Service Management
+
+### service:list
+
+List all configured services and their status.
+
+```bash
+seaman service:list
+```
+
+### service:add
+
+Interactively add new services to your configuration.
+
+```bash
+seaman service:add
+```
+
+Prompts you to:
+1. Select service type (database, cache, tool, etc.)
+2. Choose specific service (PostgreSQL, Redis, Mailpit, etc.)
+3. Configure service options (version, port, environment)
+4. Regenerate docker-compose.yml
+
+### service:remove
+
+Interactively remove services from your configuration.
+
+```bash
+seaman service:remove
+```
+
+Prompts you to:
+1. Select service to remove
+2. Confirm removal
+3. Regenerate docker-compose.yml
+
+## Development Tools
+
+### shell
+
+Open an interactive shell in a service container.
+
+```bash
+seaman shell [service]
+```
+
+**Default service**: `app` (PHP container)
+
+**Examples:**
+```bash
+seaman shell              # Open shell in app container
+seaman shell postgresql   # Open psql in PostgreSQL container
+seaman shell redis        # Open redis-cli in Redis container
+```
+
+### logs
+
+Display logs with options for follow, tail, and time filtering.
+
+```bash
+seaman logs [service] [options]
+```
+
+**Options:**
+- `--follow, -f` - Follow log output in real-time
+- `--tail=N` - Show last N lines
+- `--since=TIME` - Show logs since timestamp or relative time
+
+**Examples:**
+```bash
+seaman logs                          # Show all logs
+seaman logs app                      # Show app container logs
+seaman logs postgresql --follow      # Follow PostgreSQL logs
+seaman logs app --tail=100           # Last 100 lines
+seaman logs app --since=1h           # Logs from last hour
+```
+
+### xdebug
+
+Toggle Xdebug on or off without restarting containers.
+
+```bash
+seaman xdebug [on|off]
+```
+
+**Examples:**
+```bash
+seaman xdebug on    # Enable Xdebug
+seaman xdebug off   # Disable Xdebug
+```
+
+Uses the `scripts/xdebug-toggle.sh` script to enable/disable Xdebug by modifying PHP configuration.
+
+## Database Commands
+
+### db:shell
+
+Open an interactive database shell for the configured database service.
+
+```bash
+seaman db:shell [options]
+```
+
+**Options:**
+- `--service=NAME` - Specify which database service to connect to (if multiple)
+
+**Examples:**
+```bash
+seaman db:shell                    # Connect to default database
+seaman db:shell --service=mysql    # Connect to specific database
+```
+
+Automatically detects database type and opens appropriate client:
+- PostgreSQL: `psql`
+- MySQL/MariaDB: `mysql`
+- MongoDB: `mongosh`
+- SQLite: `sqlite3`
+
+### db:dump
+
+Create a database backup dump.
+
+```bash
+seaman db:dump [options]
+```
+
+**Options:**
+- `--service=NAME` - Specify which database service to dump
+- `--output=FILE` - Output file path (default: auto-generated with timestamp)
+
+**Examples:**
+```bash
+seaman db:dump                           # Dump default database
+seaman db:dump --output=backup.sql       # Custom output file
+seaman db:dump --service=postgresql      # Dump specific database
+```
+
+Creates dumps using:
+- PostgreSQL: `pg_dump`
+- MySQL/MariaDB: `mysqldump`
+- MongoDB: `mongodump`
+- SQLite: File copy
+
+### db:restore
+
+Restore a database from a backup dump.
+
+```bash
+seaman db:restore <file> [options]
+```
+
+**Options:**
+- `--service=NAME` - Specify which database service to restore to
+
+**Examples:**
+```bash
+seaman db:restore backup.sql                    # Restore to default database
+seaman db:restore backup.sql --service=mysql    # Restore to specific database
+```
+
+## Execution Shortcuts
+
+### composer
+
+Run Composer commands in the app container.
+
+```bash
+seaman composer [args]
+```
+
+**Examples:**
+```bash
+seaman composer install
+seaman composer require symfony/validator
+seaman composer update
+seaman composer dump-autoload
+```
+
+### console
+
+Run Symfony console commands in the app container.
+
+```bash
+seaman console [args]
+```
+
+**Examples:**
+```bash
+seaman console cache:clear
+seaman console make:controller UserController
+seaman console doctrine:migrations:migrate
+seaman console debug:router
+```
+
+### php
+
+Execute PHP code or scripts in the app container.
+
+```bash
+seaman php [args]
+```
+
+**Examples:**
+```bash
+seaman php -v
+seaman php script.php
+seaman php -r "echo phpversion();"
+```
+
+## DevContainer
+
+### devcontainer:generate
+
+Generate DevContainer configuration for VS Code.
+
+```bash
+seaman devcontainer:generate
+```
+
+Creates:
+- `.devcontainer/devcontainer.json` - Main configuration
+- `.devcontainer/README.md` - Usage instructions
+
+See [DevContainers documentation](devcontainers.md) for details.
+
+## Build (Development Only)
+
+### build
+
+Build PHAR executable. Only available when running from source (not from PHAR).
+
+```bash
+seaman build
+```
+
+Creates `build/seaman.phar` with:
+- All application code
+- Precompiled event listeners
+- Optimized autoloader
+- Compressed with Box

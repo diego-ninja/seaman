@@ -34,6 +34,7 @@ use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PhpVersionDetector;
@@ -66,7 +67,7 @@ class Application extends BaseApplication
         $registry = ServiceRegistry::create();
         $configManager = new ConfigManager($projectRoot, $registry);
 
-        // $dockerManager = new DockerManager($projectRoot);
+        $dockerManager = new DockerManager($projectRoot);
 
         $phpVersionDetector = new PhpVersionDetector();
 
@@ -95,9 +96,9 @@ class Application extends BaseApplication
             new ExecuteComposerCommand(),
             new ExecuteConsoleCommand(),
             new ExecutePhpCommand(),
-            //new DbDumpCommand($configManager, $dockerManager),
-            //new DbRestoreCommand($configManager, $dockerManager),
-            //new DbShellCommand($configManager, $dockerManager),
+            new DbDumpCommand($configManager, $dockerManager),
+            new DbRestoreCommand($configManager, $dockerManager),
+            new DbShellCommand($configManager, $dockerManager),
         ];
 
         // Only register build command when not running from PHAR

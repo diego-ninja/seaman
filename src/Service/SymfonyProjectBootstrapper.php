@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service;
 
 use Seaman\Enum\ProjectType;
+use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Symfony\Component\Process\Process;
 
 final readonly class SymfonyProjectBootstrapper
@@ -77,6 +78,7 @@ final readonly class SymfonyProjectBootstrapper
      * @param string $name Project name
      * @param string $targetDirectory Target directory
      * @return bool Success status
+     * @throws \Exception
      */
     public function bootstrap(ProjectType $type, string $name, string $targetDirectory): bool
     {
@@ -85,7 +87,8 @@ final readonly class SymfonyProjectBootstrapper
         foreach ($commands as $command) {
             $process = Process::fromShellCommandline($command);
             $process->setTimeout(300); // 5 minutes
-            $process->run();
+
+            SpinnerFactory::for($process, sprintf('Bootstrapping new Symfony %s project', $type->value));
 
             if (!$process->isSuccessful()) {
                 return false;
