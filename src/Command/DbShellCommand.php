@@ -3,25 +3,31 @@
 declare(strict_types=1);
 
 // ABOUTME: Opens an interactive database client shell.
-// ABOUTME: Supports PostgreSQL, MySQL, and MariaDB databases.
+// ABOUTME: Supports PostgreSQL, MySQL, MariaDB, SQLite, and MongoDB databases.
 
 namespace Seaman\Command;
 
+use Seaman\Contract\Decorable;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function Laravel\Prompts\info;
+use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'db:shell',
     description: 'Open an interactive database client shell',
 )]
-class DbShellCommand extends Command
+class DbShellCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
@@ -30,43 +36,62 @@ class DbShellCommand extends Command
         parent::__construct();
     }
 
+    protected function configure(): void
+    {
+        $this->addOption(
+            'service',
+            's',
+            InputOption::VALUE_REQUIRED,
+            'Database service name',
+        );
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         try {
             $config = $this->configManager->load();
         } catch (\RuntimeException $e) {
-            $io->error('Failed to load configuration: ' . $e->getMessage());
+            Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
         }
 
-        $databaseService = $this->findDatabaseService($config);
+        $serviceName = $input->getOption('service');
+        if (!is_string($serviceName) && $serviceName !== null) {
+            Terminal::error('Invalid service option.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $databaseService = $this->selectDatabaseService($config, $serviceName);
+        } catch (\RuntimeException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         if ($databaseService === null) {
-            $io->error('No database service found in configuration.');
-            $io->note('Add a database service with: seaman service:add');
+            Terminal::error('No database service found in configuration.');
+            Terminal::output()->writeln('Add a database service with: seaman service:add');
             return Command::FAILURE;
         }
 
         if (!$databaseService->enabled) {
-            $io->error("Database service '{$databaseService->name}' is not enabled.");
+            Terminal::error("Database service '{$databaseService->name}' is not enabled.");
             return Command::FAILURE;
         }
 
-        $io->info("Opening {$databaseService->type} shell...");
+        info("Opening {$databaseService->type->value} shell...");
 
         $shellCommand = $this->getShellCommand($databaseService);
 
         if ($shellCommand === null) {
-            $io->error("Unsupported database type: {$databaseService->type}");
+            Terminal::error("Unsupported database type: {$databaseService->type->value}");
             return Command::FAILURE;
         }
 
         try {
             $exitCode = $this->dockerManager->executeInteractive($databaseService->name, $shellCommand);
         } catch (\RuntimeException $e) {
-            $io->error($e->getMessage());
+            Terminal::error($e->getMessage());
             return Command::FAILURE;
         }
 
@@ -74,15 +99,54 @@ class DbShellCommand extends Command
     }
 
     /**
-     * @param Configuration $config
      * @return ServiceConfig|null
      */
-    private function findDatabaseService(Configuration $config): ?ServiceConfig
+    private function selectDatabaseService(Configuration $config, ?string $serviceName): ?ServiceConfig
     {
-        $databaseTypes = ['postgresql', 'mysql', 'mariadb'];
+        $databases = array_filter(
+            $config->services->all(),
+            fn(ServiceConfig $s): bool => in_array($s->type->value, Service::databases(), true)
+                && $s->type !== Service::None,
+        );
 
-        return array_find($config->services->all(), fn($service) => in_array($service->type, $databaseTypes, true));
+        if ($serviceName !== null) {
+            $service = array_find(
+                $databases,
+                fn(ServiceConfig $s): bool => $s->name === $serviceName,
+            );
 
+            if ($service === null) {
+                throw new \RuntimeException("Service '{$serviceName}' not found");
+            }
+
+            return $service;
+        }
+
+        $databasesArray = array_values($databases);
+
+        if (count($databasesArray) === 0) {
+            return null;
+        }
+
+        if (count($databasesArray) === 1) {
+            return $databasesArray[0];
+        }
+
+        // Multiple databases - ask user to select
+        $choices = [];
+        foreach ($databasesArray as $db) {
+            $choices[$db->name] = sprintf('%s (%s)', $db->name, $db->type->value);
+        }
+
+        $selected = select(
+            label: 'Select database service:',
+            options: $choices,
+        );
+
+        return array_find(
+            $databasesArray,
+            fn(ServiceConfig $s): bool => $s->name === $selected,
+        ) ?? $databasesArray[0];
     }
 
     /**
@@ -94,18 +158,31 @@ class DbShellCommand extends Command
         $envVars = $service->environmentVariables;
 
         return match ($service->type) {
-            'postgresql' => [
+            Service::PostgreSQL => [
                 'psql',
                 '-U',
                 $envVars['POSTGRES_USER'] ?? 'postgres',
                 $envVars['POSTGRES_DB'] ?? 'postgres',
             ],
-            'mysql', 'mariadb' => [
+            Service::MySQL, Service::MariaDB => [
                 'mysql',
                 '-u',
                 $envVars['MYSQL_USER'] ?? 'root',
                 '-p' . ($envVars['MYSQL_PASSWORD'] ?? ''),
                 $envVars['MYSQL_DATABASE'] ?? 'mysql',
+            ],
+            Service::SQLite => [
+                'sqlite3',
+                $envVars['SQLITE_DATABASE'] ?? '/data/database.db',
+            ],
+            Service::MongoDB => [
+                'mongosh',
+                '--username',
+                $envVars['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                '--password',
+                $envVars['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                '--authenticationDatabase',
+                'admin',
             ],
             default => null,
         };
