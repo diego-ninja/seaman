@@ -112,7 +112,6 @@ enum Service: string
             self::MongoDB->value,
             self::PostgreSQL->value,
             self::SQLite->value,
-            self::None->value,
         ];
     }
 

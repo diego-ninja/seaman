@@ -3,30 +3,33 @@
 declare(strict_types=1);
 
 // ABOUTME: Dumps database content to a file.
-// ABOUTME: Supports PostgreSQL, MySQL, and MariaDB databases.
+// ABOUTME: Supports PostgreSQL, MySQL, MariaDB, SQLite, and MongoDB databases.
 
 namespace Seaman\Command;
 
+use Seaman\Command\Concern\SelectsDatabaseService;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Console\Input\InputOption;
 
 #[AsCommand(
     name: 'db:dump',
     description: 'Export database to a file',
+    aliases: ['dump'],
 )]
 class DbDumpCommand extends AbstractSeamanCommand implements Decorable
 {
+    use SelectsDatabaseService;
+
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
@@ -41,20 +44,36 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
             InputArgument::OPTIONAL,
             'Output file path (default: database_YYYYMMDD_HHMMSS.sql)',
         );
+
+        $this->addOption(
+            'service',
+            's',
+            InputOption::VALUE_REQUIRED,
+            'Database service name',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         try {
             $config = $this->configManager->load();
         } catch (\RuntimeException $e) {
-            $io->error('Failed to load configuration: ' . $e->getMessage());
+            Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
         }
 
-        $databaseService = $this->findDatabaseService($config);
+        $serviceName = $input->getOption('service');
+        if (!is_string($serviceName) && $serviceName !== null) {
+            Terminal::error('Invalid service option.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $databaseService = $this->selectDatabaseService($config, $serviceName);
+        } catch (\RuntimeException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         if ($databaseService === null) {
             Terminal::error('No database service found in configuration.');
@@ -69,17 +88,19 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
 
         $file = $input->getArgument('file');
         if (!is_string($file) || $file === '') {
+            $extension = $databaseService->type === Service::MongoDB ? 'archive' : 'sql';
             $file = sprintf(
-                '%s_dump_%s.sql',
+                '%s_dump_%s.%s',
                 $databaseService->name,
                 date('Ymd_His'),
+                $extension,
             );
         }
 
         $dumpCommand = $this->getDumpCommand($databaseService);
 
         if ($dumpCommand === null) {
-            $io->error("Unsupported database type: {$databaseService->type->value}");
+            Terminal::error("Unsupported database type: {$databaseService->type->value}");
             return Command::FAILURE;
         }
 
@@ -87,44 +108,35 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
             $result = $this->dockerManager->executeInService(
                 service: $databaseService->name,
                 command: $dumpCommand,
-                message: "Dumping database to: {$file}",
+                message: "Dumping {$databaseService->type->value} database to: {$file}",
             );
         } catch (\RuntimeException $e) {
-            $io->error($e->getMessage());
+            Terminal::error($e->getMessage());
             return Command::FAILURE;
         }
 
         if (!$result->isSuccessful()) {
-            $io->error('Database dump failed:');
-            $io->writeln($result->errorOutput);
+            Terminal::error('Database dump failed:');
+            Terminal::output()->writeln($result->errorOutput);
             return Command::FAILURE;
         }
 
         if (file_put_contents($file, $result->output) === false) {
-            $io->error("Failed to write dump to file: {$file}");
+            Terminal::error("Failed to write dump to file: {$file}");
             return Command::FAILURE;
         }
 
-        $io->success("Database dumped successfully to: {$file}");
+        Terminal::success("Database dumped successfully to: {$file}");
 
         return Command::SUCCESS;
     }
 
     /**
-     * @param Configuration $config
-     * @return ServiceConfig|null
-     */
-    private function findDatabaseService(Configuration $config): ?ServiceConfig
-    {
-        return array_find($config->services->all(), fn(ServiceConfig $service) => in_array($service->type->value, Service::databases(), true));
-    }
-
-    /**
-     * @param ServiceConfig $service
      * @return list<string>|null
      */
     private function getDumpCommand(ServiceConfig $service): ?array
     {
+        /** @var array<string, string> $envVars */
         $envVars = $service->environmentVariables;
 
         return match ($service->type) {
@@ -140,6 +152,21 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
                 $envVars['MYSQL_USER'] ?? 'root',
                 '-p' . ($envVars['MYSQL_PASSWORD'] ?? ''),
                 $envVars['MYSQL_DATABASE'] ?? 'mysql',
+            ],
+            Service::SQLite => [
+                'sqlite3',
+                $envVars['SQLITE_DATABASE'] ?? '/data/database.db',
+                '.dump',
+            ],
+            Service::MongoDB => [
+                'mongodump',
+                '--username',
+                $envVars['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                '--password',
+                $envVars['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                '--authenticationDatabase',
+                'admin',
+                '--archive',
             ],
             default => null,
         };

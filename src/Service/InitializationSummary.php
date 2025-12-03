@@ -12,6 +12,8 @@ use Seaman\Enum\Service;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\PhpConfig;
 
+use function box;
+
 class InitializationSummary
 {
     /**
@@ -30,13 +32,14 @@ class InitializationSummary
 
         box(
             title: Terminal::render('<fg=cyan>⚙</> Seaman Configuration') ?? 'Seaman Configuration',
-            message: "\n" . '🔹Project Type: ' . $projectType->getLabel() . "\n"
-            . '🔹Docker image: seaman/seaman-php' . $phpConfig->version->value . ':latest' . "\n"
-            . '🔹PHP Version: ' . $phpConfig->version->value . "\n"
-            . '🔹Database: ' . $database->name . "\n"
-            . '🔹Services: ' . $formattedServices . "\n"
-            . '🔹Xdebug: ' . ($phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled') . "\n"
-            . '🔹DevContainer: ' . ($devContainer ? 'Enabled' : 'Disabled') . "\n\n",
+            message: Terminal::render("\n"
+            . '🔹<fg=cyan>Project Type</>: ' . $projectType->getLabel() . "\n"
+            . '🔹<fg=cyan>Docker image</>: seaman/seaman-php' . $phpConfig->version->value . ':latest' . "\n"
+            . '🔹<fg=cyan>PHP Version</>: ' . $phpConfig->version->value . "\n"
+            . '🔹<fg=cyan>Database</>: ' . $database->name . "\n"
+            . '🔹<fg=cyan>Services</>: ' . $formattedServices . "\n"
+            . '🔹<fg=cyan>Xdebug</>: ' . ($phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled') . "\n"
+            . '🔹<fg=cyan>DevContainer</>: ' . ($devContainer ? 'Enabled' : 'Disabled') . "\n") ?? 'Unable to render seaman configuration',
             color: 'cyan',
         );
     }
