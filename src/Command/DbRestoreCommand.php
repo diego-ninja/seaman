@@ -3,24 +3,34 @@
 declare(strict_types=1);
 
 // ABOUTME: Restores database from a dump file.
-// ABOUTME: Supports PostgreSQL, MySQL, and MariaDB databases.
+// ABOUTME: Supports PostgreSQL, MySQL, MariaDB, SQLite, and MongoDB databases.
 
 namespace Seaman\Command;
 
+use Seaman\Contract\Decorable;
+use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
+use Seaman\UI\Widget\Spinner\SpinnerFactory;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
+
+use function Laravel\Prompts\confirm;
+use function Laravel\Prompts\info;
+use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'db:restore',
     description: 'Restore database from a dump file',
 )]
-class DbRestoreCommand extends Command
+class DbRestoreCommand extends AbstractSeamanCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
@@ -36,114 +46,197 @@ class DbRestoreCommand extends Command
             InputArgument::REQUIRED,
             'Database dump file to restore',
         );
+
+        $this->addOption(
+            'service',
+            's',
+            InputOption::VALUE_REQUIRED,
+            'Database service name',
+        );
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         try {
             $config = $this->configManager->load();
         } catch (\RuntimeException $e) {
-            $io->error('Failed to load configuration: ' . $e->getMessage());
+            Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
         }
 
-        $databaseService = $this->findDatabaseService($config);
+        $serviceName = $input->getOption('service');
+        if (!is_string($serviceName) && $serviceName !== null) {
+            Terminal::error('Invalid service option.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $databaseService = $this->selectDatabaseService($config, $serviceName);
+        } catch (\RuntimeException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
+        }
 
         if ($databaseService === null) {
-            $io->error('No database service found in configuration.');
-            $io->note('Add a database service with: seaman service:add');
+            Terminal::error('No database service found in configuration.');
+            Terminal::output()->writeln('Add a database service with: seaman service:add');
             return Command::FAILURE;
         }
 
         if (!$databaseService->enabled) {
-            $io->error("Database service '{$databaseService->name}' is not enabled.");
+            Terminal::error("Database service '{$databaseService->name}' is not enabled.");
             return Command::FAILURE;
         }
 
         $file = $input->getArgument('file');
         if (!is_string($file)) {
-            $io->error('Invalid file argument.');
+            Terminal::error('Invalid file argument.');
             return Command::FAILURE;
         }
 
         if (!file_exists($file)) {
-            $io->error("Dump file not found: {$file}");
+            Terminal::error("Dump file not found: {$file}");
             return Command::FAILURE;
         }
 
-        if (!$io->confirm("This will overwrite the current database. Continue?", false)) {
-            $io->info('Restore cancelled.');
+        if (!confirm(
+            label: "This will overwrite the '{$databaseService->name}' database. Continue?",
+            default: false,
+        )) {
+            info('Restore cancelled.');
             return Command::SUCCESS;
         }
 
-        $io->info("Restoring database from: {$file}");
-
         $dumpContent = file_get_contents($file);
         if ($dumpContent === false) {
-            $io->error("Failed to read dump file: {$file}");
+            Terminal::error("Failed to read dump file: {$file}");
             return Command::FAILURE;
         }
 
         $restoreCommand = $this->getRestoreCommand($databaseService);
 
         if ($restoreCommand === null) {
-            $io->error("Unsupported database type: {$databaseService->type}");
+            Terminal::error("Unsupported database type: {$databaseService->type->value}");
             return Command::FAILURE;
         }
 
-        $result = $this->dockerManager->executeInService($databaseService->name, $restoreCommand);
+        // TODO: DockerManager needs stdin support for piping dump content to restore command
+        // For now, we need to implement a way to pass $dumpContent to the command
+        try {
+            $success = SpinnerFactory::for(
+                callable: function () use ($databaseService, $restoreCommand): bool {
+                    $result = $this->dockerManager->executeInService(
+                        service: $databaseService->name,
+                        command: $restoreCommand,
+                        message: null,
+                    );
 
-        if (!$result->isSuccessful()) {
-            $io->error('Database restore failed:');
-            $io->writeln($result->errorOutput);
+                    return $result->isSuccessful();
+                },
+                message: "Restoring {$databaseService->type->value} database from: {$file}",
+            );
+
+            if (!$success) {
+                Terminal::error('Database restore failed.');
+                return Command::FAILURE;
+            }
+        } catch (\Exception $e) {
+            Terminal::error("Restore failed: {$e->getMessage()}");
             return Command::FAILURE;
         }
 
-        $io->success('Database restored successfully.');
+        Terminal::success('Database restored successfully.');
 
         return Command::SUCCESS;
     }
 
     /**
-     * @param \Seaman\ValueObject\Configuration $config
-     * @return \Seaman\ValueObject\ServiceConfig|null
+     * @return ServiceConfig|null
      */
-    private function findDatabaseService($config): ?\Seaman\ValueObject\ServiceConfig
+    private function selectDatabaseService(Configuration $config, ?string $serviceName): ?ServiceConfig
     {
-        $databaseTypes = ['postgresql', 'mysql', 'mariadb'];
+        $databases = array_filter(
+            $config->services->all(),
+            fn(ServiceConfig $s): bool => in_array($s->type->value, Service::databases(), true)
+                && $s->type !== Service::None,
+        );
 
-        foreach ($config->services->all() as $service) {
-            if (in_array($service->type, $databaseTypes, true)) {
-                return $service;
+        if ($serviceName !== null) {
+            $service = array_find(
+                $databases,
+                fn(ServiceConfig $s): bool => $s->name === $serviceName,
+            );
+
+            if ($service === null) {
+                throw new \RuntimeException("Service '{$serviceName}' not found");
             }
+
+            return $service;
         }
 
-        return null;
+        $databasesArray = array_values($databases);
+
+        if (count($databasesArray) === 0) {
+            return null;
+        }
+
+        if (count($databasesArray) === 1) {
+            return $databasesArray[0];
+        }
+
+        // Multiple databases - ask user to select
+        $choices = [];
+        foreach ($databasesArray as $db) {
+            $choices[$db->name] = sprintf('%s (%s)', $db->name, $db->type->value);
+        }
+
+        $selected = select(
+            label: 'Select database service:',
+            options: $choices,
+        );
+
+        return array_find(
+            $databasesArray,
+            fn(ServiceConfig $s): bool => $s->name === $selected,
+        ) ?? $databasesArray[0];
     }
 
     /**
-     * @param \Seaman\ValueObject\ServiceConfig $service
+     * @param ServiceConfig $service
      * @return list<string>|null
      */
-    private function getRestoreCommand(\Seaman\ValueObject\ServiceConfig $service): ?array
+    private function getRestoreCommand(ServiceConfig $service): ?array
     {
         $envVars = $service->environmentVariables;
 
         return match ($service->type) {
-            'postgresql' => [
+            Service::PostgreSQL => [
                 'psql',
                 '-U',
                 $envVars['POSTGRES_USER'] ?? 'postgres',
                 $envVars['POSTGRES_DB'] ?? 'postgres',
             ],
-            'mysql', 'mariadb' => [
+            Service::MySQL, Service::MariaDB => [
                 'mysql',
                 '-u',
                 $envVars['MYSQL_USER'] ?? 'root',
                 '-p' . ($envVars['MYSQL_PASSWORD'] ?? ''),
                 $envVars['MYSQL_DATABASE'] ?? 'mysql',
+            ],
+            Service::SQLite => [
+                'sqlite3',
+                $envVars['SQLITE_DATABASE'] ?? '/data/database.db',
+            ],
+            Service::MongoDB => [
+                'mongorestore',
+                '--username',
+                $envVars['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                '--password',
+                $envVars['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                '--authenticationDatabase',
+                'admin',
+                '--archive',
+                '--drop',
             ],
             default => null,
         };
