@@ -7,12 +7,12 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Command\Concern\SelectsDatabaseService;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,14 +21,15 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Input\InputOption;
 
-use function Laravel\Prompts\select;
-
 #[AsCommand(
     name: 'db:dump',
     description: 'Export database to a file',
+    aliases: ['dump'],
 )]
 class DbDumpCommand extends AbstractSeamanCommand implements Decorable
 {
+    use SelectsDatabaseService;
+
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
@@ -131,62 +132,11 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
     }
 
     /**
-     * @return ServiceConfig|null
-     */
-    private function selectDatabaseService(Configuration $config, ?string $serviceName): ?ServiceConfig
-    {
-        $databases = array_filter(
-            $config->services->all(),
-            fn(ServiceConfig $s): bool => in_array($s->type->value, Service::databases(), true)
-                && $s->type !== Service::None,
-        );
-
-        if ($serviceName !== null) {
-            $service = array_find(
-                $databases,
-                fn(ServiceConfig $s): bool => $s->name === $serviceName,
-            );
-
-            if ($service === null) {
-                throw new \RuntimeException("Service '{$serviceName}' not found");
-            }
-
-            return $service;
-        }
-
-        $databasesArray = array_values($databases);
-
-        if (count($databasesArray) === 0) {
-            return null;
-        }
-
-        if (count($databasesArray) === 1) {
-            return $databasesArray[0];
-        }
-
-        // Multiple databases - ask user to select
-        $choices = [];
-        foreach ($databasesArray as $db) {
-            $choices[$db->name] = sprintf('%s (%s)', $db->name, $db->type->value);
-        }
-
-        $selected = select(
-            label: 'Select database service:',
-            options: $choices,
-        );
-
-        return array_find(
-            $databasesArray,
-            fn(ServiceConfig $s): bool => $s->name === $selected,
-        ) ?? $databasesArray[0];
-    }
-
-    /**
-     * @param ServiceConfig $service
      * @return list<string>|null
      */
     private function getDumpCommand(ServiceConfig $service): ?array
     {
+        /** @var array<string, string> $envVars */
         $envVars = $service->environmentVariables;
 
         return match ($service->type) {

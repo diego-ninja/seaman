@@ -107,6 +107,45 @@ readonly class DockerManager
     }
 
     /**
+     * Executes a command inside a service container with stdin input.
+     *
+     * @param string $service The service name
+     * @param list<string> $command The command and arguments to execute
+     * @param string $stdin The input to pipe to stdin
+     * @param string|null $message Message to display
+     * @return ProcessResult The result of the command execution
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \Exception
+     */
+    public function executeInServiceWithStdin(
+        string $service,
+        array $command,
+        string $stdin,
+        ?string $message = null,
+    ): ProcessResult {
+        $this->ensureComposeFileExists();
+
+        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', '-T', $service];
+        $fullCommand = array_merge($fullCommand, $command);
+
+        $process = new Process($fullCommand);
+        $process->setInput($stdin);
+        $process->setTimeout(null);
+
+        if ($message !== null) {
+            return $this->runProcessWithSpinner($process, $message);
+        }
+
+        $process->run();
+
+        return new ProcessResult(
+            exitCode: $process->getExitCode() ?? 1,
+            output: $process->getOutput(),
+            errorOutput: $process->getErrorOutput(),
+        );
+    }
+
+    /**
      * Executes an interactive command inside a service container.
      *
      * @param string $service The service name
@@ -280,6 +319,35 @@ readonly class DockerManager
 
         try {
             $message === null ? $process->run() : SpinnerFactory::for($process, $message);
+        } catch (ProcessTimedOutException $e) {
+            // Timeout is expected for commands like logs --follow
+            // Return what we got before timeout
+            return new ProcessResult(
+                exitCode: 0,
+                output: $process->getOutput(),
+                errorOutput: $process->getErrorOutput(),
+            );
+        }
+
+        return new ProcessResult(
+            exitCode: $process->getExitCode() ?? 1,
+            output: $process->getOutput(),
+            errorOutput: $process->getErrorOutput(),
+        );
+    }
+
+    /**
+     * Runs a process with a spinner and returns the result.
+     *
+     * @param Process $process The process to execute
+     * @param string $message Message to display
+     * @return ProcessResult The process execution result
+     * @throws \Exception
+     */
+    private function runProcessWithSpinner(Process $process, string $message): ProcessResult
+    {
+        try {
+            SpinnerFactory::for($process, $message);
         } catch (ProcessTimedOutException $e) {
             // Timeout is expected for commands like logs --follow
             // Return what we got before timeout
