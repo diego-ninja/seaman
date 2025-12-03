@@ -58,7 +58,7 @@
   "scripts": {
     "test": "pest",
     "test:coverage": "pest --coverage --min=95",
-    "phpstan": "phpstan analyse src tests --level=10",
+    "phpstan": "phpstan analyse src tests --level=10 --memory-limit=1G",
     "cs:check": "php-cs-fixer fix --dry-run --diff",
     "cs:fix": "php-cs-fixer fix",
     "quality": [
@@ -66,6 +66,7 @@
       "@cs:check",
       "@test:coverage"
     ],
-    "build": "bin/seaman build"
+    "build": "box compile",
+    "compile": ""
   }
 }

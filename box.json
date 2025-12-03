@@ -1,8 +1,5 @@
 {
-    "main": "bin/seaman",
     "output": "dist/seaman.phar",
-    "chmod": "0755",
-    "force-autodiscovery": false,
     "directories": [
         "src",
         "helpers",
@@ -14,9 +11,10 @@
     "files": [
         "composer.json"
     ],
-    "stub": true,
     "compression": "GZ",
     "compactors": [
-        "KevinGH\\Box\\Compactor\\Php"
+        "KevinGH\\Box\\Compactor\\Php",
+        "KevinGH\\Box\\Compactor\\PhpScoper",
+        "KevinGH\\Box\\Compactor\\Json"
     ]
 }
