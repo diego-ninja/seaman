@@ -5,16 +5,24 @@
 Install Seaman globally using the installer script:
 
 ```bash
-curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/main/installer | bash
+curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/refs/heads/main/installer | bash
 ```
 
-This installs the `seaman` command globally at `~/.seaman/seaman.phar`, making it available from anywhere in your system.
+The installer will:
 
-The installer script:
-- Creates `~/.seaman` directory
-- Downloads the latest PHAR release
-- Makes it executable
-- Adds a wrapper script to your PATH
+1. **Download** the latest Seaman PHAR from GitHub releases
+2. **Install** to one of these locations (in order of preference):
+   - `/usr/local/bin/seaman` (system-wide, requires write permission or sudo)
+   - `~/.local/bin/seaman` (user installation, no sudo required)
+3. **Configure PATH** automatically if installing to `~/.local/bin`
+4. **Verify** the installation and display version
+
+After installation, the `seaman` command will be available globally:
+
+```bash
+seaman --version
+seaman init
+```
 
 ## Composer Dev Dependency
 
@@ -71,12 +79,13 @@ You should see output like:
 
 ### Global Installation
 
-The installer script checks for updates automatically. To manually update:
+Simply run the installer again to update to the latest version:
 
 ```bash
-rm ~/.seaman/seaman.phar
-curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/main/installer | bash
+curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/refs/heads/main/installer | bash
 ```
+
+This will download and install the latest release, replacing your current installation.
 
 ### Composer Installation
 
@@ -88,10 +97,17 @@ composer update seaman/seaman
 
 ### Global Installation
 
+Remove the seaman binary from your system:
+
 ```bash
-rm -rf ~/.seaman
-# Remove wrapper script if you created one
+# If installed to /usr/local/bin (may require sudo)
+sudo rm /usr/local/bin/seaman
+
+# If installed to ~/.local/bin
+rm ~/.local/bin/seaman
 ```
+
+If you added `~/.local/bin` to your PATH, you can remove it from your shell configuration file (`~/.bashrc`, `~/.zshrc`, etc.).
 
 ### Composer Installation
 

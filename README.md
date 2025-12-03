@@ -12,8 +12,13 @@ Docker development environment manager for Symfony 7+, inspired by [Laravel Sail
 ## Installation
 
 ```bash
-curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/main/installer | bash
+curl -sS https://raw.githubusercontent.com/diego-ninja/seaman/refs/heads/main/installer | bash
 ```
+
+The installer will:
+- Download the latest Seaman release
+- Install to `/usr/local/bin` (system-wide) or `~/.local/bin` (user)
+- Configure PATH automatically if needed
 
 ## Quick Start
 
