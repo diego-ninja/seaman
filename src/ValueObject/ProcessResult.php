@@ -13,4 +13,12 @@ final readonly class ProcessResult
         public int $exitCode,
         public bool $successful,
     ) {}
+
+    /**
+     * Check if the process execution was successful.
+     */
+    public function isSuccessful(): bool
+    {
+        return $this->successful;
+    }
 }

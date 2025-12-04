@@ -3,11 +3,13 @@
 declare(strict_types=1);
 
 // ABOUTME: Initializes project Docker environment and configuration.
-// ABOUTME: Generates all necessary files for Docker and DevContainer setup.
+// ABOUTME: Generates Docker, Traefik, and DevContainer configurations.
 
 namespace Seaman\Service;
 
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\Process\CertificateManager;
+use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 
@@ -31,9 +33,13 @@ class ProjectInitializer
         $renderer = new TemplateRenderer($templateDir);
 
         // Generate docker-compose.yml (in project root)
-        $composeGenerator = new DockerComposeGenerator($renderer);
+        $labelGenerator = new TraefikLabelGenerator();
+        $composeGenerator = new DockerComposeGenerator($renderer, $labelGenerator);
         $composeYaml = $composeGenerator->generate($config);
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
+
+        // Initialize Traefik configuration and certificates
+        $this->initializeTraefik($config, $projectRoot);
 
         // Save configuration
         $validator = new ConfigurationValidator();
@@ -93,5 +99,61 @@ class ProjectInitializer
         $generator->generate($projectRoot);
 
         Terminal::success('DevContainer configuration created');
+    }
+
+    /**
+     * Initialize Traefik configuration and SSL certificates.
+     */
+    private function initializeTraefik(Configuration $config, string $projectRoot): void
+    {
+        $seamanDir = $projectRoot . '/.seaman';
+
+        // Create Traefik directories
+        $traefikDir = $seamanDir . '/traefik';
+        $dynamicDir = $traefikDir . '/dynamic';
+        $certsDir = $seamanDir . '/certs';
+
+        foreach ([$traefikDir, $dynamicDir, $certsDir] as $dir) {
+            if (!is_dir($dir)) {
+                mkdir($dir, 0755, true);
+            }
+        }
+
+        // Copy Traefik static configuration
+        $traefikTemplate = __DIR__ . '/../../resources/templates/traefik/traefik.yml';
+        if (file_exists($traefikTemplate)) {
+            copy($traefikTemplate, $traefikDir . '/traefik.yml');
+        }
+
+        // Copy Traefik dynamic certificate configuration
+        $certsTemplate = __DIR__ . '/../../resources/templates/traefik/dynamic/certs.yml';
+        if (file_exists($certsTemplate)) {
+            copy($certsTemplate, $dynamicDir . '/certs.yml');
+        }
+
+        // Generate SSL certificates
+        $executor = new RealCommandExecutor();
+        $certManager = new CertificateManager($executor);
+
+        // Change to project directory to generate certificates in the right location
+        $originalDir = getcwd();
+        if ($originalDir === false) {
+            throw new \RuntimeException('Could not get current working directory');
+        }
+
+        chdir($projectRoot);
+
+        try {
+            $result = $certManager->generateCertificates($config->projectName);
+
+            if ($result->trusted) {
+                Terminal::success('Generated trusted SSL certificates with mkcert');
+            } else {
+                Terminal::output()->writeln('  Generated self-signed SSL certificates');
+                Terminal::output()->writeln('  Install mkcert for browser-trusted certificates');
+            }
+        } finally {
+            chdir($originalDir);
+        }
     }
 }
