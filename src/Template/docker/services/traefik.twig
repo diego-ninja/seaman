@@ -1,0 +1,32 @@
+  {{ name }}:
+    image: traefik:{{ service.version }}
+    container_name: seaman-{{ name }}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./.seaman/traefik:/etc/traefik
+      - ./.seaman/certs:/certs:ro
+    command:
+      - --api.dashboard=true
+      - --api.insecure=true
+      - --providers.docker=true
+      - --providers.docker.exposedbydefault=false
+      - --providers.file.directory=/etc/traefik/dynamic
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --log.level=INFO
+      - --accesslog=true
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
+    networks:
+      - seaman
+    environment:
+      - PROJECT_NAME={{ project_name }}
+
