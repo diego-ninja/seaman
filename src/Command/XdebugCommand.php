@@ -38,7 +38,7 @@ class XdebugCommand extends ModeAwareCommand implements Decorable
     {
         $mode = $input->getArgument('mode');
         if (!is_string($mode)) {
-            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', $mode));
+            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', get_debug_type($mode)));
             return Command::FAILURE;
         }
 

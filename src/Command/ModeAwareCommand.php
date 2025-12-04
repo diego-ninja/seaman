@@ -15,7 +15,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-abstract class ModeAwareCommand extends Command
+abstract class ModeAwareCommand extends AbstractSeamanCommand
 {
     private ?ModeDetector $modeDetector = null;
 

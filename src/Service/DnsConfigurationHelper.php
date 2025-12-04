@@ -41,7 +41,7 @@ final readonly class DnsConfigurationHelper
     public function hasDnsmasq(): bool
     {
         $result = $this->executor->execute(['which', 'dnsmasq']);
-        return $result->successful;
+        return $result->isSuccessful();
     }
 
     /**
@@ -50,7 +50,7 @@ final readonly class DnsConfigurationHelper
     public function hasSystemdResolved(): bool
     {
         $result = $this->executor->execute(['systemctl', 'is-active', 'systemd-resolved']);
-        return $result->successful;
+        return $result->isSuccessful();
     }
 
     /**

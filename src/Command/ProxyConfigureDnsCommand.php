@@ -7,13 +7,16 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Exception;
 use Seaman\Contract\Decorable;
+use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Terminal;
+use Seaman\ValueObject\DnsConfigurationResult;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -35,9 +38,9 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    protected function supportsMode(OperatingMode $mode): bool
     {
-        return $mode === \Seaman\Enum\OperatingMode::Managed;
+        return $mode === OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -50,7 +53,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 
         try {
             $config = $configManager->load();
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             Terminal::output()->writeln('  Run \'seaman init\' first to initialize the project.');
             return Command::FAILURE;
@@ -74,7 +77,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         return Command::SUCCESS;
     }
 
-    private function handleAutomaticConfiguration(\Seaman\ValueObject\DnsConfigurationResult $result): void
+    private function handleAutomaticConfiguration(DnsConfigurationResult $result): void
     {
         // Validate that automatic configuration has required fields
         if ($result->configPath === null || $result->configContent === null) {
@@ -153,7 +156,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln("  • https://traefik.{$result->configContent}.local");
     }
 
-    private function handleManualConfiguration(\Seaman\ValueObject\DnsConfigurationResult $result): void
+    private function handleManualConfiguration(DnsConfigurationResult $result): void
     {
         Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
         Terminal::output()->writeln('');

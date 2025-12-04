@@ -20,7 +20,8 @@ final readonly class RealCommandExecutor implements CommandExecutor
 
         return new ProcessResult(
             exitCode: $process->getExitCode() ?? 1,
-            successful: $process->isSuccessful()
+            output: $process->getOutput(),
+            errorOutput: $process->getErrorOutput(),
         );
     }
 }

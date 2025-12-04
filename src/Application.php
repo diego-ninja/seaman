@@ -19,6 +19,7 @@ use Seaman\Command\ExecuteConsoleCommand;
 use Seaman\Command\ExecutePhpCommand;
 use Seaman\Command\InitCommand;
 use Seaman\Command\LogsCommand;
+use Seaman\Command\ProxyConfigureDnsCommand;
 use Seaman\Command\RebuildCommand;
 use Seaman\Command\RestartCommand;
 use Seaman\Command\ServiceAddCommand;
@@ -92,9 +93,9 @@ class Application extends BaseApplication
             new StartCommand(new PortChecker(), $configManager),
             new StopCommand(),
             new RestartCommand(),
-            new StatusCommand($registry),
+            new StatusCommand(),
             new RebuildCommand(),
-            new DestroyCommand(),
+            new DestroyCommand($registry),
             new ShellCommand(),
             new LogsCommand(),
             new XdebugCommand(),
@@ -104,6 +105,7 @@ class Application extends BaseApplication
             new DbDumpCommand($configManager, $dockerManager),
             new DbRestoreCommand($configManager, $dockerManager),
             new DbShellCommand($configManager, $dockerManager),
+            new ProxyConfigureDnsCommand($registry),
         ];
 
         // Only register build command when not running from PHAR

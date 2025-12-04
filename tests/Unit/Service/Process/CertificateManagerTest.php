@@ -25,12 +25,11 @@ final readonly class FakeCommandExecutor implements CommandExecutor
         if ($command[0] === 'which' && $command[1] === 'mkcert') {
             return new ProcessResult(
                 exitCode: $this->mkcertAvailable ? 0 : 1,
-                successful: $this->mkcertAvailable
             );
         }
 
         // All other commands succeed (mkcert, openssl)
-        return new ProcessResult(exitCode: 0, successful: true);
+        return new ProcessResult(exitCode: 0);
     }
 }
 

@@ -35,10 +35,10 @@ test('creates php config', function () {
 });
 
 test('rejects invalid php version', function () {
-    // PHP 8.2 is not supported (only 8.3, 8.4, 8.5)
+    // PhpVersion::Unsupported is not in the supported list
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     new PhpConfig(
-        version: PhpVersion::Php83,
+        version: PhpVersion::Unsupported,
         xdebug: $xdebug,
     );
 })->throws(\InvalidArgumentException::class, 'Unsupported PHP version');

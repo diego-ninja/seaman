@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\ValueObject;
 
+use Seaman\Enum\Confidence;
 use Seaman\Enum\Service;
 
 final readonly class DetectedService
@@ -14,21 +15,21 @@ final readonly class DetectedService
     public function __construct(
         public Service $type,
         public string $version = 'latest',
-        public string $confidence = 'high',
+        public Confidence $confidence = Confidence::High,
     ) {}
 
     public function isHighConfidence(): bool
     {
-        return $this->confidence === 'high';
+        return $this->confidence === Confidence::High;
     }
 
     public function isMediumConfidence(): bool
     {
-        return $this->confidence === 'medium';
+        return $this->confidence === Confidence::Medium;
     }
 
     public function isLowConfidence(): bool
     {
-        return $this->confidence === 'low';
+        return $this->confidence === Confidence::Low;
     }
 }

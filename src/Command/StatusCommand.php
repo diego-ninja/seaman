@@ -9,7 +9,6 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -26,11 +25,6 @@ use function Laravel\Prompts\table;
 )]
 class StatusCommand extends ModeAwareCommand implements Decorable
 {
-    public function __construct(private readonly ServiceRegistry $serviceRegistry)
-    {
-        parent::__construct();
-    }
-
     protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
@@ -51,16 +45,18 @@ class StatusCommand extends ModeAwareCommand implements Decorable
 
         $rows = [];
         foreach ($services as $service) {
-            $ports = array_unique(array_map(function (array $port) {
-                $publishedPort = isset($port['PublishedPort']) && is_int($port['PublishedPort']) ? $port['PublishedPort'] : 0;
-                $protocol = isset($port['Protocol']) && is_string($port['Protocol']) ? $port['Protocol'] : '';
+            /** @var list<array{PublishedPort?: int, Protocol?: string}> $publishers */
+            $publishers = $service['Publishers'] ?? [];
+            $ports = array_unique(array_map(function (array $port): string {
+                $publishedPort = $port['PublishedPort'] ?? 0;
+                $protocol = $port['Protocol'] ?? '';
 
                 return sprintf(
                     '%d/%s',
                     $publishedPort,
                     $protocol,
                 );
-            }, $service['Publishers'] ?? []));
+            }, $publishers));
 
             $rows[] = [
                 sprintf('%s %s', Service::from($service['Service'])->icon(), $service['Name']),

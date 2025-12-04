@@ -16,7 +16,7 @@ test('Application can be instantiated', function (): void {
 test('Application has correct name', function (): void {
     $application = new Application();
 
-    expect($application->getName())->toBe('Seaman');
+    expect($application->getName())->toBe('🔱 Seaman');
 });
 
 test('Application has correct version', function (): void {

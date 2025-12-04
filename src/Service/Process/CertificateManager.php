@@ -35,7 +35,7 @@ final readonly class CertificateManager
     public function hasMkcert(): bool
     {
         $result = $this->executor->execute(['which', 'mkcert']);
-        return $result->successful;
+        return $result->isSuccessful();
     }
 
     /**

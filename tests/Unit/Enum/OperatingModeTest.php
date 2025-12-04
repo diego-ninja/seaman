@@ -14,17 +14,17 @@ final class OperatingModeTest extends TestCase
 {
     public function test_has_managed_case(): void
     {
-        $this->assertTrue(OperatingMode::Managed instanceof OperatingMode);
+        $this->assertSame('Managed', OperatingMode::Managed->name);
     }
 
     public function test_has_unmanaged_case(): void
     {
-        $this->assertTrue(OperatingMode::Unmanaged instanceof OperatingMode);
+        $this->assertSame('Unmanaged', OperatingMode::Unmanaged->name);
     }
 
     public function test_has_uninitialized_case(): void
     {
-        $this->assertTrue(OperatingMode::Uninitialized instanceof OperatingMode);
+        $this->assertSame('Uninitialized', OperatingMode::Uninitialized->name);
     }
 
     public function test_managed_requires_initialization(): void

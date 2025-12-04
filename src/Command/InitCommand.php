@@ -25,6 +25,7 @@ use Seaman\Service\SymfonyDetector;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\CustomServiceCollection;
+use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ProxyConfig;
@@ -149,7 +150,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Offer DNS configuration
         Terminal::output()->writeln('');
-        if (confirm(label: 'Configure DNS for local development?', default: true)) {
+        if (confirm(label: 'Configure DNS for local development?')) {
             $this->configureDns($config->projectName);
         }
 
@@ -202,7 +203,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         $this->displayImportSummary($result);
 
-        if (!confirm(label: 'Import these services?', default: true)) {
+        if (!confirm(label: 'Import these services?')) {
             return null;
         }
 
@@ -381,7 +382,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         }
     }
 
-    private function handleAutomaticDnsConfiguration(\Seaman\ValueObject\DnsConfigurationResult $result, string $projectName): void
+    private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
     {
         if ($result->configPath === null || $result->configContent === null) {
             Terminal::error('Invalid automatic configuration: missing path or content');
@@ -459,7 +460,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln("  • https://traefik.{$projectName}.local");
     }
 
-    private function handleManualDnsConfiguration(\Seaman\ValueObject\DnsConfigurationResult $result): void
+    private function handleManualDnsConfiguration(DnsConfigurationResult $result): void
     {
         Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
         Terminal::output()->writeln('');

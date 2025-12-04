@@ -17,12 +17,7 @@ trait DrawsBoxes
     /**
      * Draw a box.
      *
-     * @param string $title
-     * @param string $body
-     * @param string $footer
-     * @param string $color
-     * @param string $info
-     * @return DrawsBoxes|BoxRenderer
+     * @return $this
      */
     protected function box(
         string $title,
@@ -30,7 +25,7 @@ trait DrawsBoxes
         string $footer = '',
         string $color = 'gray',
         string $info = '',
-    ): self {
+    ): static {
         $this->minWidth = min($this->minWidth, Prompt::terminal()->cols() - 6);
 
         $bodyLines = explode(PHP_EOL, $body);

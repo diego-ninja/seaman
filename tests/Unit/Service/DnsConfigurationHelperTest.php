@@ -26,7 +26,6 @@ final readonly class FakeDnsCommandExecutor implements CommandExecutor
         if ($command[0] === 'which' && $command[1] === 'dnsmasq') {
             return new ProcessResult(
                 exitCode: $this->hasDnsmasq ? 0 : 1,
-                successful: $this->hasDnsmasq
             );
         }
 
@@ -34,11 +33,10 @@ final readonly class FakeDnsCommandExecutor implements CommandExecutor
         if ($command[0] === 'systemctl' && $command[1] === 'is-active') {
             return new ProcessResult(
                 exitCode: $this->hasSystemdResolved ? 0 : 1,
-                successful: $this->hasSystemdResolved
             );
         }
 
-        return new ProcessResult(exitCode: 0, successful: true);
+        return new ProcessResult(exitCode: 0);
     }
 }
 

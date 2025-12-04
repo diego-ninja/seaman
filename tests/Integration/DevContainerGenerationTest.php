@@ -7,6 +7,29 @@ namespace Seaman\Tests\Integration;
 use Seaman\Application;
 use Symfony\Component\Console\Tester\CommandTester;
 
+/**
+ * @return array{
+ *     name?: string,
+ *     dockerComposeFile?: string,
+ *     service?: string,
+ *     workspaceFolder?: string,
+ *     customizations?: array{vscode?: array{extensions?: list<string>, settings?: array<string, mixed>}}
+ * }
+ */
+function readDevContainerJson(): array
+{
+    $json = file_get_contents('.devcontainer/devcontainer.json');
+    if ($json === false) {
+        throw new \RuntimeException('Failed to read devcontainer.json');
+    }
+    /** @var array{name?: string, dockerComposeFile?: string, service?: string, workspaceFolder?: string, customizations?: array{vscode?: array{extensions?: list<string>, settings?: array<string, mixed>}}} $decoded */
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        throw new \RuntimeException('Invalid JSON in devcontainer.json');
+    }
+    return $decoded;
+}
+
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/seaman-devcontainer-test-' . uniqid();
     mkdir($this->testDir);
@@ -65,14 +88,13 @@ YAML,
         ->and(file_exists('.devcontainer/README.md'))->toBeTrue();
 
     // Verify JSON is valid
-    $json = file_get_contents('.devcontainer/devcontainer.json');
-    $decoded = json_decode($json, true);
+    $decoded = readDevContainerJson();
 
     expect($decoded)->toBeArray()
         ->and($decoded['name'] ?? null)->not->toBeNull()
-        ->and($decoded['dockerComposeFile'])->toBe('../docker-compose.yml')
-        ->and($decoded['service'])->toBe('app')
-        ->and($decoded['workspaceFolder'])->toBe('/var/www/html');
+        ->and($decoded['dockerComposeFile'] ?? null)->toBe('../docker-compose.yml')
+        ->and($decoded['service'] ?? null)->toBe('app')
+        ->and($decoded['workspaceFolder'] ?? null)->toBe('/var/www/html');
 });
 
 test('devcontainer configuration includes database extensions when database enabled', function () {
@@ -107,9 +129,7 @@ YAML,
     $tester->setInputs(['']);
     $tester->execute([]);
 
-    $json = file_get_contents('.devcontainer/devcontainer.json');
-    $decoded = json_decode($json, true);
-
+    $decoded = readDevContainerJson();
     $extensions = $decoded['customizations']['vscode']['extensions'] ?? [];
 
     expect($extensions)->toContain('cweijan.vscode-database-client2');
@@ -147,9 +167,7 @@ YAML,
     $tester->setInputs(['']);
     $tester->execute([]);
 
-    $json = file_get_contents('.devcontainer/devcontainer.json');
-    $decoded = json_decode($json, true);
-
+    $decoded = readDevContainerJson();
     $extensions = $decoded['customizations']['vscode']['extensions'] ?? [];
 
     expect($extensions)->toContain('cisco.redis-xplorer');
@@ -182,9 +200,7 @@ YAML,
     $tester->setInputs(['']);
     $tester->execute([]);
 
-    $json = file_get_contents('.devcontainer/devcontainer.json');
-    $decoded = json_decode($json, true);
-
+    $decoded = readDevContainerJson();
     $extensions = $decoded['customizations']['vscode']['extensions'] ?? [];
 
     expect($extensions)->toContain('42crunch.vscode-openapi');
@@ -250,9 +266,7 @@ YAML,
     $tester->setInputs(['']);
     $tester->execute([]);
 
-    $json = file_get_contents('.devcontainer/devcontainer.json');
-    $decoded = json_decode($json, true);
-
+    $decoded = readDevContainerJson();
     $settings = $decoded['customizations']['vscode']['settings'] ?? [];
 
     expect($settings['xdebug.mode'])->toBe('debug')
