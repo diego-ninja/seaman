@@ -19,11 +19,17 @@ final readonly class Configuration
         public VolumeConfig $volumes,
         public ProjectType $projectType = ProjectType::Existing,
         public ?ProxyConfig $proxy = null,
+        public CustomServiceCollection $customServices = new CustomServiceCollection(),
     ) {}
 
     public function proxy(): ProxyConfig
     {
         // If no proxy config provided, create default
         return $this->proxy ?? ProxyConfig::default($this->projectName);
+    }
+
+    public function hasCustomServices(): bool
+    {
+        return !$this->customServices->isEmpty();
     }
 }
