@@ -14,7 +14,9 @@ use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -205,6 +207,12 @@ readonly class ConfigManager
         $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
         $projectType = $projectType ?? ProjectType::Existing;
 
+        // Parse proxy configuration
+        $proxyConfig = $this->parseProxyConfig($data, $projectName);
+
+        // Parse custom services
+        $customServices = $this->parseCustomServices($data);
+
         return new Configuration(
             projectName: $projectName,
             version: $version,
@@ -212,7 +220,69 @@ readonly class ConfigManager
             services: new ServiceCollection($services),
             volumes: $volumes,
             projectType: $projectType,
+            proxy: $proxyConfig,
+            customServices: $customServices,
         );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function parseProxyConfig(array $data, string $projectName): ProxyConfig
+    {
+        $proxyData = $data['proxy'] ?? [];
+        if (!is_array($proxyData)) {
+            return ProxyConfig::default($projectName);
+        }
+
+        $enabled = $proxyData['enabled'] ?? true;
+        if (!is_bool($enabled)) {
+            $enabled = true;
+        }
+
+        $domainPrefix = $proxyData['domain_prefix'] ?? $projectName;
+        if (!is_string($domainPrefix)) {
+            $domainPrefix = $projectName;
+        }
+
+        $certResolver = $proxyData['cert_resolver'] ?? 'selfsigned';
+        if (!is_string($certResolver)) {
+            $certResolver = 'selfsigned';
+        }
+
+        $dashboard = $proxyData['dashboard'] ?? true;
+        if (!is_bool($dashboard)) {
+            $dashboard = true;
+        }
+
+        return new ProxyConfig(
+            enabled: $enabled,
+            domainPrefix: $domainPrefix,
+            certResolver: $certResolver,
+            dashboard: $dashboard,
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function parseCustomServices(array $data): CustomServiceCollection
+    {
+        $customData = $data['custom_services'] ?? [];
+        if (!is_array($customData)) {
+            return new CustomServiceCollection();
+        }
+
+        /** @var array<string, array<string, mixed>> $validCustomServices */
+        $validCustomServices = [];
+        foreach ($customData as $name => $config) {
+            if (is_string($name) && is_array($config)) {
+                /** @var array<string, mixed> $config */
+                $validCustomServices[$name] = $config;
+            }
+        }
+
+        return new CustomServiceCollection($validCustomServices);
     }
 
     public function save(Configuration $config): void
@@ -250,6 +320,20 @@ readonly class ConfigManager
             if (!empty($service->environmentVariables)) {
                 $data['services'][$name]['environment'] = $service->environmentVariables;
             }
+        }
+
+        // Add proxy configuration
+        $proxy = $config->proxy();
+        $data['proxy'] = [
+            'enabled' => $proxy->enabled,
+            'domain_prefix' => $proxy->domainPrefix,
+            'cert_resolver' => $proxy->certResolver,
+            'dashboard' => $proxy->dashboard,
+        ];
+
+        // Add custom services if present
+        if ($config->hasCustomServices()) {
+            $data['custom_services'] = $config->customServices->all();
         }
 
         $yamlContent = Yaml::dump($data, 4, 2);

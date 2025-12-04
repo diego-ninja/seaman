@@ -8,17 +8,30 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\Service;
+use Seaman\Service\ComposeImporter;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectDetector;
+use Seaman\Service\ServiceDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
 use Seaman\UI\Terminal;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\CustomServiceCollection;
+use Seaman\ValueObject\ImportResult;
+use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
+use Seaman\ValueObject\ServiceCollection;
+use Seaman\ValueObject\ServiceConfig;
+use Seaman\ValueObject\VolumeConfig;
+use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -27,6 +40,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
+use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
@@ -70,7 +84,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
-        if (file_exists($projectRoot . '/.seaman/seaman.yaml')) {
+        if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
             if (!confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
                 default: false,
@@ -80,6 +94,24 @@ class InitCommand extends ModeAwareCommand implements Decorable
             }
         }
 
+        // Check for existing docker-compose.yml - offer import
+        if ($this->projectDetector->hasDockerCompose($projectRoot) && !$this->projectDetector->hasSeamanConfig($projectRoot)) {
+            $importResult = $this->handleExistingDockerCompose($projectRoot);
+
+            if ($importResult !== null) {
+                return $this->executeImportFlow($input, $projectRoot, $importResult);
+            }
+        }
+
+        // Standard initialization flow
+        return $this->executeStandardFlow($input, $projectRoot);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function executeStandardFlow(InputInterface $input, string $projectRoot): int
+    {
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
@@ -128,6 +160,164 @@ class InitCommand extends ModeAwareCommand implements Decorable
             '',
             '  ❤️  Happy coding!',
 
+        ]);
+
+        return Command::SUCCESS;
+    }
+
+    private function handleExistingDockerCompose(string $projectRoot): ?ImportResult
+    {
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=cyan>Existing docker-compose file detected</>');
+        Terminal::output()->writeln('');
+
+        /** @var string $choice */
+        $choice = select(
+            label: 'How would you like to proceed?',
+            options: [
+                'import' => 'Import existing docker-compose.yml',
+                'fresh' => 'Create fresh configuration (ignore existing)',
+            ],
+            default: 'import',
+        );
+
+        if ($choice === 'fresh') {
+            return null;
+        }
+
+        $composePath = $this->projectDetector->getDockerComposePath($projectRoot);
+        if ($composePath === null) {
+            Terminal::error('Could not find docker-compose file');
+            return null;
+        }
+
+        $importer = new ComposeImporter(new ServiceDetector());
+
+        try {
+            $result = $importer->import($composePath);
+        } catch (\RuntimeException $e) {
+            Terminal::error('Failed to import: ' . $e->getMessage());
+            return null;
+        }
+
+        $this->displayImportSummary($result);
+
+        if (!confirm(label: 'Import these services?', default: true)) {
+            return null;
+        }
+
+        // Backup original file
+        $backupPath = $composePath . '.backup-' . date('Y-m-d-His');
+        copy($composePath, $backupPath);
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln("  <fg=gray>Original backed up to: {$backupPath}</>");
+
+        return $result;
+    }
+
+    private function displayImportSummary(ImportResult $result): void
+    {
+        Terminal::output()->writeln('');
+
+        if ($result->hasRecognizedServices()) {
+            Terminal::output()->writeln('  <fg=green>Recognized services (will be managed by seaman):</>');
+            foreach ($result->recognized as $name => $recognized) {
+                $detected = $recognized->detected;
+                Terminal::output()->writeln(sprintf(
+                    '    • %s → %s (version: %s, confidence: %s)',
+                    $name,
+                    $detected->type->value,
+                    $detected->version,
+                    $detected->confidence,
+                ));
+            }
+            Terminal::output()->writeln('');
+        }
+
+        if ($result->hasCustomServices()) {
+            Terminal::output()->writeln('  <fg=yellow>Custom services (will be preserved as-is):</>');
+            foreach ($result->custom->names() as $name) {
+                Terminal::output()->writeln("    • {$name}");
+            }
+            Terminal::output()->writeln('');
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function executeImportFlow(InputInterface $input, string $projectRoot, ImportResult $importResult): int
+    {
+        $projectName = basename($projectRoot);
+
+        // Convert recognized services to ServiceConfig
+        /** @var array<string, ServiceConfig> $serviceConfigs */
+        $serviceConfigs = [];
+        foreach ($importResult->recognized as $name => $recognized) {
+            $detected = $recognized->detected;
+            $composeConfig = $recognized->config;
+
+            // Extract port from compose config if available
+            $port = $detected->type->port();
+            if (isset($composeConfig['ports']) && is_array($composeConfig['ports'])) {
+                $firstPort = $composeConfig['ports'][0] ?? null;
+                if (is_string($firstPort) && preg_match('/^(\d+):/', $firstPort, $matches)) {
+                    $port = (int) $matches[1];
+                }
+            }
+
+            $serviceConfigs[$name] = new ServiceConfig(
+                name: $name,
+                enabled: true,
+                type: $detected->type,
+                version: $detected->version,
+                port: $port,
+                additionalPorts: [],
+                environmentVariables: [],
+            );
+        }
+
+        // Create configuration
+        $config = new Configuration(
+            projectName: $projectName,
+            version: '1.0',
+            php: new PhpConfig(PhpVersion::Php84, XdebugConfig::default()),
+            services: new ServiceCollection($serviceConfigs),
+            volumes: new VolumeConfig([]),
+            projectType: ProjectType::Existing,
+            proxy: ProxyConfig::default($projectName),
+            customServices: $importResult->custom,
+        );
+
+        // Show summary
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=cyan>Configuration Summary</>');
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln("    Project: {$projectName}");
+        Terminal::output()->writeln('    Managed services: ' . count($serviceConfigs));
+        Terminal::output()->writeln('    Custom services: ' . $importResult->custom->count());
+        Terminal::output()->writeln('');
+
+        if (!confirm(label: 'Continue with this configuration?')) {
+            Terminal::success('Initialization cancelled.');
+            return Command::SUCCESS;
+        }
+
+        // Initialize Docker environment
+        $this->initializer->initializeDockerEnvironment($config, $projectRoot);
+
+        // Offer DNS configuration
+        Terminal::output()->writeln('');
+        if (confirm(label: 'Configure DNS for local development?', default: true)) {
+            $this->configureDns($config->projectName);
+        }
+
+        Terminal::success('Seaman initialized with imported configuration');
+        Terminal::output()->writeln([
+            '',
+            '  Run \'seaman start\' to start your containers',
+            '',
+            '  ❤️  Happy coding!',
         ]);
 
         return Command::SUCCESS;

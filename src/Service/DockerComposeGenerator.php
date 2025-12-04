@@ -9,7 +9,9 @@ namespace Seaman\Service;
 
 use Seaman\Enum\Service;
 use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
+use Symfony\Component\Yaml\Yaml;
 
 readonly class DockerComposeGenerator
 {
@@ -46,7 +48,14 @@ readonly class DockerComposeGenerator
             'project_name' => $config->projectName,
         ];
 
-        return $this->renderer->render('docker/compose.base.twig', $context);
+        $baseYaml = $this->renderer->render('docker/compose.base.twig', $context);
+
+        // Merge custom services if present
+        if ($config->hasCustomServices()) {
+            return $this->mergeCustomServices($baseYaml, $config->customServices);
+        }
+
+        return $baseYaml;
     }
 
     /**
@@ -63,5 +72,33 @@ readonly class DockerComposeGenerator
             additionalPorts: [],
             environmentVariables: []
         );
+    }
+
+    /**
+     * Merge custom services into the generated docker-compose YAML.
+     */
+    private function mergeCustomServices(string $baseYaml, CustomServiceCollection $customServices): string
+    {
+        $parsed = Yaml::parse($baseYaml);
+
+        /** @var array<string, mixed> $compose */
+        $compose = is_array($parsed) ? $parsed : [];
+
+        if (!isset($compose['services']) || !is_array($compose['services'])) {
+            $compose['services'] = [];
+        }
+
+        foreach ($customServices->all() as $name => $serviceConfig) {
+            // Ensure custom service is connected to the seaman network
+            if (!isset($serviceConfig['networks'])) {
+                $serviceConfig['networks'] = ['seaman'];
+            } elseif (is_array($serviceConfig['networks']) && !in_array('seaman', $serviceConfig['networks'], true)) {
+                $serviceConfig['networks'][] = 'seaman';
+            }
+
+            $compose['services'][$name] = $serviceConfig;
+        }
+
+        return Yaml::dump($compose, 10, 2, Yaml::DUMP_MULTI_LINE_LITERAL_BLOCK);
     }
 }

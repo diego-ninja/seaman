@@ -21,6 +21,30 @@ final readonly class ProjectDetector
         return $result->isSymfonyProject;
     }
 
+    public function hasDockerCompose(string $directory): bool
+    {
+        return file_exists($directory . '/docker-compose.yml')
+            || file_exists($directory . '/docker-compose.yaml');
+    }
+
+    public function getDockerComposePath(string $directory): ?string
+    {
+        if (file_exists($directory . '/docker-compose.yml')) {
+            return $directory . '/docker-compose.yml';
+        }
+
+        if (file_exists($directory . '/docker-compose.yaml')) {
+            return $directory . '/docker-compose.yaml';
+        }
+
+        return null;
+    }
+
+    public function hasSeamanConfig(string $directory): bool
+    {
+        return file_exists($directory . '/.seaman/seaman.yaml');
+    }
+
     public function detectProjectType(string $directory): ProjectType
     {
         // First check if it's a Symfony project

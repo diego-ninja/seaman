@@ -14,4 +14,13 @@ final readonly class XdebugConfig
         public string $ideKey,
         public string $clientHost,
     ) {}
+
+    public static function default(): self
+    {
+        return new self(
+            enabled: false,
+            ideKey: 'PHPSTORM',
+            clientHost: 'host.docker.internal',
+        );
+    }
 }
