@@ -22,11 +22,16 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'Toggle xdebug on application container',
     aliases: ['xdebug'],
 )]
-class XdebugCommand extends AbstractSeamanCommand implements Decorable
+class XdebugCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->addArgument('mode', InputArgument::REQUIRED, 'Mode: on or off');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

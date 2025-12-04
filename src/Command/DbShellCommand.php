@@ -26,7 +26,7 @@ use function Laravel\Prompts\info;
     name: 'db:shell',
     description: 'Open an interactive database client shell',
 )]
-class DbShellCommand extends AbstractSeamanCommand implements Decorable
+class DbShellCommand extends ModeAwareCommand implements Decorable
 {
     use SelectsDatabaseService;
 
@@ -45,6 +45,11 @@ class DbShellCommand extends AbstractSeamanCommand implements Decorable
             InputOption::VALUE_REQUIRED,
             'Database service name',
         );
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

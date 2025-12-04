@@ -18,9 +18,11 @@ final class ConfigurationValidator
     public function validate(array $config): void
     {
         $this->validateProjectName($config);
+        $this->validateVersion($config);
+        $this->validatePhp($config);
         $this->validateServices($config);
-        $this->validateDatabase($config);
-        $this->validateXdebug($config);
+        $this->validateVolumes($config);
+        $this->validateProjectType($config);
     }
 
     /**
@@ -77,28 +79,88 @@ final class ConfigurationValidator
      * @param array<string, mixed> $config
      * @throws InvalidConfigurationException
      */
-    private function validateDatabase(array $config): void
+    private function validateVersion(array $config): void
     {
-        if (!isset($config['database'])) {
-            return; // Optional section
+        // Version is optional, defaults to '1.0'
+        if (!isset($config['version'])) {
+            return;
         }
 
-        if (!is_array($config['database'])) {
+        if (!is_string($config['version'])) {
             throw new InvalidConfigurationException(
-                'database must be an array',
-                ['field' => 'database'],
+                'version must be a string',
+                ['field' => 'version'],
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @throws InvalidConfigurationException
+     */
+    private function validatePhp(array $config): void
+    {
+        if (!isset($config['php'])) {
+            throw new InvalidConfigurationException(
+                'Missing required field: php',
+                ['field' => 'php'],
             );
         }
 
-        $db = $config['database'];
+        if (!is_array($config['php'])) {
+            throw new InvalidConfigurationException(
+                'php must be an array',
+                ['field' => 'php'],
+            );
+        }
 
-        // If database section exists, require essential fields
-        $requiredFields = ['type', 'version'];
-        foreach ($requiredFields as $field) {
-            if (!isset($db[$field])) {
+        $php = $config['php'];
+
+        // version is required
+        if (!isset($php['version'])) {
+            throw new InvalidConfigurationException(
+                'Missing required php field: version',
+                ['field' => 'php.version'],
+            );
+        }
+
+        if (!is_string($php['version'])) {
+            throw new InvalidConfigurationException(
+                'php.version must be a string',
+                ['field' => 'php.version'],
+            );
+        }
+
+        // xdebug is optional
+        if (isset($php['xdebug'])) {
+            if (!is_array($php['xdebug'])) {
                 throw new InvalidConfigurationException(
-                    "Missing required database field: {$field}",
-                    ['field' => "database.{$field}"],
+                    'php.xdebug must be an array',
+                    ['field' => 'php.xdebug'],
+                );
+            }
+
+            $xdebug = $php['xdebug'];
+
+            // If xdebug exists, validate its fields
+            if (isset($xdebug['enabled']) && !is_bool($xdebug['enabled'])) {
+                throw new InvalidConfigurationException(
+                    'php.xdebug.enabled must be a boolean',
+                    ['field' => 'php.xdebug.enabled'],
+                );
+            }
+
+            if (isset($xdebug['ide_key']) && !is_string($xdebug['ide_key'])) {
+                throw new InvalidConfigurationException(
+                    'php.xdebug.ide_key must be a string',
+                    ['field' => 'php.xdebug.ide_key'],
+                );
+            }
+
+            if (isset($xdebug['client_host']) && !is_string($xdebug['client_host'])) {
+                throw new InvalidConfigurationException(
+                    'php.xdebug.client_host must be a string',
+                    ['field' => 'php.xdebug.client_host'],
                 );
             }
         }
@@ -108,16 +170,46 @@ final class ConfigurationValidator
      * @param array<string, mixed> $config
      * @throws InvalidConfigurationException
      */
-    private function validateXdebug(array $config): void
+    private function validateVolumes(array $config): void
     {
-        if (!isset($config['xdebug'])) {
-            return; // Optional section
+        // Volumes is optional
+        if (!isset($config['volumes'])) {
+            return;
         }
 
-        if (!is_array($config['xdebug'])) {
+        if (!is_array($config['volumes'])) {
             throw new InvalidConfigurationException(
-                'xdebug must be an array',
-                ['field' => 'xdebug'],
+                'volumes must be an array',
+                ['field' => 'volumes'],
+            );
+        }
+
+        $volumes = $config['volumes'];
+
+        // persist is optional
+        if (isset($volumes['persist']) && !is_array($volumes['persist'])) {
+            throw new InvalidConfigurationException(
+                'volumes.persist must be an array',
+                ['field' => 'volumes.persist'],
+            );
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     * @throws InvalidConfigurationException
+     */
+    private function validateProjectType(array $config): void
+    {
+        // project_type is optional
+        if (!isset($config['project_type'])) {
+            return;
+        }
+
+        if (!is_string($config['project_type'])) {
+            throw new InvalidConfigurationException(
+                'project_type must be a string',
+                ['field' => 'project_type'],
             );
         }
     }

@@ -35,8 +35,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'Rebuild docker images',
     aliases: ['rebuild'],
 )]
-class RebuildCommand extends AbstractSeamanCommand implements Decorable
+class RebuildCommand extends ModeAwareCommand implements Decorable
 {
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();

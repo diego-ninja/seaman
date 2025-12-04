@@ -26,7 +26,7 @@ use Symfony\Component\Console\Input\InputOption;
     description: 'Export database to a file',
     aliases: ['dump'],
 )]
-class DbDumpCommand extends AbstractSeamanCommand implements Decorable
+class DbDumpCommand extends ModeAwareCommand implements Decorable
 {
     use SelectsDatabaseService;
 
@@ -51,6 +51,11 @@ class DbDumpCommand extends AbstractSeamanCommand implements Decorable
             InputOption::VALUE_REQUIRED,
             'Database service name',
         );
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

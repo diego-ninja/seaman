@@ -22,13 +22,18 @@ use function Laravel\Prompts\table;
     name: 'service:list',
     description: 'Lists all available services and their status',
 )]
-class ServiceListCommand extends AbstractSeamanCommand implements Decorable
+class ServiceListCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

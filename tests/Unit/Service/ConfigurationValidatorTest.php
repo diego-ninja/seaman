@@ -25,13 +25,19 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'my-project',
-            'services' => ['php', 'nginx'],
-            'database' => [
-                'type' => 'mysql',
-                'version' => '8.0',
+            'version' => '1.0',
+            'project_type' => 'web',
+            'php' => [
+                'version' => '8.4',
+                'xdebug' => [
+                    'enabled' => true,
+                    'ide_key' => 'PHPSTORM',
+                    'client_host' => 'host.docker.internal',
+                ],
             ],
-            'xdebug' => [
-                'enabled' => true,
+            'services' => [],
+            'volumes' => [
+                'persist' => ['database'],
             ],
         ];
 
@@ -43,6 +49,9 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'minimal-project',
+            'php' => [
+                'version' => '8.4',
+            ],
             'services' => [],
         ];
 
@@ -65,6 +74,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => '',
+            'php' => ['version' => '8.4'],
             'services' => [],
         ];
 
@@ -77,6 +87,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'invalid project!',
+            'php' => ['version' => '8.4'],
             'services' => [],
         ];
 
@@ -85,10 +96,36 @@ final class ConfigurationValidatorTest extends TestCase
         $this->validator->validate($config);
     }
 
+    public function test_throws_when_php_missing(): void
+    {
+        $config = [
+            'project_name' => 'my-project',
+            'services' => [],
+        ];
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Missing required field: php');
+        $this->validator->validate($config);
+    }
+
+    public function test_throws_when_php_version_missing(): void
+    {
+        $config = [
+            'project_name' => 'my-project',
+            'php' => [],
+            'services' => [],
+        ];
+
+        $this->expectException(InvalidConfigurationException::class);
+        $this->expectExceptionMessage('Missing required php field: version');
+        $this->validator->validate($config);
+    }
+
     public function test_throws_when_services_missing(): void
     {
         $config = [
             'project_name' => 'my-project',
+            'php' => ['version' => '8.4'],
         ];
 
         $this->expectException(InvalidConfigurationException::class);
@@ -100,6 +137,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'my-project',
+            'php' => ['version' => '8.4'],
             'services' => 'invalid',
         ];
 
@@ -108,59 +146,35 @@ final class ConfigurationValidatorTest extends TestCase
         $this->validator->validate($config);
     }
 
-    public function test_throws_when_database_not_array(): void
+    public function test_throws_when_xdebug_enabled_not_boolean(): void
     {
         $config = [
             'project_name' => 'my-project',
-            'services' => [],
-            'database' => 'invalid',
-        ];
-
-        $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('database must be an array');
-        $this->validator->validate($config);
-    }
-
-    public function test_throws_when_database_missing_type(): void
-    {
-        $config = [
-            'project_name' => 'my-project',
-            'services' => [],
-            'database' => [
-                'version' => '8.0',
+            'php' => [
+                'version' => '8.4',
+                'xdebug' => [
+                    'enabled' => 'invalid',
+                ],
             ],
+            'services' => [],
         ];
 
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Missing required database field: type');
+        $this->expectExceptionMessage('php.xdebug.enabled must be a boolean');
         $this->validator->validate($config);
     }
 
-    public function test_throws_when_database_missing_version(): void
+    public function test_throws_when_volumes_not_array(): void
     {
         $config = [
             'project_name' => 'my-project',
+            'php' => ['version' => '8.4'],
             'services' => [],
-            'database' => [
-                'type' => 'mysql',
-            ],
+            'volumes' => 'invalid',
         ];
 
         $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('Missing required database field: version');
-        $this->validator->validate($config);
-    }
-
-    public function test_throws_when_xdebug_not_array(): void
-    {
-        $config = [
-            'project_name' => 'my-project',
-            'services' => [],
-            'xdebug' => 'invalid',
-        ];
-
-        $this->expectException(InvalidConfigurationException::class);
-        $this->expectExceptionMessage('xdebug must be an array');
+        $this->expectExceptionMessage('volumes must be an array');
         $this->validator->validate($config);
     }
 
@@ -168,6 +182,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'my-valid-project',
+            'php' => ['version' => '8.4'],
             'services' => [],
         ];
 
@@ -179,6 +194,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'my_valid_project',
+            'php' => ['version' => '8.4'],
             'services' => [],
         ];
 
@@ -190,6 +206,7 @@ final class ConfigurationValidatorTest extends TestCase
     {
         $config = [
             'project_name' => 'my-project-2024',
+            'php' => ['version' => '8.4'],
             'services' => [],
         ];
 

@@ -24,11 +24,16 @@ use function Laravel\Prompts\table;
     description: 'Show status of all services',
     aliases: ['status'],
 )]
-class StatusCommand extends AbstractSeamanCommand implements Decorable
+class StatusCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(private readonly ServiceRegistry $serviceRegistry)
     {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     /**

@@ -25,7 +25,7 @@ use function Laravel\Prompts\info;
     name: 'devcontainer:generate',
     description: 'Generate DevContainer configuration for VS Code',
 )]
-class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decorable
+class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ServiceRegistry $registry,
@@ -37,6 +37,11 @@ class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decor
     /**
      * @throws SeamanException
      */
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();

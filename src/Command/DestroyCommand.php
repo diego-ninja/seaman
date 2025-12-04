@@ -22,8 +22,13 @@ use function Laravel\Prompts\confirm;
     description: 'Destroy all services and volumes',
     aliases: ['destroy'],
 )]
-class DestroyCommand extends AbstractSeamanCommand implements Decorable
+class DestroyCommand extends ModeAwareCommand implements Decorable
 {
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if (!confirm('This will remove all containers, networks, and volumes. Are you sure?')) {

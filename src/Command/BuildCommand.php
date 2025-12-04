@@ -23,11 +23,16 @@ use Symfony\Component\Process\Process;
     description: 'Build PHAR executable using Box',
     aliases: ['build'],
 )]
-class BuildCommand extends AbstractSeamanCommand implements Decorable
+class BuildCommand extends ModeAwareCommand implements Decorable
 {
     /**
      * @throws BinaryNotFoundException
      */
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = base_path();

@@ -26,6 +26,7 @@ readonly class ConfigManager
     public function __construct(
         private string $projectRoot,
         private ServiceRegistry $serviceRegistry,
+        private ConfigurationValidator $validator,
     ) {}
 
     public function load(): Configuration
@@ -52,6 +53,10 @@ readonly class ConfigManager
         }
 
         /** @var array<string, mixed> $data */
+
+        // Validate configuration structure
+        $this->validator->validate($data);
+
         return $this->parseConfiguration($data);
     }
 
@@ -60,6 +65,11 @@ readonly class ConfigManager
      */
     private function parseConfiguration(array $data): Configuration
     {
+        $projectName = $data['project_name'] ?? '';
+        if (!is_string($projectName)) {
+            throw new RuntimeException('project_name must be a string');
+        }
+
         $phpData = $data['php'] ?? [];
         if (!is_array($phpData)) {
             throw new RuntimeException('Invalid PHP configuration');
@@ -196,6 +206,7 @@ readonly class ConfigManager
         $projectType = $projectType ?? ProjectType::Existing;
 
         return new Configuration(
+            projectName: $projectName,
             version: $version,
             php: $php,
             services: new ServiceCollection($services),
@@ -207,6 +218,7 @@ readonly class ConfigManager
     public function save(Configuration $config): void
     {
         $data = [
+            'project_name' => $config->projectName,
             'version' => $config->version,
             'project_type' => $config->projectType->value,
             'php' => [
@@ -393,11 +405,17 @@ readonly class ConfigManager
             $version = $base->version;
         }
 
+        $projectName = $overrides['project_name'] ?? $base->projectName;
+        if (!is_string($projectName)) {
+            $projectName = $base->projectName;
+        }
+
         $projectTypeString = $overrides['project_type'] ?? null;
         $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
         $projectType = $projectType ?? $base->projectType;
 
         return new Configuration(
+            projectName: $projectName,
             version: $version,
             php: $php,
             services: $services,

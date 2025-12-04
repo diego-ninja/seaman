@@ -12,6 +12,7 @@ use Seaman\Enum\ProjectType;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
+use Seaman\Service\ProjectDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
@@ -30,10 +31,11 @@ use function Laravel\Prompts\info;
     description: 'Initialize Seaman configuration interactively',
     aliases: ['init'],
 )]
-class InitCommand extends AbstractSeamanCommand implements Decorable
+class InitCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly SymfonyDetector            $detector,
+        private readonly ProjectDetector            $projectDetector,
         private readonly SymfonyProjectBootstrapper $bootstrapper,
         private readonly ConfigurationFactory       $configFactory,
         private readonly InitializationSummary      $summary,
@@ -41,6 +43,11 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         private readonly ProjectInitializer         $initializer,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Init works in all modes
     }
 
     protected function configure(): void
@@ -120,8 +127,8 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
 
     private function enableSymfonyProject(string $projectRoot): ProjectType
     {
-        $detection = $this->detector->detect($projectRoot);
-        if (!$detection->isSymfonyProject) {
+        // Check if Symfony project exists
+        if (!$this->projectDetector->isSymfonyProject($projectRoot)) {
             $shouldBootstrap = confirm(
                 label: 'No Symfony application detected. Create new project?',
             );
@@ -131,11 +138,12 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
                 exit(Command::FAILURE);
             }
 
-            // Bootstrap new Symfony project
+            // Bootstrap new Symfony project - user selects type
             return $this->wizard->selectProjectType();
         }
 
-        return ProjectType::Existing;
+        // Existing Symfony project - auto-detect type for intelligent defaults
+        return $this->projectDetector->detectProjectType($projectRoot);
     }
 
     /**

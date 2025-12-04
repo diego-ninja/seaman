@@ -12,6 +12,7 @@ use Seaman\Enum\ProjectType;
 final readonly class Configuration
 {
     public function __construct(
+        public string $projectName,
         public string $version,
         public PhpConfig $php,
         public ServiceCollection $services,
