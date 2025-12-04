@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // ABOUTME: Main configuration value object for Seaman.
-// ABOUTME: Contains PHP, services, and volumes configuration.
+// ABOUTME: Contains PHP, services, volumes, and proxy configuration.
 
 namespace Seaman\ValueObject;
 
@@ -18,5 +18,12 @@ final readonly class Configuration
         public ServiceCollection $services,
         public VolumeConfig $volumes,
         public ProjectType $projectType = ProjectType::Existing,
+        public ?ProxyConfig $proxy = null,
     ) {}
+
+    public function proxy(): ProxyConfig
+    {
+        // If no proxy config provided, create default
+        return $this->proxy ?? ProxyConfig::default($this->projectName);
+    }
 }

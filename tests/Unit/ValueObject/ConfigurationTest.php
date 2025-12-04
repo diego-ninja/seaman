@@ -10,6 +10,7 @@ namespace Seaman\Tests\Unit\ValueObject;
 use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
@@ -51,4 +52,53 @@ test('configuration is immutable', function (): void {
 
     $reflection = new \ReflectionClass($config);
     expect($reflection->isReadOnly())->toBeTrue();
+});
+
+test('configuration with explicit proxy config', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+    $proxy = new ProxyConfig(
+        enabled: true,
+        domainPrefix: 'custom-project',
+        certResolver: 'mkcert',
+        dashboard: true
+    );
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+        proxy: $proxy,
+    );
+
+    expect($config->proxy)->toBe($proxy)
+        ->and($config->proxy()->domainPrefix)->toBe('custom-project')
+        ->and($config->proxy()->certResolver)->toBe('mkcert');
+});
+
+test('configuration generates default proxy config when not provided', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    $proxy = $config->proxy();
+
+    expect($proxy)->toBeInstanceOf(ProxyConfig::class)
+        ->and($proxy->enabled)->toBeTrue()
+        ->and($proxy->domainPrefix)->toBe('test-project')
+        ->and($proxy->certResolver)->toBe('selfsigned')
+        ->and($proxy->dashboard)->toBeTrue();
 });
