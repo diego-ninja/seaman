@@ -27,6 +27,7 @@ test('generates docker-compose.yml from configuration', function (): void {
     $php = new PhpConfig('8.4', ['intl', 'opcache'], $xdebug);
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: $php,
         services: new ServiceCollection([]),
@@ -58,6 +59,7 @@ test('includes only enabled services', function (): void {
     );
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: $php,
         services: new ServiceCollection(['redis' => $redis]),

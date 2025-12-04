@@ -8,6 +8,7 @@ use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\ProjectInitializer;
 use Seaman\ValueObject\Configuration;
@@ -30,6 +31,7 @@ afterEach(function () {
 
 test('initializes project with Docker files', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(
             PhpVersion::Php84,
@@ -62,6 +64,7 @@ test('initializes project with Docker files', function () {
 
 test('creates .seaman directory if it does not exist', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -79,6 +82,7 @@ test('creates .seaman directory if it does not exist', function () {
 
 test('saves configuration correctly', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php83, new XdebugConfig(true, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -90,7 +94,7 @@ test('saves configuration correctly', function () {
     $initializer->initializeDockerEnvironment($config, $this->testDir);
 
     // Verify config can be loaded back
-    $configManager = new ConfigManager($this->testDir, $this->registry);
+    $configManager = new ConfigManager($this->testDir, $this->registry, new ConfigurationValidator());
     $loadedConfig = $configManager->load();
 
     expect($loadedConfig->php->version)->toBe(PhpVersion::Php83)
@@ -100,6 +104,7 @@ test('saves configuration correctly', function () {
 
 test('xdebug toggle scripts are executable', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(true, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),

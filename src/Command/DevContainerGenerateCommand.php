@@ -10,6 +10,7 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
@@ -87,7 +88,7 @@ class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
     {
         $templateDir = dirname(__DIR__) . '/Template';
         $renderer = new TemplateRenderer($templateDir);
-        $configManager = new ConfigManager($projectRoot, $this->registry);
+        $configManager = new ConfigManager($projectRoot, $this->registry, new ConfigurationValidator());
 
         return new DevContainerGenerator($renderer, $configManager);
     }

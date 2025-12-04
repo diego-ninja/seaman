@@ -86,6 +86,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
             );
             $services = $newConfig->services->add($serviceName, $serviceConfig);
             $newConfig = new Configuration(
+                projectName: $newConfig->projectName,
                 version: $newConfig->version,
                 php: $newConfig->php,
                 services: $services,

@@ -36,7 +36,8 @@ class ProjectInitializer
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 
         // Save configuration
-        $configManager = new ConfigManager($projectRoot, $this->registry);
+        $validator = new ConfigurationValidator();
+        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
         $configManager->save($config);
 
         // Generate xdebug-toggle script (needed by Dockerfile build and runtime)
@@ -85,7 +86,8 @@ class ProjectInitializer
     {
         $templateDir = __DIR__ . '/../Template';
         $renderer = new TemplateRenderer($templateDir);
-        $configManager = new ConfigManager($projectRoot, $this->registry);
+        $validator = new ConfigurationValidator();
+        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
         $generator = new DevContainerGenerator($renderer, $configManager);
 
         $generator->generate($projectRoot);

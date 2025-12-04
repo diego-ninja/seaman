@@ -33,6 +33,7 @@ class ConfigurationFactory
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
 
         return new Configuration(
+            projectName: $choices->projectName,
             version: '1.0',
             php: $php,
             services: new ServiceCollection($serviceConfigs),

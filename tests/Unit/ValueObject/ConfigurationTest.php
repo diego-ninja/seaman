@@ -21,13 +21,15 @@ test('creates complete configuration', function (): void {
     $volumes = new VolumeConfig([]);
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: $php,
         services: $services,
         volumes: $volumes,
     );
 
-    expect($config->version)->toBe('1.0')
+    expect($config->projectName)->toBe('test-project')
+        ->and($config->version)->toBe('1.0')
         ->and($config->php)->toBe($php)
         ->and($config->services)->toBe($services)
         ->and($config->volumes)->toBe($volumes);
@@ -40,6 +42,7 @@ test('configuration is immutable', function (): void {
     $volumes = new VolumeConfig([]);
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: $php,
         services: $services,

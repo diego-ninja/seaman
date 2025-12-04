@@ -17,6 +17,7 @@ final readonly class InitializationChoices
      * @param list<Service> $services
      */
     public function __construct(
+        public string $projectName,
         public PhpVersion $phpVersion,
         public Service $database,
         public array $services,

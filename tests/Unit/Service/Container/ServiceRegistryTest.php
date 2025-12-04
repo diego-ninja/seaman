@@ -28,6 +28,7 @@ beforeEach(function () {
 
     // Create a configuration with some enabled services
     $this->config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(
             version: PhpVersion::Php84,

@@ -33,11 +33,14 @@ use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationFactory;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PhpVersionDetector;
+use Seaman\Service\PortChecker;
+use Seaman\Service\ProjectDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
@@ -65,7 +68,8 @@ class Application extends BaseApplication
         }
 
         $registry = ServiceRegistry::create();
-        $configManager = new ConfigManager($projectRoot, $registry);
+        $validator = new ConfigurationValidator();
+        $configManager = new ConfigManager($projectRoot, $registry, $validator);
 
         $dockerManager = new DockerManager($projectRoot);
 
@@ -77,6 +81,7 @@ class Application extends BaseApplication
             new ServiceRemoveCommand($configManager, $registry),
             new InitCommand(
                 new SymfonyDetector(),
+                new ProjectDetector(new SymfonyDetector()),
                 new SymfonyProjectBootstrapper(),
                 new ConfigurationFactory($registry),
                 new InitializationSummary(),
@@ -84,7 +89,7 @@ class Application extends BaseApplication
                 new ProjectInitializer($registry),
             ),
             new DevContainerGenerateCommand($registry),
-            new StartCommand(),
+            new StartCommand(new PortChecker(), $configManager),
             new StopCommand(),
             new RestartCommand(),
             new StatusCommand($registry),

@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\DozzleService;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\MailpitService;
@@ -50,7 +51,7 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         $registry = ServiceRegistry::create();
 
         // Load configuration to get PHP version
-        $configManager = new ConfigManager($projectRoot, $registry);
+        $configManager = new ConfigManager($projectRoot, $registry, new ConfigurationValidator());
         $config = $configManager->load();
 
         // Build Docker image

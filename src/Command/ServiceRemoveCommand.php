@@ -81,6 +81,7 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         foreach ($selected as $serviceName) {
             $services = $newConfig->services->remove($serviceName);
             $newConfig = new Configuration(
+                projectName: $newConfig->projectName,
                 version: $newConfig->version,
                 php: $newConfig->php,
                 services: $services,
