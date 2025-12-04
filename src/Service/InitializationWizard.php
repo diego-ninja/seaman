@@ -30,6 +30,7 @@ final readonly class InitializationWizard
      */
     public function run(InputInterface $input, ProjectType $projectType, string $projectRoot): InitializationChoices
     {
+        $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
@@ -37,6 +38,7 @@ final readonly class InitializationWizard
         $devContainer = $this->enableDevContainer($input);
 
         return new InitializationChoices(
+            projectName: $projectName,
             phpVersion: $phpVersion,
             database: $database,
             services: $services,

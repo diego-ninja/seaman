@@ -25,7 +25,7 @@ use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:remove',
-    description: 'Remove services from configuration',
+    description: 'Remove services from configuration (requires init)',
 )]
 class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
 {
@@ -34,6 +34,11 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -76,6 +81,7 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         foreach ($selected as $serviceName) {
             $services = $newConfig->services->remove($serviceName);
             $newConfig = new Configuration(
+                projectName: $newConfig->projectName,
                 version: $newConfig->version,
                 php: $newConfig->php,
                 services: $services,

@@ -21,12 +21,17 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Run symfony console commands on application container',
     aliases: ['console'],
 )]
-class ExecuteConsoleCommand extends AbstractSeamanCommand implements Decorable
+class ExecuteConsoleCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->ignoreValidationErrors();
         $this->addArgument('args', InputArgument::IS_ARRAY, 'Console arguments');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

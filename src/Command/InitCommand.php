@@ -8,14 +8,31 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\Service;
+use Seaman\Service\ComposeImporter;
 use Seaman\Service\ConfigurationFactory;
+use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
+use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\Service\ProjectDetector;
+use Seaman\Service\ServiceDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyDetector;
 use Seaman\UI\Terminal;
+use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\CustomServiceCollection;
+use Seaman\ValueObject\DnsConfigurationResult;
+use Seaman\ValueObject\ImportResult;
+use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
+use Seaman\ValueObject\ServiceCollection;
+use Seaman\ValueObject\ServiceConfig;
+use Seaman\ValueObject\VolumeConfig;
+use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,16 +41,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
+use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
     description: 'Initialize Seaman configuration interactively',
     aliases: ['init'],
 )]
-class InitCommand extends AbstractSeamanCommand implements Decorable
+class InitCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly SymfonyDetector            $detector,
+        private readonly ProjectDetector            $projectDetector,
         private readonly SymfonyProjectBootstrapper $bootstrapper,
         private readonly ConfigurationFactory       $configFactory,
         private readonly InitializationSummary      $summary,
@@ -41,6 +60,11 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         private readonly ProjectInitializer         $initializer,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Init works in all modes
     }
 
     protected function configure(): void
@@ -61,7 +85,7 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
-        if (file_exists($projectRoot . '/.seaman/seaman.yaml')) {
+        if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
             if (!confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
                 default: false,
@@ -71,6 +95,24 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             }
         }
 
+        // Check for existing docker-compose.yml - offer import
+        if ($this->projectDetector->hasDockerCompose($projectRoot) && !$this->projectDetector->hasSeamanConfig($projectRoot)) {
+            $importResult = $this->handleExistingDockerCompose($projectRoot);
+
+            if ($importResult !== null) {
+                return $this->executeImportFlow($input, $projectRoot, $importResult);
+            }
+        }
+
+        // Standard initialization flow
+        return $this->executeStandardFlow($input, $projectRoot);
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function executeStandardFlow(InputInterface $input, string $projectRoot): int
+    {
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
@@ -106,6 +148,12 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             $this->initializer->generateDevContainer($projectRoot);
         }
 
+        // Offer DNS configuration
+        Terminal::output()->writeln('');
+        if (confirm(label: 'Configure DNS for local development?')) {
+            $this->configureDns($config->projectName);
+        }
+
         Terminal::success('Seaman initialized successfully');
         Terminal::output()->writeln([
             '',
@@ -118,10 +166,168 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
         return Command::SUCCESS;
     }
 
+    private function handleExistingDockerCompose(string $projectRoot): ?ImportResult
+    {
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=cyan>Existing docker-compose file detected</>');
+        Terminal::output()->writeln('');
+
+        /** @var string $choice */
+        $choice = select(
+            label: 'How would you like to proceed?',
+            options: [
+                'import' => 'Import existing docker-compose.yml',
+                'fresh' => 'Create fresh configuration (ignore existing)',
+            ],
+            default: 'import',
+        );
+
+        if ($choice === 'fresh') {
+            return null;
+        }
+
+        $composePath = $this->projectDetector->getDockerComposePath($projectRoot);
+        if ($composePath === null) {
+            Terminal::error('Could not find docker-compose file');
+            return null;
+        }
+
+        $importer = new ComposeImporter(new ServiceDetector());
+
+        try {
+            $result = $importer->import($composePath);
+        } catch (\RuntimeException $e) {
+            Terminal::error('Failed to import: ' . $e->getMessage());
+            return null;
+        }
+
+        $this->displayImportSummary($result);
+
+        if (!confirm(label: 'Import these services?')) {
+            return null;
+        }
+
+        // Backup original file
+        $backupPath = $composePath . '.backup-' . date('Y-m-d-His');
+        copy($composePath, $backupPath);
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln("  <fg=gray>Original backed up to: {$backupPath}</>");
+
+        return $result;
+    }
+
+    private function displayImportSummary(ImportResult $result): void
+    {
+        Terminal::output()->writeln('');
+
+        if ($result->hasRecognizedServices()) {
+            Terminal::output()->writeln('  <fg=green>Recognized services (will be managed by seaman):</>');
+            foreach ($result->recognized as $name => $recognized) {
+                $detected = $recognized->detected;
+                Terminal::output()->writeln(sprintf(
+                    '    • %s → %s (version: %s, confidence: %s)',
+                    $name,
+                    $detected->type->value,
+                    $detected->version,
+                    $detected->confidence,
+                ));
+            }
+            Terminal::output()->writeln('');
+        }
+
+        if ($result->hasCustomServices()) {
+            Terminal::output()->writeln('  <fg=yellow>Custom services (will be preserved as-is):</>');
+            foreach ($result->custom->names() as $name) {
+                Terminal::output()->writeln("    • {$name}");
+            }
+            Terminal::output()->writeln('');
+        }
+    }
+
+    /**
+     * @throws \Exception
+     */
+    private function executeImportFlow(InputInterface $input, string $projectRoot, ImportResult $importResult): int
+    {
+        $projectName = basename($projectRoot);
+
+        // Convert recognized services to ServiceConfig
+        /** @var array<string, ServiceConfig> $serviceConfigs */
+        $serviceConfigs = [];
+        foreach ($importResult->recognized as $name => $recognized) {
+            $detected = $recognized->detected;
+            $composeConfig = $recognized->config;
+
+            // Extract port from compose config if available
+            $port = $detected->type->port();
+            if (isset($composeConfig['ports']) && is_array($composeConfig['ports'])) {
+                $firstPort = $composeConfig['ports'][0] ?? null;
+                if (is_string($firstPort) && preg_match('/^(\d+):/', $firstPort, $matches)) {
+                    $port = (int) $matches[1];
+                }
+            }
+
+            $serviceConfigs[$name] = new ServiceConfig(
+                name: $name,
+                enabled: true,
+                type: $detected->type,
+                version: $detected->version,
+                port: $port,
+                additionalPorts: [],
+                environmentVariables: [],
+            );
+        }
+
+        // Create configuration
+        $config = new Configuration(
+            projectName: $projectName,
+            version: '1.0',
+            php: new PhpConfig(PhpVersion::Php84, XdebugConfig::default()),
+            services: new ServiceCollection($serviceConfigs),
+            volumes: new VolumeConfig([]),
+            projectType: ProjectType::Existing,
+            proxy: ProxyConfig::default($projectName),
+            customServices: $importResult->custom,
+        );
+
+        // Show summary
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=cyan>Configuration Summary</>');
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln("    Project: {$projectName}");
+        Terminal::output()->writeln('    Managed services: ' . count($serviceConfigs));
+        Terminal::output()->writeln('    Custom services: ' . $importResult->custom->count());
+        Terminal::output()->writeln('');
+
+        if (!confirm(label: 'Continue with this configuration?')) {
+            Terminal::success('Initialization cancelled.');
+            return Command::SUCCESS;
+        }
+
+        // Initialize Docker environment
+        $this->initializer->initializeDockerEnvironment($config, $projectRoot);
+
+        // Offer DNS configuration
+        Terminal::output()->writeln('');
+        if (confirm(label: 'Configure DNS for local development?', default: true)) {
+            $this->configureDns($config->projectName);
+        }
+
+        Terminal::success('Seaman initialized with imported configuration');
+        Terminal::output()->writeln([
+            '',
+            '  Run \'seaman start\' to start your containers',
+            '',
+            '  ❤️  Happy coding!',
+        ]);
+
+        return Command::SUCCESS;
+    }
+
     private function enableSymfonyProject(string $projectRoot): ProjectType
     {
-        $detection = $this->detector->detect($projectRoot);
-        if (!$detection->isSymfonyProject) {
+        // Check if Symfony project exists
+        if (!$this->projectDetector->isSymfonyProject($projectRoot)) {
             $shouldBootstrap = confirm(
                 label: 'No Symfony application detected. Create new project?',
             );
@@ -131,11 +337,12 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
                 exit(Command::FAILURE);
             }
 
-            // Bootstrap new Symfony project
+            // Bootstrap new Symfony project - user selects type
             return $this->wizard->selectProjectType();
         }
 
-        return ProjectType::Existing;
+        // Existing Symfony project - auto-detect type for intelligent defaults
+        return $this->projectDetector->detectProjectType($projectRoot);
     }
 
     /**
@@ -156,5 +363,112 @@ class InitCommand extends AbstractSeamanCommand implements Decorable
             $projectRoot = dirname($projectRoot) . '/' . $projectName;
             chdir($projectRoot);
         }
+    }
+
+    private function configureDns(string $projectName): void
+    {
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=cyan>DNS Configuration</>');
+        Terminal::output()->writeln('');
+
+        $executor = new RealCommandExecutor();
+        $helper = new DnsConfigurationHelper($executor);
+        $result = $helper->configure($projectName);
+
+        if ($result->automatic) {
+            $this->handleAutomaticDnsConfiguration($result, $projectName);
+        } else {
+            $this->handleManualDnsConfiguration($result);
+        }
+    }
+
+    private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
+    {
+        if ($result->configPath === null || $result->configContent === null) {
+            Terminal::error('Invalid automatic configuration: missing path or content');
+            return;
+        }
+
+        Terminal::output()->writeln("  Detected: <fg=green>{$result->type}</>");
+        Terminal::output()->writeln('');
+
+        if ($result->requiresSudo) {
+            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires sudo access</>');
+            Terminal::output()->writeln('');
+        }
+
+        Terminal::output()->writeln("  Configuration file: <fg=cyan>{$result->configPath}</>");
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  Content:');
+        Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
+        Terminal::output()->writeln('');
+
+        if (!confirm('Apply this DNS configuration?', true)) {
+            info('DNS configuration skipped.');
+            return;
+        }
+
+        // Create directory if needed
+        $configDir = dirname($result->configPath);
+        if (!is_dir($configDir)) {
+            $mkdirCmd = $result->requiresSudo ? "sudo mkdir -p {$configDir}" : "mkdir -p {$configDir}";
+            Terminal::output()->writeln("  Creating directory: {$configDir}");
+            exec($mkdirCmd, $output, $exitCode);
+
+            if ($exitCode !== 0) {
+                Terminal::error('Failed to create configuration directory');
+                return;
+            }
+        }
+
+        // Write configuration
+        $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
+        file_put_contents($tempFile, $result->configContent);
+
+        $cpCmd = $result->requiresSudo
+            ? "sudo cp {$tempFile} {$result->configPath}"
+            : "cp {$tempFile} {$result->configPath}";
+
+        exec($cpCmd, $output, $exitCode);
+        unlink($tempFile);
+
+        if ($exitCode !== 0) {
+            Terminal::error('Failed to write DNS configuration');
+            return;
+        }
+
+        // Restart DNS service
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
+        Terminal::output()->writeln('');
+
+        if ($result->type === 'dnsmasq') {
+            Terminal::output()->writeln('  Restarting dnsmasq...');
+            $restartCmd = PHP_OS_FAMILY === 'Darwin'
+                ? 'sudo brew services restart dnsmasq'
+                : 'sudo systemctl restart dnsmasq';
+            exec($restartCmd);
+        } elseif ($result->type === 'systemd-resolved') {
+            Terminal::output()->writeln('  Restarting systemd-resolved...');
+            exec('sudo systemctl restart systemd-resolved');
+        }
+
+        Terminal::success('DNS configured successfully!');
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  Your services will be accessible at:');
+        Terminal::output()->writeln("  • https://app.{$projectName}.local");
+        Terminal::output()->writeln("  • https://traefik.{$projectName}.local");
+    }
+
+    private function handleManualDnsConfiguration(DnsConfigurationResult $result): void
+    {
+        Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
+        Terminal::output()->writeln('');
+
+        foreach ($result->instructions as $instruction) {
+            Terminal::output()->writeln('  ' . $instruction);
+        }
+
+        Terminal::output()->writeln('');
     }
 }

@@ -21,11 +21,16 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Open interactive shell in service',
     aliases: ['shell'],
 )]
-class ShellCommand extends AbstractSeamanCommand implements Decorable
+class ShellCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Service name', 'app');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

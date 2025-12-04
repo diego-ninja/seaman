@@ -24,10 +24,10 @@ class SpinnerFactory extends Spinner
      */
     private static function forProcess(Process $process, string $message, ?string $style = Spinner::DEFAULT_SPINNER_STYLE): bool
     {
-        $spinner = new self(style: $style);
+        $spinner = new self(style: $style ?? Spinner::DEFAULT_SPINNER_STYLE);
         $spinner->setMessage($message);
 
-        return $spinner->callback(static function () use ($process): bool {
+        $result = $spinner->callback(static function () use ($process): bool {
             if (!$process->isRunning()) {
                 $process->start();
             }
@@ -38,6 +38,8 @@ class SpinnerFactory extends Spinner
 
             return $process->isSuccessful();
         });
+
+        return is_bool($result) ? $result : false;
     }
 
     /**
@@ -45,9 +47,11 @@ class SpinnerFactory extends Spinner
      */
     private static function forCallable(callable $callback, string $message, ?string $style = Spinner::DEFAULT_SPINNER_STYLE): bool
     {
-        $spinner = new self(style: $style);
+        $spinner = new self(style: $style ?? Spinner::DEFAULT_SPINNER_STYLE);
         $spinner->setMessage($message);
 
-        return $spinner->callback($callback);
+        $result = $spinner->callback($callback);
+
+        return is_bool($result) ? $result : false;
     }
 }

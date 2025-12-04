@@ -7,6 +7,12 @@
       - MONGO_INITDB_DATABASE=${MONGO_DB:-seaman}
     ports:
       - "${MONGO_PORT}:27017"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

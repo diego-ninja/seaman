@@ -166,7 +166,7 @@ final class Terminal
 
     public static function style(): SymfonyStyle
     {
-        return new SymfonyStyle(Terminal::input(), Terminal::output());
+        return new SymfonyStyle(Terminal::input() ?? new ArgvInput(), Terminal::output());
     }
 
     private function __construct(

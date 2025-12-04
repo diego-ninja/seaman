@@ -7,13 +7,14 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\ValueObject;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceConfig;
 
 test('creates service config', function () {
     $config = new ServiceConfig(
         name: 'postgresql',
         enabled: true,
-        type: 'postgresql',
+        type: Service::PostgreSQL,
         version: '16',
         port: 5432,
         additionalPorts: [],
@@ -22,7 +23,7 @@ test('creates service config', function () {
 
     expect($config->name)->toBe('postgresql')
         ->and($config->enabled)->toBeTrue()
-        ->and($config->type)->toBe('postgresql')
+        ->and($config->type)->toBe(Service::PostgreSQL)
         ->and($config->version)->toBe('16')
         ->and($config->port)->toBe(5432)
         ->and($config->additionalPorts)->toBe([])
@@ -33,7 +34,7 @@ test('creates disabled service config', function () {
     $config = new ServiceConfig(
         name: 'elasticsearch',
         enabled: false,
-        type: 'elasticsearch',
+        type: Service::Elasticsearch,
         version: '8.11',
         port: 9200,
         additionalPorts: [],
@@ -47,7 +48,7 @@ test('handles multiple additional ports', function () {
     $config = new ServiceConfig(
         name: 'minio',
         enabled: true,
-        type: 'minio',
+        type: Service::MinIO,
         version: 'latest',
         port: 9000,
         additionalPorts: [9001],
@@ -61,7 +62,7 @@ test('getAllPorts returns all ports', function () {
     $config = new ServiceConfig(
         name: 'rabbitmq',
         enabled: true,
-        type: 'rabbitmq',
+        type: Service::RabbitMq,
         version: '3',
         port: 5672,
         additionalPorts: [15672],

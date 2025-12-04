@@ -6,6 +6,7 @@ declare(strict_types=1);
 // ABOUTME: Tests database selection and shell command generation.
 
 use Seaman\Command\DbShellCommand;
+use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
@@ -13,6 +14,8 @@ use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
+use Seaman\ValueObject\VolumeConfig;
+use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Tester\CommandTester;
 
 test('executes shell when single database exists', function () {
@@ -33,8 +36,11 @@ test('executes shell when single database exists', function () {
     );
 
     $config = new Configuration(
-        php: new PhpConfig('8.4', 9000, false, '/app'),
-        services: new ServiceCollection([$serviceConfig]),
+        projectName: 'test-project',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, XdebugConfig::default()),
+        services: new ServiceCollection(['db' => $serviceConfig]),
+        volumes: new VolumeConfig(),
     );
 
     $configManager->shouldReceive('load')->once()->andReturn($config);

@@ -18,9 +18,9 @@ test('discovers all service classes in directory', function () {
 
     // Should find all concrete service implementations
     // As of this test: MySQL, PostgreSQL, MariaDB, Redis, Memcached, MongoDB,
-    // RabbitMQ, Elasticsearch, Minio, Dozzle, Mailpit, Kafka, Sqlite = 13 services
+    // RabbitMQ, Elasticsearch, Minio, Dozzle, Mailpit, Kafka, Sqlite, Traefik = 14 services
     expect($services)->toBeArray()
-        ->and($services)->toHaveCount(13)
+        ->and($services)->toHaveCount(14)
         ->and($services)->each->toBeInstanceOf(ServiceInterface::class);
 
     // Verify some known services are discovered

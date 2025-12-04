@@ -21,12 +21,17 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Run composer commands on application container',
     aliases: ['composer'],
 )]
-class ExecuteComposerCommand extends AbstractSeamanCommand implements Decorable
+class ExecuteComposerCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->ignoreValidationErrors();
         $this->addArgument('args', InputArgument::IS_ARRAY, 'Composer arguments');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

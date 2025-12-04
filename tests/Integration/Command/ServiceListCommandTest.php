@@ -9,6 +9,7 @@ namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Command\ServiceListCommand;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RedisService;
@@ -57,7 +58,7 @@ YAML;
     $this->registry->register(new MysqlService());
     $this->registry->register(new PostgresqlService());
     $this->registry->register(new RedisService());
-    $this->configManager = new ConfigManager($this->tempDir, $this->registry);
+    $this->configManager = new ConfigManager($this->tempDir, $this->registry, new ConfigurationValidator());
 });
 
 afterEach(function () {

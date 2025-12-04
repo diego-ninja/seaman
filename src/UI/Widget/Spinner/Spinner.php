@@ -31,7 +31,13 @@ class Spinner
 
     public function __construct(string $style = self::DEFAULT_SPINNER_STYLE)
     {
-        $spinners = json_decode(file_get_contents(__DIR__ . "/spinners.json"), true);
+        $jsonContent = file_get_contents(__DIR__ . "/spinners.json");
+        if ($jsonContent === false) {
+            $this->spinner = null;
+            return;
+        }
+        /** @var array<string, array{frames: list<string>, interval: int}> $spinners */
+        $spinners = json_decode($jsonContent, true);
         $this->spinner = $spinners[$style] ?? null;
     }
 

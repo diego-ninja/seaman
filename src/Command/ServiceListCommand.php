@@ -20,15 +20,20 @@ use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'service:list',
-    description: 'Lists all available services and their status',
+    description: 'Lists all available services and their status (requires init)',
 )]
-class ServiceListCommand extends AbstractSeamanCommand implements Decorable
+class ServiceListCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

@@ -23,7 +23,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'View service logs',
     aliases: ['logs'],
 )]
-class LogsCommand extends AbstractSeamanCommand implements Decorable
+class LogsCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
@@ -32,6 +32,11 @@ class LogsCommand extends AbstractSeamanCommand implements Decorable
             ->addOption('follow', 'f', InputOption::VALUE_NONE, 'Follow log output')
             ->addOption('tail', 't', InputOption::VALUE_REQUIRED, 'Number of lines to show from the end')
             ->addOption('since', 's', InputOption::VALUE_REQUIRED, 'Show logs since timestamp or relative');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

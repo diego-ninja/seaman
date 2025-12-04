@@ -40,8 +40,8 @@ it('builds PHAR successfully', function (): void {
     $statusCode = $commandTester->getStatusCode();
 
     if ($statusCode !== 0) {
-        dump('Command output:', $output);
-        dump('Status code:', $statusCode);
+        echo 'Command output: ' . $output . PHP_EOL;
+        echo 'Status code: ' . $statusCode . PHP_EOL;
     }
 
     expect($statusCode)->toBe(0);

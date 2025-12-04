@@ -19,21 +19,26 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'seaman:xdebug',
-    description: 'Toggle xdebug on application container',
+    description: 'Toggle xdebug on application container (requires init)',
     aliases: ['xdebug'],
 )]
-class XdebugCommand extends AbstractSeamanCommand implements Decorable
+class XdebugCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->addArgument('mode', InputArgument::REQUIRED, 'Mode: on or off');
     }
 
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $mode = $input->getArgument('mode');
         if (!is_string($mode)) {
-            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', $mode));
+            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', get_debug_type($mode)));
             return Command::FAILURE;
         }
 

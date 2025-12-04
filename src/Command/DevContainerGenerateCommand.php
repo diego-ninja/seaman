@@ -10,6 +10,7 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
@@ -23,9 +24,9 @@ use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'devcontainer:generate',
-    description: 'Generate DevContainer configuration for VS Code',
+    description: 'Generate DevContainer configuration for VS Code (requires init)',
 )]
-class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decorable
+class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ServiceRegistry $registry,
@@ -37,6 +38,11 @@ class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decor
     /**
      * @throws SeamanException
      */
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();
@@ -82,7 +88,7 @@ class DevContainerGenerateCommand extends AbstractSeamanCommand implements Decor
     {
         $templateDir = dirname(__DIR__) . '/Template';
         $renderer = new TemplateRenderer($templateDir);
-        $configManager = new ConfigManager($projectRoot, $this->registry);
+        $configManager = new ConfigManager($projectRoot, $this->registry, new ConfigurationValidator());
 
         return new DevContainerGenerator($renderer, $configManager);
     }

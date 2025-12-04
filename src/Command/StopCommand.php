@@ -21,11 +21,16 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Stop seaman stack services',
     aliases: ['stop'],
 )]
-class StopCommand extends AbstractSeamanCommand implements Decorable
+class StopCommand extends ModeAwareCommand implements Decorable
 {
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to stop');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

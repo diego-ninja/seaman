@@ -23,7 +23,7 @@ use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:add',
-    description: 'Interactively add services to configuration',
+    description: 'Interactively add services to configuration (requires init)',
 )]
 class ServiceAddCommand extends AbstractServiceCommand implements Decorable
 {
@@ -32,6 +32,11 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -81,6 +86,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
             );
             $services = $newConfig->services->add($serviceName, $serviceConfig);
             $newConfig = new Configuration(
+                projectName: $newConfig->projectName,
                 version: $newConfig->version,
                 php: $newConfig->php,
                 services: $services,

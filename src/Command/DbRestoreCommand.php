@@ -29,7 +29,7 @@ use function Laravel\Prompts\info;
     description: 'Restore database from a dump file',
     aliases: ['restore'],
 )]
-class DbRestoreCommand extends AbstractSeamanCommand implements Decorable
+class DbRestoreCommand extends ModeAwareCommand implements Decorable
 {
     use SelectsDatabaseService;
 
@@ -54,6 +54,11 @@ class DbRestoreCommand extends AbstractSeamanCommand implements Decorable
             InputOption::VALUE_REQUIRED,
             'Database service name',
         );
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

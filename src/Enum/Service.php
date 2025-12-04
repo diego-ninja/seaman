@@ -7,6 +7,7 @@ namespace Seaman\Enum;
 enum Service: string
 {
     case App = 'app';
+    case Traefik = 'traefik';
 
     case MySQL = 'mysql';
     case SQLite = 'sqlite';
@@ -32,6 +33,7 @@ enum Service: string
     {
         return match ($this) {
             self::App => 'Symfony 7+ application',
+            self::Traefik => 'Traefik reverse proxy with HTTPS support',
             self::MySQL => 'MySQL relational database',
             self::SQLite => 'SQLite file-based relational database',
             self::PostgreSQL => 'PostgreSQL relational database',
@@ -53,6 +55,7 @@ enum Service: string
     {
         return match ($this) {
             self::App => 8000,
+            self::Traefik => 443,
             self::MySQL, self::MariaDB => 3306,
             self::SQLite, self::None => 0,
             self::PostgreSQL => 5432,
@@ -72,6 +75,7 @@ enum Service: string
     {
         return match ($this) {
             self::App => '📦',
+            self::Traefik => '🔀',
             self::Redis => '🧵',
             self::RabbitMq => '🐰',
             self::Mailpit => '📧',
@@ -113,6 +117,14 @@ enum Service: string
             self::PostgreSQL->value,
             self::SQLite->value,
         ];
+    }
+
+    /**
+     * Check if this service is required and cannot be disabled.
+     */
+    public function isRequired(): bool
+    {
+        return $this === self::Traefik;
     }
 
 }

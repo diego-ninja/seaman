@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\DozzleService;
 use Seaman\Service\Container\ElasticsearchService;
 use Seaman\Service\Container\MailpitService;
@@ -35,8 +36,13 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'Rebuild docker images',
     aliases: ['rebuild'],
 )]
-class RebuildCommand extends AbstractSeamanCommand implements Decorable
+class RebuildCommand extends ModeAwareCommand implements Decorable
 {
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $projectRoot = (string) getcwd();
@@ -45,7 +51,7 @@ class RebuildCommand extends AbstractSeamanCommand implements Decorable
         $registry = ServiceRegistry::create();
 
         // Load configuration to get PHP version
-        $configManager = new ConfigManager($projectRoot, $registry);
+        $configManager = new ConfigManager($projectRoot, $registry, new ConfigurationValidator());
         $config = $configManager->load();
 
         // Build Docker image

@@ -3,6 +3,12 @@
     container_name: seaman-{{ name }}
     ports:
       - "${REDIS_PORT}:6379"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}
