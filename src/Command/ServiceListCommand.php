@@ -20,7 +20,7 @@ use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'service:list',
-    description: 'Lists all available services and their status',
+    description: 'Lists all available services and their status (requires init)',
 )]
 class ServiceListCommand extends ModeAwareCommand implements Decorable
 {

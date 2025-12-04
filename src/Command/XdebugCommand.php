@@ -19,7 +19,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'seaman:xdebug',
-    description: 'Toggle xdebug on application container',
+    description: 'Toggle xdebug on application container (requires init)',
     aliases: ['xdebug'],
 )]
 class XdebugCommand extends ModeAwareCommand implements Decorable

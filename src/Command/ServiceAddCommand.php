@@ -23,7 +23,7 @@ use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:add',
-    description: 'Interactively add services to configuration',
+    description: 'Interactively add services to configuration (requires init)',
 )]
 class ServiceAddCommand extends AbstractServiceCommand implements Decorable
 {

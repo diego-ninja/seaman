@@ -24,7 +24,7 @@ use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'proxy:configure-dns',
-    description: 'Configure DNS for Traefik local domains',
+    description: 'Configure DNS for Traefik local domains (requires init)',
     aliases: ['configure-dns'],
 )]
 class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
@@ -37,7 +37,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 
     protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
-        return true; // Works in all modes
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

@@ -24,7 +24,7 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Start seaman stack services',
     aliases: ['start'],
 )]
-class StartCommand extends AbstractSeamanCommand implements Decorable
+class StartCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly PortChecker $portChecker,
@@ -36,6 +36,12 @@ class StartCommand extends AbstractSeamanCommand implements Decorable
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to start');
+        $this->setHelp('Works with any docker-compose.yml file. Run "seaman init" for full features.');
+    }
+
+    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int

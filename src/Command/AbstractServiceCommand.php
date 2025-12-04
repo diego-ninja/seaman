@@ -2,18 +2,23 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Base class for service management commands.
+// ABOUTME: Provides regeneration and restart helpers for add/remove operations.
+
 namespace Seaman\Command;
 
+use Seaman\Enum\OperatingMode;
 use Seaman\Service\DockerComposeGenerator;
 use Seaman\Service\DockerManager;
 use Seaman\Service\TemplateRenderer;
+use Seaman\Service\TraefikLabelGenerator;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Command\Command;
 
 use function Laravel\Prompts\confirm;
 
-abstract class AbstractServiceCommand extends AbstractSeamanCommand
+abstract class AbstractServiceCommand extends ModeAwareCommand
 {
     protected function regenerate(Configuration $config): void
     {
@@ -21,7 +26,8 @@ abstract class AbstractServiceCommand extends AbstractSeamanCommand
         $projectRoot = (string) getcwd();
         $templateDir = __DIR__ . '/../Template';
         $renderer = new TemplateRenderer($templateDir);
-        $composeGenerator = new DockerComposeGenerator($renderer);
+        $labelGenerator = new TraefikLabelGenerator();
+        $composeGenerator = new DockerComposeGenerator($renderer, $labelGenerator);
         $composeYaml = $composeGenerator->generate($config);
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 

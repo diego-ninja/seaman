@@ -25,7 +25,7 @@ use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:remove',
-    description: 'Remove services from configuration',
+    description: 'Remove services from configuration (requires init)',
 )]
 class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
 {

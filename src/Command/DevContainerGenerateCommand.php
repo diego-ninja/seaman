@@ -24,7 +24,7 @@ use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'devcontainer:generate',
-    description: 'Generate DevContainer configuration for VS Code',
+    description: 'Generate DevContainer configuration for VS Code (requires init)',
 )]
 class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
 {
