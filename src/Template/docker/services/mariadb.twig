@@ -8,6 +8,12 @@
       - MARIADB_PASSWORD=${DB_PASSWORD:-secret}
     ports:
       - "${DB_PORT}:3306"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

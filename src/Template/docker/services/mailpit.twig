@@ -4,9 +4,16 @@
     ports:
       - "${MAILPIT_PORT}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
     environment:
       - MP_MAX_MESSAGES=5000
       - MP_SMTP_AUTH_ACCEPT_ANY=1
       - MP_SMTP_AUTH_ALLOW_INSECURE=1
+
