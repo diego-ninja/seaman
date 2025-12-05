@@ -130,6 +130,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
             phpConfig: $config->php,
             projectType: $projectType,
             devContainer: $choices->generateDevContainer,
+            proxyEnabled: $choices->useProxy,
         );
 
         if (!confirm(label: 'Continue with this configuration?')) {
@@ -469,8 +470,11 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Create directory if needed
         $configDir = dirname($result->configPath);
+        $escapedConfigDir = escapeshellarg($configDir);
         if (!is_dir($configDir)) {
-            $mkdirCmd = $result->requiresSudo ? "sudo mkdir -p {$configDir}" : "mkdir -p {$configDir}";
+            $mkdirCmd = $result->requiresSudo
+                ? "sudo mkdir -p {$escapedConfigDir}"
+                : "mkdir -p {$escapedConfigDir}";
             Terminal::output()->writeln("  Creating directory: {$configDir}");
             exec($mkdirCmd, $output, $exitCode);
 
@@ -482,11 +486,17 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Write configuration
         $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
+        if ($tempFile === false) {
+            Terminal::error('Failed to create temporary file');
+            return;
+        }
         file_put_contents($tempFile, $result->configContent);
 
+        $escapedTempFile = escapeshellarg($tempFile);
+        $escapedConfigPath = escapeshellarg($result->configPath);
         $cpCmd = $result->requiresSudo
-            ? "sudo cp {$tempFile} {$result->configPath}"
-            : "cp {$tempFile} {$result->configPath}";
+            ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
+            : "cp {$escapedTempFile} {$escapedConfigPath}";
 
         exec($cpCmd, $output, $exitCode);
         unlink($tempFile);

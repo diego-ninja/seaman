@@ -26,6 +26,7 @@ class InitializationSummary
         PhpConfig $phpConfig,
         ProjectType $projectType,
         bool $devContainer,
+        bool $proxyEnabled = true,
     ): void {
         $formattedServices = $this->formatServiceList($services);
 
@@ -38,6 +39,7 @@ class InitializationSummary
                 'PHP Version' => $phpConfig->version->value,
                 'Database' => $database->name,
                 'Services' => $formattedServices,
+                'Reverse Proxy' => $proxyEnabled ? 'Traefik (HTTPS)' : 'Disabled (direct ports)',
                 'Xdebug' => $phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled',
                 'DevContainer' => $devContainer ? 'Enabled' : 'Disabled',
             ],
