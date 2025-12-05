@@ -13,6 +13,7 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\ProjectInitializer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
@@ -120,4 +121,40 @@ test('xdebug toggle scripts are executable', function () {
 
     expect(is_executable($rootScript))->toBeTrue();
     expect(is_executable($seamanScript))->toBeTrue();
+});
+
+test('does not initialize traefik when proxy disabled', function () {
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        projectType: ProjectType::WebApplication,
+        proxy: ProxyConfig::disabled(),
+    );
+
+    $initializer = new ProjectInitializer($this->registry);
+    $initializer->initializeDockerEnvironment($config, $this->testDir);
+
+    expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeFalse();
+    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeFalse();
+});
+
+test('initializes traefik when proxy enabled', function () {
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        projectType: ProjectType::WebApplication,
+        proxy: ProxyConfig::default('testproject'),
+    );
+
+    $initializer = new ProjectInitializer($this->registry);
+    $initializer->initializeDockerEnvironment($config, $this->testDir);
+
+    expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeTrue();
+    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeTrue();
 });

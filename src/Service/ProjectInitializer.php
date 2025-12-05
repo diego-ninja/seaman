@@ -38,8 +38,10 @@ class ProjectInitializer
         $composeYaml = $composeGenerator->generate($config);
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 
-        // Initialize Traefik configuration and certificates
-        $this->initializeTraefik($config, $projectRoot);
+        // Initialize Traefik configuration and certificates only if proxy enabled
+        if ($config->proxy()->enabled) {
+            $this->initializeTraefik($config, $projectRoot);
+        }
 
         // Save configuration
         $validator = new ConfigurationValidator();
