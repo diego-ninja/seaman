@@ -30,6 +30,19 @@ final readonly class ProxyConfig
     }
 
     /**
+     * Create disabled proxy configuration.
+     */
+    public static function disabled(): self
+    {
+        return new self(
+            enabled: false,
+            domainPrefix: '',
+            certResolver: '',
+            dashboard: false,
+        );
+    }
+
+    /**
      * Get full domain for a subdomain.
      *
      * @param string $subdomain Subdomain (defaults to 'app')

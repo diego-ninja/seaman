@@ -67,3 +67,12 @@ test('ProxyConfig is immutable', function () {
     $reflection = new \ReflectionClass($config);
     expect($reflection->isReadOnly())->toBeTrue();
 });
+
+test('creates disabled ProxyConfig', function () {
+    $config = ProxyConfig::disabled();
+
+    expect($config->enabled)->toBeFalse()
+        ->and($config->domainPrefix)->toBe('')
+        ->and($config->certResolver)->toBe('')
+        ->and($config->dashboard)->toBeFalse();
+});
