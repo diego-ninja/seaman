@@ -24,19 +24,25 @@ readonly class DockerComposeGenerator
     {
         $enabledServices = $config->services->enabled();
         $proxy = $config->proxy();
+        $proxyEnabled = $proxy->enabled;
 
-        // Generate Traefik labels for all enabled services
+        // Generate Traefik labels for all enabled services (only if proxy enabled)
         $servicesWithLabels = [];
         foreach ($enabledServices as $name => $service) {
+            $labels = $proxyEnabled
+                ? $this->labelGenerator->generateLabels($service, $proxy)
+                : [];
             $servicesWithLabels[$name] = [
                 'config' => $service,
-                'labels' => $this->labelGenerator->generateLabels($service, $proxy),
+                'labels' => $labels,
             ];
         }
 
-        // Generate Traefik labels for app service
+        // Generate Traefik labels for app service (only if proxy enabled)
         $appService = $this->createAppServiceConfig($config);
-        $appLabels = $this->labelGenerator->generateLabels($appService, $proxy);
+        $appLabels = $proxyEnabled
+            ? $this->labelGenerator->generateLabels($appService, $proxy)
+            : [];
 
         $context = [
             'php_version' => $config->php->version->value,
@@ -46,6 +52,7 @@ readonly class DockerComposeGenerator
             ],
             'volumes' => $config->volumes,
             'project_name' => $config->projectName,
+            'proxy_enabled' => $proxyEnabled,
         ];
 
         $baseYaml = $this->renderer->render('docker/compose.base.twig', $context);
