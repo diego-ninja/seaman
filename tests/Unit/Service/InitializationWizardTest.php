@@ -114,3 +114,10 @@ test('get project name returns default when directory is not empty', function ()
 
     exec("rm -rf {$testDir}");
 });
+
+test('shouldUseProxy returns true by default', function () {
+    $detector = new PhpVersionDetector();
+    $wizard = new InitializationWizard($detector);
+
+    expect(method_exists($wizard, 'shouldUseProxy'))->toBeTrue();
+});

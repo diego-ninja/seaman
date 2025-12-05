@@ -35,6 +35,7 @@ final readonly class InitializationWizard
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
         $xdebug = $this->enableXdebug();
+        $useProxy = $this->shouldUseProxy();
         $devContainer = $this->enableDevContainer($input);
 
         return new InitializationChoices(
@@ -44,6 +45,7 @@ final readonly class InitializationWizard
             services: $services,
             xdebug: $xdebug,
             generateDevContainer: $devContainer,
+            useProxy: $useProxy,
         );
     }
 
@@ -117,6 +119,18 @@ final readonly class InitializationWizard
     {
         return $input->getOption('with-devcontainer')
             || confirm(label: 'Do you want to enable DevContainer support?', default: false);
+    }
+
+    /**
+     * Ask if user wants to use Traefik proxy.
+     */
+    public function shouldUseProxy(): bool
+    {
+        return confirm(
+            label: 'Use Traefik as reverse proxy?',
+            default: true,
+            hint: 'Enables HTTPS and local domains (app.project.local). Disable for direct port access.',
+        );
     }
 
     /**
