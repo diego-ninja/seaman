@@ -7,7 +7,7 @@
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTICSEARCH_PORT}:9200"
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"

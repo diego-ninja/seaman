@@ -1,7 +1,7 @@
   {{ name }}:
     container_name: seaman-{{ name }}
     image: amir20/dozzle:{{ service.version }}
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"

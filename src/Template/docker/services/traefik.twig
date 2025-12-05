@@ -19,7 +19,7 @@
       - --entrypoints.websecure.address=:443
       - --log.level=INFO
       - --accesslog=true
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"

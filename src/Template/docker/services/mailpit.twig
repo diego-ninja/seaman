@@ -4,7 +4,7 @@
     ports:
       - "${MAILPIT_PORT}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"
