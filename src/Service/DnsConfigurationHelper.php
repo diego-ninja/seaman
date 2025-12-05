@@ -79,8 +79,10 @@ final readonly class DnsConfigurationHelper
         }
 
         // Sort by priority
-        usort($providers, fn(DetectedDnsProvider $a, DetectedDnsProvider $b): int =>
-            $a->provider->getPriority() <=> $b->provider->getPriority()
+        usort(
+            $providers,
+            fn(DetectedDnsProvider $a, DetectedDnsProvider $b): int
+            => $a->provider->getPriority() <=> $b->provider->getPriority(),
         );
 
         return $providers;

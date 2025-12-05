@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
@@ -374,13 +375,70 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         $executor = new RealCommandExecutor();
         $helper = new DnsConfigurationHelper($executor);
-        $result = $helper->configure($projectName);
 
-        if ($result->automatic) {
-            $this->handleAutomaticDnsConfiguration($result, $projectName);
-        } else {
-            $this->handleManualDnsConfiguration($result);
+        $providers = $helper->detectAvailableProviders($projectName);
+
+        if (empty($providers)) {
+            $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
+            return;
         }
+
+        $recommended = $providers[0];
+
+        Terminal::output()->writeln("  Detected: <fg=green>{$recommended->provider->getDisplayName()}</>");
+        Terminal::output()->writeln("  {$recommended->provider->getDescription()}");
+        Terminal::output()->writeln('');
+
+        if (confirm("Use {$recommended->provider->getDisplayName()} for DNS?", true)) {
+            $result = $helper->configureProvider($projectName, $recommended->provider);
+            $this->applyDnsConfiguration($result, $projectName);
+            return;
+        }
+
+        // User rejected recommendation, show alternatives
+        if (count($providers) > 1) {
+            $options = $this->buildProviderOptions($providers);
+            /** @var string $choice */
+            $choice = select(
+                label: 'Select DNS provider',
+                options: $options,
+            );
+
+            if ($choice === 'manual') {
+                $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
+            } else {
+                $provider = DnsProvider::from($choice);
+                $result = $helper->configureProvider($projectName, $provider);
+                $this->applyDnsConfiguration($result, $projectName);
+            }
+        } else {
+            $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
+        }
+    }
+
+    /**
+     * @param list<\Seaman\ValueObject\DetectedDnsProvider> $providers
+     * @return array<string, string>
+     */
+    private function buildProviderOptions(array $providers): array
+    {
+        $options = [];
+        foreach ($providers as $detected) {
+            $options[$detected->provider->value] = $detected->provider->getDisplayName()
+                . ' - ' . $detected->provider->getDescription();
+        }
+        $options['manual'] = 'Manual - Configure /etc/hosts yourself';
+        return $options;
+    }
+
+    private function applyDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
+    {
+        if (!$result->automatic) {
+            $this->handleManualDnsConfiguration($result);
+            return;
+        }
+
+        $this->handleAutomaticDnsConfiguration($result, $projectName);
     }
 
     private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
@@ -438,20 +496,14 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return;
         }
 
-        // Restart DNS service
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
-        Terminal::output()->writeln('');
 
-        if ($result->type === 'dnsmasq') {
-            Terminal::output()->writeln('  Restarting dnsmasq...');
-            $restartCmd = PHP_OS_FAMILY === 'Darwin'
-                ? 'sudo brew services restart dnsmasq'
-                : 'sudo systemctl restart dnsmasq';
-            exec($restartCmd);
-        } elseif ($result->type === 'systemd-resolved') {
-            Terminal::output()->writeln('  Restarting systemd-resolved...');
-            exec('sudo systemctl restart systemd-resolved');
+        // Restart DNS service if needed
+        if ($result->restartCommand !== null) {
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Restarting DNS service...');
+            exec($result->restartCommand);
         }
 
         Terminal::success('DNS configured successfully!');
