@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Contract\CommandExecutor;
+use Seaman\Enum\DnsProvider;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ProcessResult;
@@ -18,6 +19,7 @@ final readonly class FakeDnsCommandExecutor implements CommandExecutor
     public function __construct(
         private bool $hasDnsmasq = false,
         private bool $hasSystemdResolved = false,
+        private bool $hasNetworkManager = false,
     ) {}
 
     public function execute(array $command): ProcessResult
@@ -29,11 +31,18 @@ final readonly class FakeDnsCommandExecutor implements CommandExecutor
             );
         }
 
-        // Simulate 'systemctl is-active systemd-resolved' check
+        // Simulate 'systemctl is-active' checks
         if ($command[0] === 'systemctl' && $command[1] === 'is-active') {
-            return new ProcessResult(
-                exitCode: $this->hasSystemdResolved ? 0 : 1,
-            );
+            if ($command[2] === 'systemd-resolved') {
+                return new ProcessResult(
+                    exitCode: $this->hasSystemdResolved ? 0 : 1,
+                );
+            }
+            if ($command[2] === 'NetworkManager') {
+                return new ProcessResult(
+                    exitCode: $this->hasNetworkManager ? 0 : 1,
+                );
+            }
         }
 
         return new ProcessResult(exitCode: 0);
@@ -117,4 +126,108 @@ test('DnsConfigurationHelper is readonly', function () {
 
     $reflection = new \ReflectionClass($helper);
     expect($reflection->isReadOnly())->toBeTrue();
+});
+
+test('detectAvailableProviders returns empty array when no providers available', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    $providers = $helper->detectAvailableProviders('testproject');
+
+    expect($providers)->toBeArray()->toBeEmpty();
+});
+
+test('detectAvailableProviders detects dnsmasq', function () {
+    $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    $providers = $helper->detectAvailableProviders('testproject');
+
+    expect($providers)->not->toBeEmpty();
+    $dnsmasq = array_filter($providers, fn($p) => $p->provider === DnsProvider::Dnsmasq);
+    expect($dnsmasq)->not->toBeEmpty();
+});
+
+test('detectAvailableProviders detects NetworkManager', function () {
+    $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    $providers = $helper->detectAvailableProviders('testproject');
+
+    $nm = array_filter($providers, fn($p) => $p->provider === DnsProvider::NetworkManager);
+    expect($nm)->not->toBeEmpty();
+});
+
+test('detectAvailableProviders returns providers sorted by priority', function () {
+    $executor = new FakeDnsCommandExecutor(
+        hasDnsmasq: true,
+        hasSystemdResolved: true,
+        hasNetworkManager: true,
+    );
+    $helper = new DnsConfigurationHelper($executor);
+
+    $providers = $helper->detectAvailableProviders('testproject');
+
+    // Dnsmasq should be first (priority 2)
+    expect($providers[0]->provider)->toBe(DnsProvider::Dnsmasq);
+});
+
+test('getRecommendedProvider returns first provider by priority', function () {
+    $executor = new FakeDnsCommandExecutor(
+        hasDnsmasq: true,
+        hasSystemdResolved: true,
+    );
+    $helper = new DnsConfigurationHelper($executor);
+
+    $recommended = $helper->getRecommendedProvider('testproject');
+
+    expect($recommended)->not->toBeNull()
+        ->and($recommended->provider)->toBe(DnsProvider::Dnsmasq);
+});
+
+test('getRecommendedProvider returns null when no providers available', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    $recommended = $helper->getRecommendedProvider('testproject');
+
+    expect($recommended)->toBeNull();
+});
+
+test('configureProvider returns correct result for dnsmasq', function () {
+    $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    $result = $helper->configureProvider('testproject', DnsProvider::Dnsmasq);
+
+    expect($result->type)->toBe('dnsmasq')
+        ->and($result->automatic)->toBeTrue()
+        ->and($result->configContent)->toContain('.testproject.local')
+        ->and($result->restartCommand)->toContain('dnsmasq');
+});
+
+test('configureProvider returns correct result for NetworkManager', function () {
+    $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    $result = $helper->configureProvider('testproject', DnsProvider::NetworkManager);
+
+    expect($result->type)->toBe('networkmanager')
+        ->and($result->automatic)->toBeTrue()
+        ->and($result->configPath)->toContain('NetworkManager')
+        ->and($result->restartCommand)->toContain('NetworkManager');
+});
+
+test('hasNetworkManager returns true when NetworkManager is active', function () {
+    $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    expect($helper->hasNetworkManager())->toBeTrue();
+});
+
+test('hasNetworkManager returns false when NetworkManager is not active', function () {
+    $executor = new FakeDnsCommandExecutor(hasNetworkManager: false);
+    $helper = new DnsConfigurationHelper($executor);
+
+    expect($helper->hasNetworkManager())->toBeFalse();
 });
