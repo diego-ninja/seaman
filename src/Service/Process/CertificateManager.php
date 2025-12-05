@@ -55,7 +55,7 @@ final readonly class CertificateManager
             type: 'mkcert',
             certPath: '.seaman/certs/cert.pem',
             keyPath: '.seaman/certs/key.pem',
-            trusted: true
+            trusted: true,
         );
     }
 
@@ -76,7 +76,7 @@ final readonly class CertificateManager
             type: 'self-signed',
             certPath: '.seaman/certs/cert.pem',
             keyPath: '.seaman/certs/key.pem',
-            trusted: false
+            trusted: false,
         );
     }
 }

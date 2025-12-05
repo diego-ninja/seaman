@@ -229,7 +229,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
                     $name,
                     $detected->type->value,
                     $detected->version,
-                    $detected->confidence,
+                    $detected->confidence->value,
                 ));
             }
             Terminal::output()->writeln('');
@@ -290,14 +290,15 @@ class InitCommand extends ModeAwareCommand implements Decorable
             customServices: $importResult->custom,
         );
 
-        // Show summary
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=cyan>Configuration Summary</>');
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln("    Project: {$projectName}");
-        Terminal::output()->writeln('    Managed services: ' . count($serviceConfigs));
-        Terminal::output()->writeln('    Custom services: ' . $importResult->custom->count());
-        Terminal::output()->writeln('');
+        summary(
+            title: 'Configuration Summary',
+            icon: '⚙',
+            data: [
+                "Project" => $projectName,
+                "Managed Services" => count($serviceConfigs),
+                "Custom Services" => $importResult->custom->count(),
+            ],
+        );
 
         if (!confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');

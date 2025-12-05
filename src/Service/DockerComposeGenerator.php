@@ -70,7 +70,7 @@ readonly class DockerComposeGenerator
             version: $config->php->version->value,
             port: 80,
             additionalPorts: [],
-            environmentVariables: []
+            environmentVariables: [],
         );
     }
 

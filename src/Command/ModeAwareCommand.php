@@ -63,7 +63,7 @@ abstract class ModeAwareCommand extends AbstractSeamanCommand
     {
         Terminal::output()->writeln(sprintf(
             '<fg=yellow>⚠</> <comment>This command is not available in %s mode.</comment>',
-            $mode->label()
+            $mode->label(),
         ));
 
         if ($mode === OperatingMode::Unmanaged) {

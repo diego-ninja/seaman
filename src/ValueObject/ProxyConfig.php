@@ -25,7 +25,7 @@ final readonly class ProxyConfig
             enabled: true,
             domainPrefix: $projectName,
             certResolver: 'selfsigned',
-            dashboard: true
+            dashboard: true,
         );
     }
 

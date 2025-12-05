@@ -67,7 +67,7 @@ final readonly class DnsConfigurationHelper
             requiresSudo: true,
             configPath: $configPath,
             configContent: $configContent,
-            instructions: []
+            instructions: [],
         );
     }
 
@@ -87,7 +87,7 @@ final readonly class DnsConfigurationHelper
             requiresSudo: true,
             configPath: $configPath,
             configContent: $configContent,
-            instructions: []
+            instructions: [],
         );
     }
 
@@ -114,7 +114,7 @@ final readonly class DnsConfigurationHelper
             requiresSudo: false,
             configPath: null,
             configContent: null,
-            instructions: $instructions
+            instructions: $instructions,
         );
     }
 
@@ -126,7 +126,7 @@ final readonly class DnsConfigurationHelper
         return match (PHP_OS_FAMILY) {
             'Linux' => "/etc/dnsmasq.d/seaman-{$projectName}.conf",
             'Darwin' => "/usr/local/etc/dnsmasq.d/seaman-{$projectName}.conf",
-            default => throw new \RuntimeException('Unsupported platform: ' . PHP_OS_FAMILY)
+            default => throw new \RuntimeException('Unsupported platform: ' . PHP_OS_FAMILY),
         };
     }
 }

@@ -64,7 +64,7 @@ test('configuration with explicit proxy config', function (): void {
         enabled: true,
         domainPrefix: 'custom-project',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     $config = new Configuration(
