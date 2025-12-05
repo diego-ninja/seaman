@@ -18,11 +18,6 @@ readonly class TraefikService extends AbstractService
         return Service::Traefik;
     }
 
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(

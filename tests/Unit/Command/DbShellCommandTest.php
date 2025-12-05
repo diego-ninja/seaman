@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Unit tests for DbShellCommand.
 // ABOUTME: Tests database selection and shell command generation.
 
-use Seaman\Command\DbShellCommand;
+use Seaman\Command\Database\DbShellCommand;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;

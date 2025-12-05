@@ -38,7 +38,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class RebuildCommand extends ModeAwareCommand implements Decorable
 {
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

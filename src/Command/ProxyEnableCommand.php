@@ -7,16 +7,13 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Command\Concern\RegeneratesDockerCompose;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerComposeGenerator;
 use Seaman\Service\ProjectInitializer;
-use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ProxyConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -30,13 +27,15 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class ProxyEnableCommand extends ModeAwareCommand
 {
+    use RegeneratesDockerCompose;
+
     public function __construct(
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
     }
 
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return $mode === OperatingMode::Managed;
     }
@@ -45,7 +44,6 @@ class ProxyEnableCommand extends ModeAwareCommand
     {
         $projectRoot = (string) getcwd();
 
-        // Load current configuration
         $validator = new ConfigurationValidator();
         $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
 
@@ -56,37 +54,18 @@ class ProxyEnableCommand extends ModeAwareCommand
             return Command::FAILURE;
         }
 
-        // Check if already enabled
         if ($config->proxy()->enabled) {
             Terminal::output()->writeln('  <fg=yellow>ℹ</> Proxy is already enabled.');
             return Command::SUCCESS;
         }
 
-        // Create new configuration with proxy enabled
-        $newConfig = new Configuration(
-            projectName: $config->projectName,
-            version: $config->version,
-            php: $config->php,
-            services: $config->services,
-            volumes: $config->volumes,
-            projectType: $config->projectType,
-            proxy: ProxyConfig::default($config->projectName),
-            customServices: $config->customServices,
-        );
+        $newConfig = $config->with(proxy: ProxyConfig::default($config->projectName));
 
-        // Regenerate docker-compose.yml
-        $templateDir = __DIR__ . '/../Template';
-        $renderer = new TemplateRenderer($templateDir);
-        $labelGenerator = new TraefikLabelGenerator();
-        $composeGenerator = new DockerComposeGenerator($renderer, $labelGenerator);
-        $composeYaml = $composeGenerator->generate($newConfig);
-        file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
+        $this->regenerateDockerCompose($newConfig, $projectRoot);
 
-        // Initialize Traefik
         $initializer = new ProjectInitializer($this->registry);
         $initializer->initializeTraefikPublic($newConfig, $projectRoot);
 
-        // Save updated configuration
         $configManager->save($newConfig);
 
         Terminal::success('Proxy enabled successfully.');

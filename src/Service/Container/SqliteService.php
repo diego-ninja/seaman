@@ -18,14 +18,6 @@ readonly class SqliteService extends AbstractService
         return Service::SQLite;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(

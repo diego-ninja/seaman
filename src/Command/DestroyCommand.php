@@ -34,7 +34,7 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

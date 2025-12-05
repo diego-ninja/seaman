@@ -27,7 +27,7 @@ use Symfony\Component\Process\Process;
 )]
 class BuildCommand extends ModeAwareCommand implements Decorable
 {
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

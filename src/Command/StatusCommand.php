@@ -25,7 +25,7 @@ use function Laravel\Prompts\table;
 )]
 class StatusCommand extends ModeAwareCommand implements Decorable
 {
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

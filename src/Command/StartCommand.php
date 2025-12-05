@@ -39,7 +39,7 @@ class StartCommand extends ModeAwareCommand implements Decorable
         $this->setHelp('Works with any docker-compose.yml file. Run "seaman init" for full features.');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

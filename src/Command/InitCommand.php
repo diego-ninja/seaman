@@ -26,6 +26,7 @@ use Seaman\Service\SymfonyDetector;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\CustomServiceCollection;
+use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
@@ -63,7 +64,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Init works in all modes
     }
@@ -418,7 +419,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @param list<\Seaman\ValueObject\DetectedDnsProvider> $providers
+     * @param list<DetectedDnsProvider> $providers
      * @return array<string, string>
      */
     private function buildProviderOptions(array $providers): array

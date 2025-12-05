@@ -160,3 +160,98 @@ test('customServices defaults to empty collection', function (): void {
     expect($config->customServices)->toBeInstanceOf(CustomServiceCollection::class)
         ->and($config->customServices->isEmpty())->toBeTrue();
 });
+
+test('with() creates a copy with updated proxy', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    $newProxy = ProxyConfig::disabled();
+    $newConfig = $config->with(proxy: $newProxy);
+
+    expect($newConfig)->not->toBe($config)
+        ->and($newConfig->proxy)->toBe($newProxy)
+        ->and($newConfig->projectName)->toBe('test-project')
+        ->and($newConfig->version)->toBe('1.0')
+        ->and($newConfig->php)->toBe($php)
+        ->and($newConfig->services)->toBe($services)
+        ->and($newConfig->volumes)->toBe($volumes);
+});
+
+test('with() creates a copy with updated services', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    $newServices = new ServiceCollection([]);
+    $newConfig = $config->with(services: $newServices);
+
+    expect($newConfig)->not->toBe($config)
+        ->and($newConfig->services)->toBe($newServices)
+        ->and($newConfig->projectName)->toBe('test-project');
+});
+
+test('with() can update multiple fields at once', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    $newProxy = ProxyConfig::disabled();
+    $newCustomServices = new CustomServiceCollection(['test' => ['image' => 'test:latest']]);
+    $newConfig = $config->with(
+        proxy: $newProxy,
+        customServices: $newCustomServices,
+    );
+
+    expect($newConfig->proxy)->toBe($newProxy)
+        ->and($newConfig->customServices)->toBe($newCustomServices)
+        ->and($newConfig->projectName)->toBe('test-project');
+});
+
+test('with() preserves original configuration', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+    $originalProxy = ProxyConfig::default('test-project');
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+        proxy: $originalProxy,
+    );
+
+    $config->with(proxy: ProxyConfig::disabled());
+
+    expect($config->proxy)->toBe($originalProxy);
+});

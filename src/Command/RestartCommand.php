@@ -28,7 +28,7 @@ class RestartCommand extends ModeAwareCommand implements Decorable
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to restart');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

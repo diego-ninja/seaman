@@ -18,14 +18,6 @@ readonly class PostgresqlService extends AbstractService
         return Service::PostgreSQL;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -44,34 +36,18 @@ readonly class PostgresqlService extends AbstractService
     }
 
     /**
-     * @param ServiceConfig $config
      * @return array<string, mixed>
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'postgres:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':5432',
-            ],
-            'volumes' => [
-                'postgresql_data:/var/lib/postgresql/data',
-            ],
+            'ports' => [$config->port . ':5432'],
+            'volumes' => ['postgresql_data:/var/lib/postgresql/data'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

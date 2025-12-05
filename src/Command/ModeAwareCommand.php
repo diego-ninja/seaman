@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
 use Seaman\Exception\UnsupportedModeException;
 use Seaman\Service\ModeDetector;
@@ -15,7 +16,7 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-abstract class ModeAwareCommand extends AbstractSeamanCommand
+abstract class ModeAwareCommand extends AbstractSeamanCommand implements ModeAwareInterface
 {
     private ?ModeDetector $modeDetector = null;
 
@@ -30,7 +31,7 @@ abstract class ModeAwareCommand extends AbstractSeamanCommand
      * Override this method in subclasses to specify mode requirements.
      * Default: supports all modes
      */
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return true;
     }

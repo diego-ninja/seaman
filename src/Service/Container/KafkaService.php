@@ -18,14 +18,6 @@ readonly class KafkaService extends AbstractService
         return Service::Kafka;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -51,29 +43,14 @@ readonly class KafkaService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'bitnami/kafka:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':9092',
-            ],
-            'volumes' => [
-                'kafka_data:/bitnami/kafka',
-            ],
+            'ports' => [$config->port . ':9092'],
+            'volumes' => ['kafka_data:/bitnami/kafka'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

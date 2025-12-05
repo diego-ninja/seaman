@@ -29,7 +29,7 @@ class XdebugCommand extends ModeAwareCommand implements Decorable
         $this->addArgument('mode', InputArgument::REQUIRED, 'Mode: on or off');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return $mode === \Seaman\Enum\OperatingMode::Managed;
     }

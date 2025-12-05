@@ -34,7 +34,7 @@ class LogsCommand extends ModeAwareCommand implements Decorable
             ->addOption('since', 's', InputOption::VALUE_REQUIRED, 'Show logs since timestamp or relative');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

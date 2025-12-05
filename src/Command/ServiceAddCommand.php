@@ -34,7 +34,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return $mode === \Seaman\Enum\OperatingMode::Managed;
     }

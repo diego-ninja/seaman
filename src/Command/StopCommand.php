@@ -28,7 +28,7 @@ class StopCommand extends ModeAwareCommand implements Decorable
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to stop');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

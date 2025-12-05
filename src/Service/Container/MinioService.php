@@ -18,14 +18,6 @@ readonly class MinioService extends AbstractService
         return Service::MinIO;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -47,7 +39,6 @@ readonly class MinioService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
         $composeConfig = [
             'image' => 'minio/minio:' . $config->version,
             'command' => 'server /data --console-address ":9001"',
@@ -62,16 +53,7 @@ readonly class MinioService extends AbstractService
             'networks' => ['seaman'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

@@ -28,7 +28,7 @@ class ShellCommand extends ModeAwareCommand implements Decorable
         $this->addArgument('service', InputArgument::OPTIONAL, 'Service name', 'app');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

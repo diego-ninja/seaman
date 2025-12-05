@@ -18,14 +18,6 @@ readonly class MemcachedService extends AbstractService
         return Service::Memcached;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -40,16 +32,17 @@ readonly class MemcachedService extends AbstractService
     }
 
     /**
-     * @param ServiceConfig $config
      * @return array<string, mixed>
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        return [
+        $composeConfig = [
             'image' => "memcached:{$config->version}",
             'ports' => ['${MEMCACHED_PORT}:11211'],
             'networks' => ['seaman'],
         ];
+
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

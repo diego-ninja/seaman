@@ -7,11 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Command\Concern\ExecutesInContainer;
 use Seaman\Contract\Decorable;
-use Seaman\Service\DockerManager;
-use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -23,32 +21,24 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class ExecuteComposerCommand extends ModeAwareCommand implements Decorable
 {
+    use ExecutesInContainer;
+
     protected function configure(): void
     {
         $this->ignoreValidationErrors();
         $this->addArgument('args', InputArgument::IS_ARRAY, 'Composer arguments');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $projectRoot = (string) getcwd();
-
         /** @var list<string> $args */
         $args = $input->getArgument('args');
-        $manager = new DockerManager($projectRoot);
 
-        $result = $manager->executeInService('app', ['composer', ...$args]);
-        Terminal::output()->writeln($result->output);
-
-        if (!$result->isSuccessful()) {
-            Terminal::error($result->output);
-        }
-
-        return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
+        return $this->executeInContainer(['composer', ...$args]);
     }
 }

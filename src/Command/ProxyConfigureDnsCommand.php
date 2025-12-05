@@ -38,7 +38,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return $mode === OperatingMode::Managed;
     }
