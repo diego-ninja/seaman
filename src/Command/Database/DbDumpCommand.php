@@ -9,10 +9,11 @@ namespace Seaman\Command\Database;
 
 use Seaman\Command\Concern\SelectsDatabaseService;
 use Seaman\Command\ModeAwareCommand;
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\DatabaseCommandBuilder;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -34,7 +35,7 @@ class DbDumpCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
-        private readonly DatabaseCommandBuilder $commandBuilder = new DatabaseCommandBuilder(),
+        private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
     }
@@ -67,34 +68,35 @@ class DbDumpCommand extends ModeAwareCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $databaseService = $this->loadAndSelectDatabase($input);
-        if (is_int($databaseService)) {
-            return $databaseService;
+        $databaseServiceConfig = $this->loadAndSelectDatabase($input);
+        if (is_int($databaseServiceConfig)) {
+            return $databaseServiceConfig;
+        }
+
+        $service = $this->registry->get($databaseServiceConfig->type);
+        if (!$service instanceof DatabaseServiceInterface) {
+            Terminal::error("Service '{$databaseServiceConfig->type->value}' does not support database operations.");
+            return Command::FAILURE;
         }
 
         $file = $input->getArgument('file');
         if (!is_string($file) || $file === '') {
-            $extension = $databaseService->type === Service::MongoDB ? 'archive' : 'sql';
+            $extension = $databaseServiceConfig->type === Service::MongoDB ? 'archive' : 'sql';
             $file = sprintf(
                 '%s_dump_%s.%s',
-                $databaseService->name,
+                $databaseServiceConfig->name,
                 date('Ymd_His'),
                 $extension,
             );
         }
 
-        $dumpCommand = $this->commandBuilder->dump($databaseService);
-
-        if ($dumpCommand === null) {
-            Terminal::error("Unsupported database type: {$databaseService->type->value}");
-            return Command::FAILURE;
-        }
+        $dumpCommand = $service->getDumpCommand($databaseServiceConfig);
 
         try {
             $result = $this->dockerManager->executeInService(
-                service: $databaseService->name,
+                service: $databaseServiceConfig->name,
                 command: $dumpCommand,
-                message: "Dumping {$databaseService->type->value} database to: {$file}",
+                message: "Dumping {$databaseServiceConfig->type->value} database to: {$file}",
             );
         } catch (\RuntimeException $e) {
             Terminal::error($e->getMessage());

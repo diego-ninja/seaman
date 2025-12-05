@@ -10,12 +10,8 @@ namespace Seaman\Tests\Unit;
 use PHPUnit\Framework\Attributes\Test;
 use PHPUnit\Framework\TestCase;
 use Seaman\Application;
-use Seaman\Contract\ModeAwareInterface;
-use Seaman\Enum\OperatingMode;
 use Seaman\Exception\CommandNotAvailableException;
-use Seaman\Service\ModeDetector;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Tester\ApplicationTester;
 
 final class ApplicationTest extends TestCase
 {

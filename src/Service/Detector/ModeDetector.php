@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Seaman\Service;
+namespace Seaman\Service\Detector;
 
 use Seaman\Enum\OperatingMode;
 

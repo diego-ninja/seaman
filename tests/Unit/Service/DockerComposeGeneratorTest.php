@@ -9,9 +9,9 @@ namespace Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
-use Seaman\Service\DockerComposeGenerator;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\PhpConfig;

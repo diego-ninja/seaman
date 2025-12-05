@@ -7,9 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Command\Concern;
 
-use Seaman\Service\DockerComposeGenerator;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
 use Seaman\ValueObject\Configuration;
 
 trait RegeneratesDockerCompose

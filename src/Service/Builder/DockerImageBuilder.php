@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Builds and tags Docker images from Dockerfile.
 // ABOUTME: Encapsulates Docker build command execution.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Builder;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\UI\Widget\Spinner\SpinnerFactory;

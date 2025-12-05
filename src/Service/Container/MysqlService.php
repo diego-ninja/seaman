@@ -7,11 +7,12 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class MysqlService extends AbstractService
+readonly class MysqlService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
@@ -81,5 +82,45 @@ readonly class MysqlService extends AbstractService
             'DB_PASSWORD' => $config->environmentVariables['MYSQL_PASSWORD'] ?? 'seaman',
             'DB_ROOT_PASSWORD' => $config->environmentVariables['MYSQL_ROOT_PASSWORD'] ?? 'root',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mysqldump',
+            '-u',
+            $env['MYSQL_USER'] ?? 'root',
+            '-p' . ($env['MYSQL_PASSWORD'] ?? ''),
+            $env['MYSQL_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mysql',
+            '-u',
+            $env['MYSQL_USER'] ?? 'root',
+            '-p' . ($env['MYSQL_PASSWORD'] ?? ''),
+            $env['MYSQL_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }

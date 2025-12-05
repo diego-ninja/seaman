@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Detects seaman service types from docker-compose service configurations.
 // ABOUTME: Uses fuzzy matching (image, name patterns, ports) with confidence levels.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Detector;
 
 use Seaman\Enum\Confidence;
 use Seaman\Enum\Service;

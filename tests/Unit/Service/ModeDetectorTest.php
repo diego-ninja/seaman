@@ -9,7 +9,7 @@ namespace Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\OperatingMode;
-use Seaman\Service\ModeDetector;
+use Seaman\Service\Detector\ModeDetector;
 
 final class ModeDetectorTest extends TestCase
 {

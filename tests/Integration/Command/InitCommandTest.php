@@ -9,8 +9,8 @@ namespace Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Enum\ProjectType;
+use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
-use Seaman\Service\SymfonyDetector;
 
 test('init command is registered in application', function (): void {
     $app = new Application();

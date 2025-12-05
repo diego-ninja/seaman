@@ -5,9 +5,10 @@ declare(strict_types=1);
 // ABOUTME: Generates docker-compose.yml from configuration.
 // ABOUTME: Uses Twig templates and generates Traefik labels for services.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Generator;
 
 use Seaman\Enum\Service;
+use Seaman\Service\TemplateRenderer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\ServiceConfig;

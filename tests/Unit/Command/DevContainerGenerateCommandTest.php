@@ -7,7 +7,6 @@ namespace Seaman\Tests\Unit\Command;
 use Seaman\Command\DevContainerGenerateCommand;
 use Seaman\Exception\SeamanException;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DevContainerGenerator;
 use Symfony\Component\Console\Tester\CommandTester;
 
 beforeEach(function () {

@@ -7,8 +7,8 @@ namespace Seaman\Tests\Unit\Service;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
+use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\PhpVersionDetector;
 
 test('get default services returns correct services for WebApplication', function () {
     $detector = new PhpVersionDetector();

@@ -9,9 +9,10 @@ namespace Seaman\Command\Database;
 
 use Seaman\Command\Concern\SelectsDatabaseService;
 use Seaman\Command\ModeAwareCommand;
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\DatabaseCommandBuilder;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -36,7 +37,7 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
-        private readonly DatabaseCommandBuilder $commandBuilder = new DatabaseCommandBuilder(),
+        private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
     }
@@ -69,9 +70,15 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $databaseService = $this->loadAndSelectDatabase($input);
-        if (is_int($databaseService)) {
-            return $databaseService;
+        $databaseServiceConfig = $this->loadAndSelectDatabase($input);
+        if (is_int($databaseServiceConfig)) {
+            return $databaseServiceConfig;
+        }
+
+        $service = $this->registry->get($databaseServiceConfig->type);
+        if (!$service instanceof DatabaseServiceInterface) {
+            Terminal::error("Service '{$databaseServiceConfig->type->value}' does not support database operations.");
+            return Command::FAILURE;
         }
 
         $file = $input->getArgument('file');
@@ -86,7 +93,7 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
         }
 
         if (!confirm(
-            label: "This will overwrite the '{$databaseService->name}' database. Continue?",
+            label: "This will overwrite the '{$databaseServiceConfig->name}' database. Continue?",
             default: false,
         )) {
             info('Restore cancelled.');
@@ -99,19 +106,14 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $restoreCommand = $this->commandBuilder->restore($databaseService);
-
-        if ($restoreCommand === null) {
-            Terminal::error("Unsupported database type: {$databaseService->type->value}");
-            return Command::FAILURE;
-        }
+        $restoreCommand = $service->getRestoreCommand($databaseServiceConfig);
 
         try {
             $result = $this->dockerManager->executeInServiceWithStdin(
-                service: $databaseService->name,
+                service: $databaseServiceConfig->name,
                 command: $restoreCommand,
                 stdin: $dumpContent,
-                message: "Restoring {$databaseService->type->value} database from: {$file}",
+                message: "Restoring {$databaseServiceConfig->type->value} database from: {$file}",
             );
 
             if (!$result->isSuccessful()) {

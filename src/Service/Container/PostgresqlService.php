@@ -7,11 +7,12 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class PostgresqlService extends AbstractService
+readonly class PostgresqlService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
@@ -79,5 +80,43 @@ readonly class PostgresqlService extends AbstractService
             'DB_USER' => $config->environmentVariables['POSTGRES_USER'] ?? 'seaman',
             'DB_PASSWORD' => $config->environmentVariables['POSTGRES_PASSWORD'] ?? 'seaman',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'pg_dump',
+            '-U',
+            $env['POSTGRES_USER'] ?? 'postgres',
+            $env['POSTGRES_DB'] ?? 'postgres',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'psql',
+            '-U',
+            $env['POSTGRES_USER'] ?? 'postgres',
+            $env['POSTGRES_DB'] ?? 'postgres',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }

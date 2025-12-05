@@ -10,9 +10,8 @@ namespace Seaman\Command;
 use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
 use Seaman\Exception\UnsupportedModeException;
-use Seaman\Service\ModeDetector;
+use Seaman\Service\Detector\ModeDetector;
 use Seaman\UI\Terminal;
-use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 

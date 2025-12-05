@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Generates Traefik labels for docker-compose services.
 // ABOUTME: Handles routing, TLS, and service port configuration.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Generator;
 
 use Seaman\Enum\Service;
 use Seaman\Enum\ServiceExposureType;

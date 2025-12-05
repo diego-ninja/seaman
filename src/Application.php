@@ -41,15 +41,15 @@ use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\Detector\ModeDetector;
+use Seaman\Service\Detector\PhpVersionDetector;
+use Seaman\Service\Detector\ProjectDetector;
+use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\ModeDetector;
-use Seaman\Service\PhpVersionDetector;
 use Seaman\Service\PortChecker;
-use Seaman\Service\ProjectDetector;
 use Seaman\Service\ProjectInitializer;
-use Seaman\Service\SymfonyDetector;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Symfony\Component\Console\Application as BaseApplication;
 use Symfony\Component\Console\Command\Command;
@@ -117,9 +117,9 @@ class Application extends BaseApplication
             new ExecuteComposerCommand(),
             new ExecuteConsoleCommand(),
             new ExecutePhpCommand(),
-            new DbDumpCommand($configManager, $dockerManager),
-            new DbRestoreCommand($configManager, $dockerManager),
-            new DbShellCommand($configManager, $dockerManager),
+            new DbDumpCommand($configManager, $dockerManager, $registry),
+            new DbRestoreCommand($configManager, $dockerManager, $registry),
+            new DbShellCommand($configManager, $dockerManager, $registry),
             new ProxyConfigureDnsCommand($registry),
             new ProxyEnableCommand($registry),
             new ProxyDisableCommand($registry),

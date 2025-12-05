@@ -890,21 +890,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Enum\OperatingMode;
-use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\ProjectInitializer;
-use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
-use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\ProxyConfig;
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Seaman\Enum\OperatingMode;use Seaman\Service\ConfigManager;use Seaman\Service\ConfigurationValidator;use Seaman\Service\Container\ServiceRegistry;use Seaman\Service\Generator\DockerComposeGenerator;use Seaman\Service\Generator\TraefikLabelGenerator;use Seaman\Service\ProjectInitializer;use Seaman\Service\TemplateRenderer;use Seaman\UI\Terminal;use Seaman\ValueObject\Configuration;use Seaman\ValueObject\ProxyConfig;use Symfony\Component\Console\Attribute\AsCommand;use Symfony\Component\Console\Command\Command;use Symfony\Component\Console\Input\InputInterface;use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'seaman:proxy:enable',
@@ -1085,20 +1071,7 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Enum\OperatingMode;
-use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
-use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\ProxyConfig;
-use Symfony\Component\Console\Attribute\AsCommand;
-use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
+use Seaman\Enum\OperatingMode;use Seaman\Service\ConfigManager;use Seaman\Service\ConfigurationValidator;use Seaman\Service\Container\ServiceRegistry;use Seaman\Service\Generator\DockerComposeGenerator;use Seaman\Service\Generator\TraefikLabelGenerator;use Seaman\Service\TemplateRenderer;use Seaman\UI\Terminal;use Seaman\ValueObject\Configuration;use Seaman\ValueObject\ProxyConfig;use Symfony\Component\Console\Attribute\AsCommand;use Symfony\Component\Console\Command\Command;use Symfony\Component\Console\Input\InputInterface;use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'seaman:proxy:disable',

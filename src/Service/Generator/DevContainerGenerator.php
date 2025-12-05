@@ -5,10 +5,11 @@ declare(strict_types=1);
 // ABOUTME: Generates DevContainer configuration files for VS Code.
 // ABOUTME: Builds dynamic extension list based on enabled services.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Generator;
 
 use Seaman\Enum\ProjectType;
-use Seaman\Enum\Service;
+use Seaman\Service\ConfigManager;
+use Seaman\Service\TemplateRenderer;
 use Seaman\ValueObject\Configuration;
 
 class DevContainerGenerator

@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Detects PHP version from project files.
 // ABOUTME: Supports detection from composer.json and other sources.
 
-namespace Seaman\Service;
+namespace Seaman\Service\Detector;
 
 use Seaman\Enum\PhpVersion;
 

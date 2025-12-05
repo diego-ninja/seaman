@@ -9,7 +9,7 @@ namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
-use Seaman\Service\TraefikLabelGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceConfig;
 

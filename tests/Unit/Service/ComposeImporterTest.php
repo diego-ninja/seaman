@@ -10,10 +10,9 @@ namespace Tests\Unit\Service;
 use PHPUnit\Framework\Attributes\Test;
 use Seaman\Enum\Service;
 use Seaman\Service\ComposeImporter;
-use Seaman\Service\ServiceDetector;
-use Seaman\ValueObject\DetectedService;
-use Seaman\ValueObject\RecognizedService;
+use Seaman\Service\Detector\ServiceDetector;
 use Seaman\Tests\TestCase;
+use Seaman\ValueObject\DetectedService;
 
 final class ComposeImporterTest extends TestCase
 {

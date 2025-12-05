@@ -7,11 +7,12 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class MongodbService extends AbstractService
+readonly class MongodbService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
@@ -78,6 +79,63 @@ readonly class MongodbService extends AbstractService
             'MONGO_USER' => $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
             'MONGO_PASSWORD' => $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
             'MONGO_DB' => $config->environmentVariables['MONGO_INITDB_DATABASE'] ?? 'seaman',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongodump',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
+            '--archive',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongorestore',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
+            '--archive',
+            '--drop',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongosh',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
         ];
     }
 }

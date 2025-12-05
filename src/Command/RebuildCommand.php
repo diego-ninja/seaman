@@ -8,28 +8,16 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\DozzleService;
-use Seaman\Service\Container\ElasticsearchService;
-use Seaman\Service\Container\MailpitService;
-use Seaman\Service\Container\MariadbService;
-use Seaman\Service\Container\MemcachedService;
-use Seaman\Service\Container\MinioService;
-use Seaman\Service\Container\MongodbService;
-use Seaman\Service\Container\MysqlService;
-use Seaman\Service\Container\PostgresqlService;
-use Seaman\Service\Container\RabbitmqService;
-use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerImageBuilder;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'seaman:rebuild',

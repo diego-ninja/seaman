@@ -10,16 +10,12 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DockerComposeGenerator;
-use Seaman\Service\DockerManager;
-use Seaman\Service\TemplateRenderer;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\multiselect;
 

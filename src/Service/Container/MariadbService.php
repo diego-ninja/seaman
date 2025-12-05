@@ -7,11 +7,12 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class MariadbService extends AbstractService
+readonly class MariadbService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
@@ -81,5 +82,45 @@ readonly class MariadbService extends AbstractService
             'DB_PASSWORD' => $config->environmentVariables['MARIADB_PASSWORD'] ?? 'seaman',
             'DB_ROOT_PASSWORD' => $config->environmentVariables['MARIADB_ROOT_PASSWORD'] ?? 'root',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mariadb-dump',
+            '-u',
+            $env['MARIADB_USER'] ?? 'root',
+            '-p' . ($env['MARIADB_PASSWORD'] ?? ''),
+            $env['MARIADB_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mariadb',
+            '-u',
+            $env['MARIADB_USER'] ?? 'root',
+            '-p' . ($env['MARIADB_PASSWORD'] ?? ''),
+            $env['MARIADB_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }

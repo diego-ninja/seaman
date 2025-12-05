@@ -10,7 +10,7 @@ use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DevContainerGenerator;
+use Seaman\Service\Generator\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;

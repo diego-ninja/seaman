@@ -9,8 +9,8 @@ namespace Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\ProjectType;
-use Seaman\Service\ProjectDetector;
-use Seaman\Service\SymfonyDetector;
+use Seaman\Service\Detector\ProjectDetector;
+use Seaman\Service\Detector\SymfonyDetector;
 
 final class ProjectDetectorTest extends TestCase
 {

@@ -12,13 +12,12 @@ use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DevContainerGenerator;
+use Seaman\Service\Generator\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 
