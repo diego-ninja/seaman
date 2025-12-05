@@ -104,6 +104,14 @@ class ProjectInitializer
     }
 
     /**
+     * Initialize Traefik configuration (public wrapper for command usage).
+     */
+    public function initializeTraefikPublic(Configuration $config, string $projectRoot): void
+    {
+        $this->initializeTraefik($config, $projectRoot);
+    }
+
+    /**
      * Initialize Traefik configuration and SSL certificates.
      */
     private function initializeTraefik(Configuration $config, string $projectRoot): void
