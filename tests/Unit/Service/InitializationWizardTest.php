@@ -115,9 +115,18 @@ test('get project name returns default when directory is not empty', function ()
     exec("rm -rf {$testDir}");
 });
 
-test('shouldUseProxy returns true by default', function () {
+test('shouldUseProxy method exists', function () {
     $detector = new PhpVersionDetector();
     $wizard = new InitializationWizard($detector);
 
-    expect(method_exists($wizard, 'shouldUseProxy'))->toBeTrue();
+    $reflection = new \ReflectionClass($wizard);
+    $method = $reflection->getMethod('shouldUseProxy');
+    $returnType = $method->getReturnType();
+
+    expect($method->isPublic())->toBeTrue();
+    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
+
+    if ($returnType instanceof \ReflectionNamedType) {
+        expect($returnType->getName())->toBe('bool');
+    }
 });
