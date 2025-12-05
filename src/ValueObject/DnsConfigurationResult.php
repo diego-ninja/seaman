@@ -19,5 +19,6 @@ final readonly class DnsConfigurationResult
         public ?string $configPath,
         public ?string $configContent,
         public array $instructions,
+        public ?string $restartCommand = null,
     ) {}
 }

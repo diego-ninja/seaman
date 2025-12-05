@@ -79,3 +79,31 @@ test('DnsConfigurationResult is immutable', function () {
     $reflection = new \ReflectionClass($result);
     expect($reflection->isReadOnly())->toBeTrue();
 });
+
+test('DnsConfigurationResult has restartCommand property', function () {
+    $result = new DnsConfigurationResult(
+        type: 'dnsmasq',
+        automatic: true,
+        requiresSudo: true,
+        configPath: '/etc/dnsmasq.d/test.conf',
+        configContent: 'address=/.test.local/127.0.0.1',
+        instructions: [],
+        restartCommand: 'sudo systemctl restart dnsmasq',
+    );
+
+    expect($result->restartCommand)->toBe('sudo systemctl restart dnsmasq');
+});
+
+test('DnsConfigurationResult restartCommand can be null', function () {
+    $result = new DnsConfigurationResult(
+        type: 'macos-resolver',
+        automatic: true,
+        requiresSudo: true,
+        configPath: '/etc/resolver/test.local',
+        configContent: 'nameserver 127.0.0.1',
+        instructions: [],
+        restartCommand: null,
+    );
+
+    expect($result->restartCommand)->toBeNull();
+});
