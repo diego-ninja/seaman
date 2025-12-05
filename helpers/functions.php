@@ -1,8 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 use Seaman\Exception\BinaryNotFoundException;
 use Seaman\UI\Widget\Box\Box;
 use Symfony\Component\Process\Process;
+use function Laravel\Prompts\confirm;
 
 if (!function_exists('Seaman\is_seaman')) {
     /**
@@ -137,6 +140,44 @@ if (!function_exists('Seaman\box')) {
         new Box($title, $message, $footer, $color, $info)->display();
     }
 }
+
+if (!function_exists('Seaman\summary')) {
+    /**
+     * Display a summary box with styled key-value pairs.
+     *
+     * @param string $title The title displayed in the top border
+     * @param string $icon The icon displayed before the title
+     * @param array<string, string|int> $data Key-value pairs to display
+     * @param string $color Border color (gray, cyan, yellow, red, green)
+     * @param string|null $question
+     * @return bool|null
+     */
+    function summary(
+        string $title,
+        string $icon,
+        array $data,
+        string $color = 'cyan',
+        ?string $question = null,
+    ): ?bool {
+        $lines = "\n";
+        foreach ($data as $key => $value) {
+            $lines .= sprintf("🔹<fg=cyan>%s</>: %s\n", $key, $value);
+        }
+
+        box(
+            title: Seaman\UI\Terminal::render(sprintf('<fg=%s>%s</> %s', $color, $icon, $title)) ?? $title,
+            message: Seaman\UI\Terminal::render($lines) ?? $lines,
+            color: $color,
+        );
+
+        if ($question !== null) {
+            return confirm($question);
+        }
+
+        return null;
+    }
+}
+
 if (!function_exists('Seaman\base_path')) {
     function base_path(?string $dir = null): string
     {
@@ -144,5 +185,3 @@ if (!function_exists('Seaman\base_path')) {
         return $dir ? sprintf("%s/%s", $base_path, $dir) : $base_path;
     }
 }
-
-

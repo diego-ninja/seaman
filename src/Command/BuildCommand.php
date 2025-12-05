@@ -23,7 +23,7 @@ use Symfony\Component\Process\Process;
     name: 'seaman:build',
     description: 'Build PHAR executable using Box',
     aliases: ['build'],
-    hidden: true
+    hidden: true,
 )]
 class BuildCommand extends ModeAwareCommand implements Decorable
 {

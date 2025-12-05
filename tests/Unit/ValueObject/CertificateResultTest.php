@@ -14,7 +14,7 @@ test('creates CertificateResult with all properties', function () {
         type: 'mkcert',
         certPath: '.seaman/certs/cert.pem',
         keyPath: '.seaman/certs/key.pem',
-        trusted: true
+        trusted: true,
     );
 
     expect($result->type)->toBe('mkcert')
@@ -28,7 +28,7 @@ test('creates self-signed CertificateResult', function () {
         type: 'self-signed',
         certPath: '.seaman/certs/cert.pem',
         keyPath: '.seaman/certs/key.pem',
-        trusted: false
+        trusted: false,
     );
 
     expect($result->type)->toBe('self-signed')
@@ -42,7 +42,7 @@ test('CertificateResult is immutable', function () {
         type: 'mkcert',
         certPath: '.seaman/certs/cert.pem',
         keyPath: '.seaman/certs/key.pem',
-        trusted: true
+        trusted: true,
     );
 
     $reflection = new \ReflectionClass($result);

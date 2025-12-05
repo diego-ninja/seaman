@@ -25,7 +25,7 @@ final class UnsupportedModeException extends RuntimeException
         $message = sprintf(
             'Command "%s" is not supported in %s mode.',
             $commandName,
-            $mode->label()
+            $mode->label(),
         );
 
         return new self($message, $commandName, $mode);

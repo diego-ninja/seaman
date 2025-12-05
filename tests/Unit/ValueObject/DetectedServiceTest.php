@@ -14,7 +14,7 @@ test('creates detected service with high confidence', function () {
     $detected = new DetectedService(
         type: Service::PostgreSQL,
         version: '16',
-        confidence: 'high'
+        confidence: 'high',
     );
 
     expect($detected->type)->toBe(Service::PostgreSQL)
@@ -26,7 +26,7 @@ test('creates detected service with medium confidence', function () {
     $detected = new DetectedService(
         type: Service::Redis,
         version: '7-alpine',
-        confidence: 'medium'
+        confidence: 'medium',
     );
 
     expect($detected->confidence)->toBe('medium');

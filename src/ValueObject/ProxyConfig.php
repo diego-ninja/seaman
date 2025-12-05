@@ -25,7 +25,20 @@ final readonly class ProxyConfig
             enabled: true,
             domainPrefix: $projectName,
             certResolver: 'selfsigned',
-            dashboard: true
+            dashboard: true,
+        );
+    }
+
+    /**
+     * Create disabled proxy configuration.
+     */
+    public static function disabled(): self
+    {
+        return new self(
+            enabled: false,
+            domainPrefix: '',
+            certResolver: '',
+            dashboard: false,
         );
     }
 

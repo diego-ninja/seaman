@@ -23,5 +23,6 @@ final readonly class InitializationChoices
         public array $services,
         public XdebugConfig $xdebug,
         public bool $generateDevContainer,
+        public bool $useProxy = true,
     ) {}
 }

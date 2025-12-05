@@ -14,7 +14,7 @@ test('creates ProxyConfig with all properties', function () {
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     expect($config->enabled)->toBeTrue()
@@ -37,7 +37,7 @@ test('generates correct domain with default subdomain', function () {
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'selfsigned',
-        dashboard: true
+        dashboard: true,
     );
 
     expect($config->getDomain())->toBe('app.myproject.local');
@@ -48,7 +48,7 @@ test('generates correct domain with custom subdomain', function () {
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'selfsigned',
-        dashboard: true
+        dashboard: true,
     );
 
     expect($config->getDomain('api'))->toBe('api.myproject.local')
@@ -61,9 +61,18 @@ test('ProxyConfig is immutable', function () {
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'selfsigned',
-        dashboard: true
+        dashboard: true,
     );
 
     $reflection = new \ReflectionClass($config);
     expect($reflection->isReadOnly())->toBeTrue();
+});
+
+test('creates disabled ProxyConfig', function () {
+    $config = ProxyConfig::disabled();
+
+    expect($config->enabled)->toBeFalse()
+        ->and($config->domainPrefix)->toBe('')
+        ->and($config->certResolver)->toBe('')
+        ->and($config->dashboard)->toBeFalse();
 });

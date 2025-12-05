@@ -26,7 +26,7 @@ final class PortConflictException extends RuntimeException
             'Port %d required by service "%s" is already in use by "%s".',
             $port,
             $service,
-            $conflictingProcess
+            $conflictingProcess,
         );
 
         return new self($message, $port, $service, $conflictingProcess);

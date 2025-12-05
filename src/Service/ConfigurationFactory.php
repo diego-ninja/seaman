@@ -13,6 +13,7 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -32,6 +33,10 @@ class ConfigurationFactory
         $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services);
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
 
+        $proxy = $choices->useProxy
+            ? ProxyConfig::default($choices->projectName)
+            : ProxyConfig::disabled();
+
         return new Configuration(
             projectName: $choices->projectName,
             version: '1.0',
@@ -39,6 +44,7 @@ class ConfigurationFactory
             services: new ServiceCollection($serviceConfigs),
             volumes: new VolumeConfig($persistVolumes),
             projectType: $projectType,
+            proxy: $proxy,
         );
     }
 

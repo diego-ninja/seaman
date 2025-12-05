@@ -14,21 +14,27 @@ services:
     environment:
       - XDEBUG_MODE=${XDEBUG_MODE:-off}
       - PHP_IDE_CONFIG=serverName=seaman
+{% if not proxy_enabled %}
+    ports:
+      - "${APP_PORT:-80}:80"
+{% endif %}
 {% if services.enabled|length > 0 %}
     depends_on:
 {% for name, service in services.enabled %}
       - {{ name }}
 {% endfor %}
 {% endif %}
+{% if proxy_enabled and app_labels|length > 0 %}
     labels:
 {% for label in app_labels %}
       - "{{ label }}"
 {% endfor %}
+{% endif %}
     networks:
       - seaman
 
 {% for name, service in services.enabled %}
-{% include 'docker/services/' ~ service.config.type.value ~ '.twig' with { name: name, service: service.config, labels: service.labels } %}
+{% include 'docker/services/' ~ service.config.type.value ~ '.twig' with { name: name, service: service.config, labels: service.labels, proxy_enabled: proxy_enabled, project_name: project_name } %}
 
 {% endfor %}
 networks:
