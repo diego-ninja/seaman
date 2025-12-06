@@ -55,7 +55,12 @@ readonly class MemcachedService extends AbstractService
 
     public function getHealthCheck(): ?HealthCheck
     {
-        return null;
+        return new HealthCheck(
+            test: ['CMD-SHELL', 'echo version | nc -w 1 localhost 11211 | grep -q VERSION'],
+            interval: '10s',
+            timeout: '5s',
+            retries: 5,
+        );
     }
 
     /**

@@ -60,10 +60,10 @@ readonly class MailpitService extends AbstractService
     public function getHealthCheck(): ?HealthCheck
     {
         return new HealthCheck(
-            test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8025/'],
+            test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8025/livez'],
             interval: '10s',
             timeout: '5s',
-            retries: 3,
+            retries: 5,
         );
     }
 

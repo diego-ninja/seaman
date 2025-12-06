@@ -32,6 +32,12 @@ services:
 {% endif %}
     networks:
       - seaman
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
 {% for name, service in services.enabled %}
 {% include 'docker/services/' ~ service.config.type.value ~ '.twig' with { name: name, service: service.config, labels: service.labels, proxy_enabled: proxy_enabled, project_name: project_name } %}

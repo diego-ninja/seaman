@@ -29,4 +29,8 @@
       - seaman
     environment:
       - PROJECT_NAME={{ project_name }}
-
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

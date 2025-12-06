@@ -74,7 +74,12 @@ readonly class TraefikService extends AbstractService
 
     public function getHealthCheck(): ?HealthCheck
     {
-        return null; // Traefik doesn't need a health check
+        return new HealthCheck(
+            test: ['CMD', 'traefik', 'healthcheck'],
+            interval: '10s',
+            timeout: '5s',
+            retries: 5,
+        );
     }
 
     /**

@@ -24,16 +24,20 @@ readonly class KafkaService extends AbstractService
             name: $this->getType()->value,
             enabled: false,
             type: $this->getType(),
-            version: '3.7',
+            version: 'latest',
             port: $this->getType()->port(),
             additionalPorts: [],
             environmentVariables: [
-                'KAFKA_CFG_NODE_ID' => '0',
-                'KAFKA_CFG_PROCESS_ROLES' => 'controller,broker',
-                'KAFKA_CFG_LISTENERS' => 'PLAINTEXT://:9092,CONTROLLER://:9093',
-                'KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP' => 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT',
-                'KAFKA_CFG_CONTROLLER_QUORUM_VOTERS' => '0@kafka:9093',
-                'KAFKA_CFG_CONTROLLER_LISTENER_NAMES' => 'CONTROLLER',
+                'KAFKA_NODE_ID' => '1',
+                'KAFKA_PROCESS_ROLES' => 'broker,controller',
+                'KAFKA_LISTENERS' => 'PLAINTEXT://:9092,CONTROLLER://:9093',
+                'KAFKA_ADVERTISED_LISTENERS' => 'PLAINTEXT://kafka:9092',
+                'KAFKA_LISTENER_SECURITY_PROTOCOL_MAP' => 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT',
+                'KAFKA_CONTROLLER_QUORUM_VOTERS' => '1@kafka:9093',
+                'KAFKA_CONTROLLER_LISTENER_NAMES' => 'CONTROLLER',
+                'KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR' => '1',
+                'KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR' => '1',
+                'KAFKA_TRANSACTION_STATE_LOG_MIN_ISR' => '1',
             ],
         );
     }
@@ -44,10 +48,10 @@ readonly class KafkaService extends AbstractService
     public function generateComposeConfig(ServiceConfig $config): array
     {
         $composeConfig = [
-            'image' => 'bitnami/kafka:' . $config->version,
+            'image' => 'apache/kafka:' . $config->version,
             'environment' => $config->environmentVariables,
             'ports' => [$config->port . ':9092'],
-            'volumes' => ['kafka_data:/bitnami/kafka'],
+            'volumes' => ['kafka_data:/var/lib/kafka/data'],
         ];
 
         return $this->addHealthCheckToConfig($composeConfig);
@@ -64,7 +68,7 @@ readonly class KafkaService extends AbstractService
     public function getHealthCheck(): ?HealthCheck
     {
         return new HealthCheck(
-            test: ['CMD-SHELL', 'kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1'],
+            test: ['CMD-SHELL', '/opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1'],
             interval: '10s',
             timeout: '10s',
             retries: 5,

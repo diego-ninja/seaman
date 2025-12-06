@@ -1,13 +1,17 @@
   {{ name }}:
-    image: bitnami/kafka:{{ service.version }}
+    image: apache/kafka:{{ service.version }}
     container_name: seaman-{{ name }}
     environment:
-      - KAFKA_CFG_NODE_ID=${KAFKA_NODE_ID:-0}
-      - KAFKA_CFG_PROCESS_ROLES=${KAFKA_PROCESS_ROLES:-controller,broker}
-      - KAFKA_CFG_LISTENERS=${KAFKA_LISTENERS:-PLAINTEXT://:9092,CONTROLLER://:9093}
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:-CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT}
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=${KAFKA_CONTROLLER_QUORUM_VOTERS:-0@kafka:9093}
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=${KAFKA_CONTROLLER_LISTENER_NAMES:-CONTROLLER}
+      - KAFKA_NODE_ID=${KAFKA_NODE_ID:-1}
+      - KAFKA_PROCESS_ROLES=${KAFKA_PROCESS_ROLES:-broker,controller}
+      - KAFKA_LISTENERS=${KAFKA_LISTENERS:-PLAINTEXT://:9092,CONTROLLER://:9093}
+      - KAFKA_ADVERTISED_LISTENERS=${KAFKA_ADVERTISED_LISTENERS:-PLAINTEXT://kafka:9092}
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=${KAFKA_LISTENER_SECURITY_PROTOCOL_MAP:-CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT}
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=${KAFKA_CONTROLLER_QUORUM_VOTERS:-1@kafka:9093}
+      - KAFKA_CONTROLLER_LISTENER_NAMES=${KAFKA_CONTROLLER_LISTENER_NAMES:-CONTROLLER}
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=${KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=${KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR:-1}
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=${KAFKA_TRANSACTION_STATE_LOG_MIN_ISR:-1}
     ports:
       - "${KAFKA_PORT}:9092"
 {% if labels is defined and labels|length > 0 %}
@@ -20,10 +24,10 @@
       - seaman
 {% if volumes.shouldPersist(name) %}
     volumes:
-      - {{ name }}:/bitnami/kafka
+      - {{ name }}:/var/lib/kafka/data
 {% endif %}
     healthcheck:
-      test: ["CMD-SHELL", "kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1"]
       interval: 10s
       timeout: 10s
       retries: 5
