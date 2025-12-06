@@ -2,100 +2,103 @@
 
 ## Existing Symfony Project
 
-If you already have a Symfony project, navigate to its directory and initialize Seaman:
-
 ```bash
 cd your-symfony-project
 seaman init
+seaman start
 ```
 
-Seaman will detect your Symfony project and guide you through an interactive setup:
+The interactive wizard will ask about:
+- Database (PostgreSQL, MySQL, MariaDB, MongoDB, SQLite, or none)
+- Cache (Redis, Valkey, Memcached, or none)
+- Additional services (Mailpit, Elasticsearch, RabbitMQ, etc.)
+- Xdebug settings
 
-1. **Project Type Detection**: Automatically identifies if you have a Web App, API Platform, Microservice, or Skeleton
-2. **PHP Version**: Auto-detected from your `composer.json`
-3. **Database Selection**: Choose PostgreSQL, MySQL, MariaDB, MongoDB, or none
-4. **Additional Services**: Select Redis, Mailpit, Elasticsearch, RabbitMQ, etc.
-5. **Xdebug Configuration**: Choose IDE key and settings
-6. **DevContainer**: Optionally generate VS Code DevContainer configuration
-
-### What Gets Created
-
-After initialization, Seaman creates:
-
-- `.seaman/seaman.yaml` - Main configuration file
-- `docker-compose.yml` - Generated Docker Compose file
-- `.seaman/Dockerfile` - PHP container Dockerfile
-- `.env` - Environment variables (if doesn't exist)
-- `scripts/xdebug-toggle.sh` - Xdebug toggle script
+Your app will be available at http://localhost:8000
 
 ## New Symfony Project
-
-To create a new Symfony project with Seaman:
 
 ```bash
 mkdir my-project && cd my-project
 seaman init
 ```
 
-Since no Symfony project is detected, Seaman will:
+When no Symfony project is detected, Seaman offers to create one using Symfony CLI.
 
-1. Offer to create a new Symfony project using the Symfony CLI
-2. Ask you to select a project type:
-   - **Web Application**: Full-stack with Twig, Doctrine, Security, Forms
-   - **API Platform**: API-first with API Platform bundle
-   - **Microservice**: Minimal framework setup
-   - **Skeleton**: Bare minimum Symfony
-3. Guide you through the rest of the setup process
+Choose a project type:
+- **Web Application** — Full-stack with Twig, Doctrine, Security, Forms
+- **API Platform** — API-first with API Platform bundle
+- **Microservice** — Minimal framework setup
+- **Skeleton** — Bare minimum Symfony
 
-> **Note**: Requires Symfony CLI to be installed. Install it from [symfony.com/download](https://symfony.com/download)
+> Requires [Symfony CLI](https://symfony.com/download) for project creation.
 
-## Starting Your Environment
+## Generated Files
 
-Once initialized, start your Docker environment:
+After `seaman init`:
 
-```bash
-seaman start
+```
+your-project/
+├── .seaman/
+│   ├── seaman.yaml      # Configuration (edit this)
+│   ├── Dockerfile       # PHP container
+│   └── scripts/
+│       └── xdebug-toggle.sh
+├── docker-compose.yml   # Generated (regenerated on changes)
+├── .env                 # Environment variables
+└── ... your code ...
 ```
 
-This will:
-- Start all configured services (app, database, cache, etc.)
-- Show startup progress with spinners
-- Display service URLs and ports
-- Confirm when environment is ready
+Edit `.seaman/seaman.yaml` to change configuration, then run `seaman rebuild` to regenerate Docker files.
 
-Your Symfony application will be available at `http://localhost`
-
-## Stopping Your Environment
-
-Stop all services:
+## Basic Commands
 
 ```bash
-seaman stop
+seaman start             # Start all services
+seaman stop              # Stop all services
+seaman restart           # Restart all services
+seaman status            # Show service status
 ```
 
-Or stop a specific service:
+## Running Commands in Containers
 
 ```bash
-seaman stop postgresql
+seaman console <cmd>     # Symfony console
+seaman composer <cmd>    # Composer
+seaman php <cmd>         # PHP CLI
+seaman shell             # Bash shell in app container
 ```
 
-## Checking Status
+Examples:
+```bash
+seaman console cache:clear
+seaman console make:controller UserController
+seaman composer require symfony/validator
+seaman php -v
+```
 
-View the status of all services:
+## Database Access
 
 ```bash
-seaman status
+seaman db:shell                    # Open database CLI
+seaman db:dump                     # Backup database
+seaman db:dump --output=backup.sql # Custom filename
+seaman db:restore backup.sql       # Restore backup
 ```
 
-Shows:
-- Service name and status (running/stopped)
-- Health status
-- Exposed ports
-- Container uptime
+## Xdebug
+
+```bash
+seaman xdebug on    # Enable
+seaman xdebug off   # Disable
+```
+
+Configure your IDE to listen on port 9003 with IDE key `PHPSTORM` (or your configured key).
 
 ## Next Steps
 
-- [Configure services](services.md) - Add or remove services
-- [Learn commands](commands.md) - Explore available commands
-- [Configure Xdebug](configuration.md#xdebug) - Set up debugging
-- [Use DevContainers](devcontainers.md) - VS Code integration
+- [Quickstart](quickstart.md) — Complete walkthrough
+- [Commands](commands.md) — All commands
+- [Services](services.md) — Add databases, caches, tools
+- [Configuration](configuration.md) — The seaman.yaml format
+- [Troubleshooting](troubleshooting.md) — Common issues
