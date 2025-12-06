@@ -1,0 +1,27 @@
+  {{ name }}:
+    image: opensearchproject/opensearch:{{ service.version }}
+    container_name: seaman-{{ name }}
+    environment:
+      - discovery.type=single-node
+      - DISABLE_SECURITY_PLUGIN=${OPENSEARCH_DISABLE_SECURITY:-true}
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_PASSWORD:-Admin123!}
+    ports:
+      - "${OPENSEARCH_PORT}:9200"
+      - "${OPENSEARCH_PERFORMANCE_PORT:-9600}:9600"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
+    networks:
+      - seaman
+{% if volumes.shouldPersist(name) %}
+    volumes:
+      - {{ name }}:/usr/share/opensearch/data
+{% endif %}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q -E 'green|yellow'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

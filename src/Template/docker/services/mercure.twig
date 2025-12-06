@@ -1,0 +1,23 @@
+  {{ name }}:
+    image: dunglas/mercure:{{ service.version }}
+    container_name: seaman-{{ name }}
+    environment:
+      - SERVER_NAME=${MERCURE_SERVER_NAME:-:3000}
+      - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      - MERCURE_SUBSCRIBER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
+      - MERCURE_EXTRA_DIRECTIVES=${MERCURE_EXTRA_DIRECTIVES:-anonymous; cors_origins *}
+    ports:
+      - "${MERCURE_PORT}:3000"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
+    networks:
+      - seaman
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/.well-known/mercure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
