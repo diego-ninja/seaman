@@ -1,6 +1,6 @@
   {{ name }}:
     image: dunglas/mercure:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - SERVER_NAME=${MERCURE_SERVER_NAME:-:3000}
       - MERCURE_PUBLISHER_JWT_KEY=${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}

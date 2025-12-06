@@ -1,5 +1,5 @@
   {{ name }}:
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     image: amir20/dozzle:{{ service.version }}
 {% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:

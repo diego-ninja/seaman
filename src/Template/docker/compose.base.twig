@@ -1,7 +1,7 @@
 services:
   app:
     image: seaman/seaman-php{{ php_version }}:latest
-    container_name: seaman-app
+    container_name: seaman-{{ project_name }}-app
     build:
       context: .
       dockerfile: .seaman/Dockerfile

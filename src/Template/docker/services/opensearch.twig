@@ -1,6 +1,6 @@
   {{ name }}:
     image: opensearchproject/opensearch:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - discovery.type=single-node
       - DISABLE_SECURITY_PLUGIN=${OPENSEARCH_DISABLE_SECURITY:-true}

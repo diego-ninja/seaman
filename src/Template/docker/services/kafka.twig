@@ -1,6 +1,6 @@
   {{ name }}:
     image: apache/kafka:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - KAFKA_NODE_ID=${KAFKA_NODE_ID:-1}
       - KAFKA_PROCESS_ROLES=${KAFKA_PROCESS_ROLES:-broker,controller}

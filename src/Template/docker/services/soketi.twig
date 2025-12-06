@@ -1,6 +1,6 @@
   {{ name }}:
     image: quay.io/soketi/soketi:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - SOKETI_DEBUG=${SOKETI_DEBUG:-1}
       - SOKETI_DEFAULT_APP_ID=${PUSHER_APP_ID:-app-id}

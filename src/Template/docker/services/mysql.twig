@@ -1,6 +1,6 @@
   {{ name }}:
     image: mysql:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
       - MYSQL_DATABASE=${DB_NAME:-seaman}

@@ -1,6 +1,6 @@
   {{ name }}:
     image: redis:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "${REDIS_PORT}:6379"
 {% if labels is defined and labels|length > 0 %}

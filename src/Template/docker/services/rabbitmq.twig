@@ -1,6 +1,6 @@
   {{ name }}:
     image: rabbitmq:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-seaman}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-secret}

@@ -1,6 +1,6 @@
   {{ name }}:
     image: elasticsearch:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false

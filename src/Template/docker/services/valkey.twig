@@ -1,6 +1,6 @@
   {{ name }}:
     image: valkey/valkey:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "${VALKEY_PORT}:6379"
 {% if labels is defined and labels|length > 0 %}

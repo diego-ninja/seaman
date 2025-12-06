@@ -1,6 +1,6 @@
   {{ name }}:
     image: traefik:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "80:80"
       - "443:443"
