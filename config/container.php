@@ -14,6 +14,7 @@ use Seaman\Command\DestroyCommand;
 use Seaman\Command\DevContainerGenerateCommand;
 use Seaman\Command\ExecuteCommand;
 use Seaman\Command\InitCommand;
+use Seaman\Command\InspectCommand;
 use Seaman\Command\LogsCommand;
 use Seaman\Command\ProxyConfigureDnsCommand;
 use Seaman\Command\ProxyDisableCommand;
@@ -275,6 +276,13 @@ return function (ContainerBuilder $builder): void {
         ProxyDisableCommand::class => factory(
             fn(ContainerInterface $c): ProxyDisableCommand => new ProxyDisableCommand(
                 $c->get(ConfigManager::class),
+            ),
+        ),
+
+        InspectCommand::class => factory(
+            fn(ContainerInterface $c): InspectCommand => new InspectCommand(
+                $c->get(ConfigManager::class),
+                $c->get(DockerManager::class),
             ),
         ),
     ]);

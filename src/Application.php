@@ -18,6 +18,7 @@ use Seaman\Command\DestroyCommand;
 use Seaman\Command\DevContainerGenerateCommand;
 use Seaman\Command\ExecuteCommand;
 use Seaman\Command\InitCommand;
+use Seaman\Command\InspectCommand;
 use Seaman\Command\LogsCommand;
 use Seaman\Command\ProxyConfigureDnsCommand;
 use Seaman\Command\ProxyDisableCommand;
@@ -122,6 +123,7 @@ class Application extends BaseApplication
             $container->get(ProxyConfigureDnsCommand::class),
             $container->get(ProxyEnableCommand::class),
             $container->get(ProxyDisableCommand::class),
+            $container->get(InspectCommand::class),
         ];
 
         // Only register build command when not running from PHAR
