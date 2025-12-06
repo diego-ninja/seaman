@@ -7,6 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman;
 
+use DI\Container;
+use DI\ContainerBuilder;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
 use Seaman\Command\Database\DbDumpCommand;
@@ -14,9 +16,7 @@ use Seaman\Command\Database\DbRestoreCommand;
 use Seaman\Command\Database\DbShellCommand;
 use Seaman\Command\DestroyCommand;
 use Seaman\Command\DevContainerGenerateCommand;
-use Seaman\Command\ExecuteComposerCommand;
-use Seaman\Command\ExecuteConsoleCommand;
-use Seaman\Command\ExecutePhpCommand;
+use Seaman\Command\ExecuteCommand;
 use Seaman\Command\InitCommand;
 use Seaman\Command\LogsCommand;
 use Seaman\Command\ProxyConfigureDnsCommand;
@@ -37,20 +37,7 @@ use Seaman\Enum\OperatingMode;
 use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Exception\CommandNotAvailableException;
-use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationFactory;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\Detector\ModeDetector;
-use Seaman\Service\Detector\PhpVersionDetector;
-use Seaman\Service\Detector\ProjectDetector;
-use Seaman\Service\Detector\SymfonyDetector;
-use Seaman\Service\DockerManager;
-use Seaman\Service\InitializationSummary;
-use Seaman\Service\InitializationWizard;
-use Seaman\Service\PortChecker;
-use Seaman\Service\ProjectInitializer;
-use Seaman\Service\SymfonyProjectBootstrapper;
 use Symfony\Component\Console\Application as BaseApplication;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -83,46 +70,58 @@ class Application extends BaseApplication
         $this->eventDispatcher = $this->createEventDispatcher();
         $this->setDispatcher($this->eventDispatcher);
 
-        $registry = ServiceRegistry::create();
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $registry, $validator);
+        $container = $this->buildContainer();
+        $commands = $this->resolveCommands($container);
 
-        $dockerManager = new DockerManager($projectRoot);
+        $this->addCommands($commands);
+    }
 
-        $phpVersionDetector = new PhpVersionDetector();
+    private function buildContainer(): Container
+    {
+        $builder = new ContainerBuilder();
 
+        $configFile = __DIR__ . '/../config/container.php';
+        if (!file_exists($configFile)) {
+            throw new RuntimeException('Container configuration file not found: ' . $configFile);
+        }
+
+        /** @var callable(ContainerBuilder<Container>): void $configurator */
+        $configurator = require $configFile;
+        $configurator($builder);
+
+        return $builder->build();
+    }
+
+    /**
+     * @return list<Command>
+     */
+    private function resolveCommands(Container $container): array
+    {
+        /** @var list<Command> $commands */
         $commands = [
-            new ServiceListCommand($configManager, $registry),
-            new ServiceAddCommand($configManager, $registry),
-            new ServiceRemoveCommand($configManager, $registry),
-            new InitCommand(
-                new SymfonyDetector(),
-                new ProjectDetector(new SymfonyDetector()),
-                new SymfonyProjectBootstrapper(),
-                new ConfigurationFactory($registry),
-                new InitializationSummary(),
-                new InitializationWizard($phpVersionDetector),
-                new ProjectInitializer($registry),
-            ),
-            new DevContainerGenerateCommand($registry),
-            new StartCommand(new PortChecker(), $configManager),
-            new StopCommand(),
-            new RestartCommand(),
-            new StatusCommand(),
-            new RebuildCommand(),
-            new DestroyCommand($registry),
-            new ShellCommand(),
-            new LogsCommand(),
-            new XdebugCommand(),
-            new ExecuteComposerCommand(),
-            new ExecuteConsoleCommand(),
-            new ExecutePhpCommand(),
-            new DbDumpCommand($configManager, $dockerManager, $registry),
-            new DbRestoreCommand($configManager, $dockerManager, $registry),
-            new DbShellCommand($configManager, $dockerManager, $registry),
-            new ProxyConfigureDnsCommand($registry),
-            new ProxyEnableCommand($registry),
-            new ProxyDisableCommand($registry),
+            $container->get(ServiceListCommand::class),
+            $container->get(ServiceAddCommand::class),
+            $container->get(ServiceRemoveCommand::class),
+            $container->get(InitCommand::class),
+            $container->get(DevContainerGenerateCommand::class),
+            $container->get(StartCommand::class),
+            $container->get(StopCommand::class),
+            $container->get(RestartCommand::class),
+            $container->get(StatusCommand::class),
+            $container->get(RebuildCommand::class),
+            $container->get(DestroyCommand::class),
+            $container->get(ShellCommand::class),
+            $container->get(LogsCommand::class),
+            $container->get(XdebugCommand::class),
+            $container->get(ExecuteCommand::class . '.composer'),
+            $container->get(ExecuteCommand::class . '.console'),
+            $container->get(ExecuteCommand::class . '.php'),
+            $container->get(DbDumpCommand::class),
+            $container->get(DbRestoreCommand::class),
+            $container->get(DbShellCommand::class),
+            $container->get(ProxyConfigureDnsCommand::class),
+            $container->get(ProxyEnableCommand::class),
+            $container->get(ProxyDisableCommand::class),
         ];
 
         // Only register build command when not running from PHAR
@@ -130,7 +129,7 @@ class Application extends BaseApplication
             $commands[] = new BuildCommand();
         }
 
-        $this->addCommands($commands);
+        return $commands;
     }
 
     private function buildApplicationName(): string

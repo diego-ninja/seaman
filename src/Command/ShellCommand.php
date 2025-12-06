@@ -23,6 +23,12 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class ShellCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Service name', 'app');
@@ -38,8 +44,7 @@ class ShellCommand extends ModeAwareCommand implements Decorable
         /** @var string $service */
         $service = $input->getArgument('service');
 
-        $manager = new DockerManager((string) getcwd());
-        $exitCode = $manager->executeInteractive($service, ['fish']);
+        $exitCode = $this->dockerManager->executeInteractive($service, ['fish']);
 
         if ($exitCode !== 0) {
             Terminal::error("Failed to open shell in {$service}. Process exited with code: {$exitCode}");

@@ -25,6 +25,12 @@ use function Laravel\Prompts\table;
 )]
 class StatusCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
@@ -35,8 +41,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $manager = new DockerManager((string) getcwd());
-        $services = $manager->status();
+        $services = $this->dockerManager->status();
 
         if (empty($services)) {
             Terminal::output()->writeln('  No services are running or defined.');

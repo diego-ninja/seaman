@@ -14,6 +14,7 @@ use Seaman\Service\TemplateRenderer;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Command\Command;
+
 use function Laravel\Prompts\confirm;
 
 abstract class AbstractServiceCommand extends ModeAwareCommand

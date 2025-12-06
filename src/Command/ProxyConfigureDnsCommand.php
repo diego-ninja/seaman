@@ -11,8 +11,6 @@ use Exception;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Terminal;
@@ -27,13 +25,13 @@ use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'proxy:configure-dns',
-    description: 'Configure DNS for Traefik local domains (requires init)',
-    aliases: ['configure-dns'],
+    description: 'Configure DNS for Traefik local domains',
+    aliases: ['dns'],
 )]
 class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
     ) {
         parent::__construct();
     }
@@ -45,14 +43,8 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $projectRoot = (string) getcwd();
-
-        // Load configuration to get project name
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
-
         try {
-            $config = $configManager->load();
+            $config = $this->configManager->load();
         } catch (Exception $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             Terminal::output()->writeln('  Run \'seaman init\' first to initialize the project.');

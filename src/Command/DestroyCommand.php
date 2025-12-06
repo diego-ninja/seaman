@@ -9,8 +9,6 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -29,7 +27,8 @@ use function Laravel\Prompts\info;
 class DestroyCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
+        private readonly DockerManager $dockerManager,
     ) {
         parent::__construct();
     }
@@ -46,8 +45,7 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        $manager = new DockerManager((string) getcwd());
-        $result = $manager->destroy();
+        $result = $this->dockerManager->destroy();
 
         if (!$result->isSuccessful()) {
             Terminal::error('Failed to destroy services');
@@ -65,14 +63,8 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
 
     private function cleanupDns(): void
     {
-        $projectRoot = (string) getcwd();
-
-        // Load configuration to get project name
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
-
         try {
-            $config = $configManager->load();
+            $config = $this->configManager->load();
         } catch (\Exception $e) {
             info('No DNS configuration found to clean up.');
             return;

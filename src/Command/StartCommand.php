@@ -29,6 +29,7 @@ class StartCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly PortChecker $portChecker,
         private readonly ConfigManager $configManager,
+        private readonly DockerManager $dockerManager,
     ) {
         parent::__construct();
     }
@@ -49,12 +50,9 @@ class StartCommand extends ModeAwareCommand implements Decorable
         /** @var ?string $service */
         $service = $input->getArgument('service');
 
-        $projectRoot = (string) getcwd();
-        $manager = new DockerManager($projectRoot);
-
         // Check for port conflicts before starting
         try {
-            $this->checkPortConflicts($projectRoot);
+            $this->checkPortConflicts();
         } catch (PortConflictException $e) {
             Terminal::error($e->getMessage());
             Terminal::output()->writeln('');
@@ -66,7 +64,7 @@ class StartCommand extends ModeAwareCommand implements Decorable
         }
 
         try {
-            $result = $manager->start($service);
+            $result = $this->dockerManager->start($service);
         } catch (\Exception $e) {
             Terminal::output()->writeln($e->getMessage());
             return Command::FAILURE;
@@ -83,9 +81,10 @@ class StartCommand extends ModeAwareCommand implements Decorable
     /**
      * @throws PortConflictException
      */
-    private function checkPortConflicts(string $projectRoot): void
+    private function checkPortConflicts(): void
     {
         // Only check ports if seaman.yaml exists (managed mode)
+        $projectRoot = (string) getcwd();
         if (!file_exists($projectRoot . '/.seaman/seaman.yaml')) {
             return;
         }

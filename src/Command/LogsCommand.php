@@ -25,6 +25,12 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class LogsCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this
@@ -42,7 +48,6 @@ class LogsCommand extends ModeAwareCommand implements Decorable
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $projectRoot = (string) getcwd();
 
         /** @var string $service */
         $service = $input->getArgument('service');
@@ -57,10 +62,8 @@ class LogsCommand extends ModeAwareCommand implements Decorable
             since: $since,
         );
 
-        $manager = new DockerManager($projectRoot);
-
         try {
-            $result = $manager->logs($service, $options);
+            $result = $this->dockerManager->logs($service, $options);
         } catch (\RuntimeException $e) {
             $io->error($e->getMessage());
             return Command::FAILURE;

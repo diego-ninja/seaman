@@ -10,8 +10,6 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -26,6 +24,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class RebuildCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly ConfigManager $configManager,
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
@@ -35,12 +40,8 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
     {
         $projectRoot = (string) getcwd();
 
-        // Create service registry
-        $registry = ServiceRegistry::create();
-
         // Load configuration to get PHP version
-        $configManager = new ConfigManager($projectRoot, $registry, new ConfigurationValidator());
-        $config = $configManager->load();
+        $config = $this->configManager->load();
 
         // Build Docker image
         $builder = new DockerImageBuilder($projectRoot, $config->php->version);
@@ -50,8 +51,7 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $manager = new DockerManager($projectRoot);
-        $restartResult = $manager->restart();
+        $restartResult = $this->dockerManager->restart();
 
         if ($restartResult->isSuccessful()) {
             return Command::SUCCESS;

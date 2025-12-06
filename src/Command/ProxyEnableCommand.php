@@ -10,7 +10,6 @@ namespace Seaman\Command;
 use Seaman\Command\Concern\RegeneratesDockerCompose;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\ProjectInitializer;
 use Seaman\UI\Terminal;
@@ -21,7 +20,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'seaman:proxy:enable',
+    name: 'proxy:enable',
     description: 'Enable Traefik reverse proxy',
     aliases: ['proxy:enable'],
 )]
@@ -31,6 +30,7 @@ class ProxyEnableCommand extends ModeAwareCommand
 
     public function __construct(
         private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
     ) {
         parent::__construct();
     }
@@ -44,11 +44,8 @@ class ProxyEnableCommand extends ModeAwareCommand
     {
         $projectRoot = (string) getcwd();
 
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
-
         try {
-            $config = $configManager->load();
+            $config = $this->configManager->load();
         } catch (\RuntimeException $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
@@ -66,7 +63,7 @@ class ProxyEnableCommand extends ModeAwareCommand
         $initializer = new ProjectInitializer($this->registry);
         $initializer->initializeTraefikPublic($newConfig, $projectRoot);
 
-        $configManager->save($newConfig);
+        $this->configManager->save($newConfig);
 
         Terminal::success('Proxy enabled successfully.');
         Terminal::output()->writeln('');

@@ -10,25 +10,24 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\Generator\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'devcontainer:generate',
-    description: 'Generate DevContainer configuration for VS Code (requires init)',
+    description: 'Generate DevContainer configuration for VS Code',
 )]
 class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
         private readonly ?DevContainerGenerator $generator = null,
     ) {
         parent::__construct();
@@ -64,7 +63,7 @@ class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
         }
 
         // Generate devcontainer files
-        $generator = $this->generator ?? $this->createGenerator($projectRoot);
+        $generator = $this->generator ?? $this->createGenerator();
         $generator->generate($projectRoot);
 
         info('');
@@ -80,12 +79,11 @@ class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
         return Command::SUCCESS;
     }
 
-    private function createGenerator(string $projectRoot): DevContainerGenerator
+    private function createGenerator(): DevContainerGenerator
     {
         $templateDir = dirname(__DIR__) . '/Template';
         $renderer = new TemplateRenderer($templateDir);
-        $configManager = new ConfigManager($projectRoot, $this->registry, new ConfigurationValidator());
 
-        return new DevContainerGenerator($renderer, $configManager);
+        return new DevContainerGenerator($renderer, $this->configManager);
     }
 }

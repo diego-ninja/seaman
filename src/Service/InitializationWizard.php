@@ -14,6 +14,7 @@ use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Input\InputInterface;
+
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\multiselect;

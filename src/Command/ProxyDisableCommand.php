@@ -10,8 +10,6 @@ namespace Seaman\Command;
 use Seaman\Command\Concern\RegeneratesDockerCompose;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\ProxyConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -20,7 +18,7 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'seaman:proxy:disable',
+    name: 'proxy:disable',
     description: 'Disable Traefik reverse proxy',
     aliases: ['proxy:disable'],
 )]
@@ -29,7 +27,7 @@ class ProxyDisableCommand extends ModeAwareCommand
     use RegeneratesDockerCompose;
 
     public function __construct(
-        private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
     ) {
         parent::__construct();
     }
@@ -43,11 +41,8 @@ class ProxyDisableCommand extends ModeAwareCommand
     {
         $projectRoot = (string) getcwd();
 
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
-
         try {
-            $config = $configManager->load();
+            $config = $this->configManager->load();
         } catch (\RuntimeException $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
@@ -62,7 +57,7 @@ class ProxyDisableCommand extends ModeAwareCommand
 
         $this->regenerateDockerCompose($newConfig, $projectRoot);
 
-        $configManager->save($newConfig);
+        $this->configManager->save($newConfig);
 
         Terminal::success('Proxy disabled successfully.');
         Terminal::output()->writeln('');
