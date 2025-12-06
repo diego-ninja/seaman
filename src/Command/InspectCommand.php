@@ -12,14 +12,13 @@ use Seaman\Enum\OperatingMode;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
-use Seaman\UI\Terminal;
+use Seaman\UI\Widget\Table\Table;
 use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\ProxyConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'seaman:inspect',
@@ -46,127 +45,134 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         $statuses = $this->getServiceStatuses();
         $projectRoot = (string) getcwd();
 
-        $this->displayHeader($config, $projectRoot);
-        $this->displayServices($config, $statuses);
+        $table = $this->buildTable($config, $statuses, $projectRoot);
+        $table->display();
 
         return Command::SUCCESS;
     }
 
-    private function displayHeader(Configuration $config, string $projectRoot): void
+    /**
+     * Build the inspect table with fluent API.
+     *
+     * @param array<string, array{state: string, health: string, ports: string}> $statuses
+     */
+    private function buildTable(Configuration $config, array $statuses, string $projectRoot): Table
     {
         $proxy = $config->proxy();
         $mainUrl = $proxy->enabled
             ? "https://{$proxy->getDomain()}"
-            : "http://localhost:8000";
+            : 'http://localhost:8000';
 
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln(sprintf(
-            '  <fg=cyan>Project:</> %s <fg=gray>%s</> %s',
-            $config->projectName,
-            $projectRoot,
-            $mainUrl,
-        ));
-        Terminal::output()->writeln(sprintf(
-            '  <fg=cyan>PHP:</> %s <fg=gray>|</> <fg=cyan>Xdebug:</> %s <fg=gray>|</> <fg=cyan>Proxy:</> %s',
-            $config->php->version->value,
-            $config->php->xdebug->enabled ? '<fg=green>enabled</>' : '<fg=gray>disabled</>',
-            $proxy->enabled ? '<fg=green>Traefik</>' : '<fg=gray>disabled</>',
-        ));
-        Terminal::output()->writeln('');
-    }
+        $xdebugStatus = $config->php->xdebug->enabled ? 'enabled' : 'disabled';
+        $proxyStatus = $proxy->enabled ? 'Traefik' : 'disabled';
 
-    /**
-     * @param array<string, array{state: string, health: string, ports: string}> $statuses
-     */
-    private function displayServices(Configuration $config, array $statuses): void
-    {
-        $proxy = $config->proxy();
-        $rows = [];
+        $table = (new Table())
+            ->addHeaderLine("Project: {$config->projectName} {$projectRoot} {$mainUrl}")
+            ->addHeaderLine("PHP: {$config->php->version->value} | Xdebug: {$xdebugStatus} | Proxy: {$proxyStatus}")
+            ->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
 
         // App service
         $appStatus = $statuses['app'] ?? null;
-        $appUrl = $proxy->enabled
-            ? "https://{$proxy->getDomain()}"
-            : 'http://localhost:8000';
-        $rows[] = $this->buildServiceRow(
+        $table->addRow($this->buildServiceRow(
             Service::App,
             'app',
             $appStatus,
-            $appUrl,
+            $this->buildAppUrls($proxy),
             "PHP {$config->php->version->value}",
-        );
+        ));
 
         // Database service
         foreach ($config->services->enabled() as $name => $serviceConfig) {
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
+                $table->addSeparator();
                 $dbStatus = $statuses[$name] ?? null;
                 $dbInfo = "{$serviceConfig->type->name} {$serviceConfig->version}";
-                $dbUrl = $dbStatus !== null ? "localhost:{$serviceConfig->port}" : '';
-                $rows[] = $this->buildServiceRow(
+                $table->addRow($this->buildServiceRow(
                     $serviceConfig->type,
                     $name,
                     $dbStatus,
-                    $dbUrl,
+                    "localhost:{$serviceConfig->port}",
                     $dbInfo,
-                );
+                ));
             }
         }
 
         // Other services
         foreach ($config->services->enabled() as $name => $serviceConfig) {
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
-                continue; // Skip databases, already shown
+                continue;
             }
 
+            $table->addSeparator();
             $status = $statuses[$name] ?? null;
             $url = $this->getServiceUrl($serviceConfig->type, $proxy, $serviceConfig->port);
-            $rows[] = $this->buildServiceRow(
+            $table->addRow($this->buildServiceRow(
                 $serviceConfig->type,
                 $name,
                 $status,
                 $url,
                 '',
-            );
+            ));
         }
 
         // Traefik (if enabled)
         if ($proxy->enabled) {
+            $table->addSeparator();
             $traefikStatus = $statuses['traefik'] ?? null;
-            $traefikUrl = "https://traefik.{$proxy->domainPrefix}.local";
-            $rows[] = $this->buildServiceRow(
+            $table->addRow($this->buildServiceRow(
                 Service::Traefik,
                 'traefik',
                 $traefikStatus,
-                $traefikUrl,
+                "https://traefik.{$proxy->domainPrefix}.local",
                 'Dashboard',
-            );
+            ));
         }
 
         // Custom services
         if ($config->hasCustomServices()) {
             foreach ($config->customServices->names() as $name) {
+                $table->addSeparator();
                 $status = $statuses[$name] ?? null;
-                $rows[] = [
+                $table->addRow([
                     "⚙️  {$name}",
                     $this->formatStatus($status),
                     '',
-                    '<fg=gray>custom</>',
-                ];
+                    'custom',
+                ]);
             }
         }
 
-        table(['Service', 'Status', 'URL', 'Info'], $rows);
+        return $table;
+    }
+
+    /**
+     * Build URL list for app service.
+     *
+     * @return list<string>
+     */
+    private function buildAppUrls(ProxyConfig $proxy): array
+    {
+        if (!$proxy->enabled) {
+            return ['http://localhost:8000'];
+        }
+
+        return [
+            "https://{$proxy->getDomain()}",
+            'InDocker:',
+            '  - app:80',
+        ];
     }
 
     /**
      * @param array{state: string, health: string, ports: string}|null $status
-     * @return list<string>
+     * @param string|list<string> $url
+     * @return array{string, string, string|list<string>, string}
      */
     private function buildServiceRow(
         Service $type,
         string $name,
         ?array $status,
-        string $url,
+        string|array $url,
         string $info,
     ): array {
         return [
@@ -196,7 +202,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         };
     }
 
-    private function getServiceUrl(Service $type, \Seaman\ValueObject\ProxyConfig $proxy, int $port): string
+    private function getServiceUrl(Service $type, ProxyConfig $proxy, int $port): string
     {
         if (!$proxy->enabled) {
             return "localhost:{$port}";

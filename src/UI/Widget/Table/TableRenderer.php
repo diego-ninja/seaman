@@ -23,8 +23,12 @@ final class TableRenderer extends Renderer
      */
     public function __invoke(Table $table): string
     {
+        $headerLines = $table->getHeaderLines();
+        $columnHeaders = $table->getColumnHeaders();
+        $rows = $table->getRows();
+
         // Render the data table first to get its width
-        $dataOutput = $this->renderDataTable($table);
+        $dataOutput = $this->renderDataTable($columnHeaders, $rows);
         $lines = explode(PHP_EOL, trim($dataOutput));
 
         if ($lines === ['']) {
@@ -35,22 +39,23 @@ final class TableRenderer extends Renderer
         $tableWidth = mb_strwidth($this->stripEscapeSequences($lines[0]));
 
         // If we have header lines, check if they need more width
-        if (count($table->headerLines) > 0) {
-            $headerContentWidth = $this->longest($table->headerLines, 2); // +2 for padding
+        if (count($headerLines) > 0) {
+            // +4 for border and padding on each side
+            $headerContentWidth = $this->longest($headerLines, 4);
             $requiredTableWidth = $headerContentWidth + 2; // +2 for borders
 
             if ($requiredTableWidth > $tableWidth) {
                 // Re-render table with minimum column widths to accommodate header
-                $dataOutput = $this->renderDataTableWithMinWidth($table, $requiredTableWidth);
+                $dataOutput = $this->renderDataTableWithMinWidth($columnHeaders, $rows, $requiredTableWidth);
                 $lines = explode(PHP_EOL, trim($dataOutput));
                 $tableWidth = mb_strwidth($this->stripEscapeSequences($lines[0]));
             }
 
-            $this->renderHeaderSection($table->headerLines, $tableWidth);
-            $this->renderDataWithoutTopBorder($lines);
+            $this->renderHeaderSection($headerLines, $tableWidth);
+            $this->renderDataWithConnector($lines);
         } else {
             foreach ($lines as $line) {
-                $this->line(' ' . $line);
+                $this->line(' ' . $this->colorBorderCharacters($line));
             }
         }
 
@@ -59,16 +64,22 @@ final class TableRenderer extends Renderer
 
     /**
      * Render the data table using Symfony Table.
+     *
+     * @param list<string> $headers
+     * @param list<list<string|list<string>>|string> $rows
      */
-    private function renderDataTable(Table $table): string
+    private function renderDataTable(array $headers, array $rows): string
     {
-        return $this->renderDataTableWithMinWidth($table, 0);
+        return $this->renderDataTableWithMinWidth($headers, $rows, 0);
     }
 
     /**
      * Render the data table with a minimum total width.
+     *
+     * @param list<string> $headers
+     * @param list<list<string|list<string>>|string> $rows
      */
-    private function renderDataTableWithMinWidth(Table $table, int $minWidth): string
+    private function renderDataTableWithMinWidth(array $headers, array $rows, int $minWidth): string
     {
         $style = $this->createTableStyle();
 
@@ -76,12 +87,12 @@ final class TableRenderer extends Renderer
         $symfonyTable = new SymfonyTable($buffered);
         $symfonyTable->setStyle($style);
 
-        if (count($table->headers) > 0) {
-            $symfonyTable->setHeaders($table->headers);
+        if (count($headers) > 0) {
+            $symfonyTable->setHeaders($headers);
 
             // If we need extra width, distribute it to the last column
             if ($minWidth > 0) {
-                $columnCount = count($table->headers);
+                $columnCount = count($headers);
                 // Approximate current width per column (rough estimate)
                 // We'll set minimum width on the last column to absorb extra space
                 $extraWidth = $minWidth - ($columnCount * 10); // rough base
@@ -91,7 +102,7 @@ final class TableRenderer extends Renderer
             }
         }
 
-        foreach ($table->rows as $row) {
+        foreach ($rows as $row) {
             if (Table::isSeparator($row)) {
                 $symfonyTable->addRow(new TableSeparator());
             } else {
@@ -107,6 +118,7 @@ final class TableRenderer extends Renderer
 
     /**
      * Create the table style with Unicode box-drawing characters.
+     * No color formatting - colors are applied during post-processing.
      */
     private function createTableStyle(): TableStyle
     {
@@ -114,8 +126,8 @@ final class TableRenderer extends Renderer
             ->setHorizontalBorderChars('─')
             ->setVerticalBorderChars('│', '│')
             ->setCrossingChars('┼', '┌', '┬', '┐', '┤', '┘', '┴', '└', '├')
-            ->setCellHeaderFormat('<fg=default;options=bold>%s</>')
-            ->setCellRowFormat('<fg=default>%s</>');
+            ->setCellHeaderFormat('<options=bold>%s</>')
+            ->setCellRowFormat('%s');
     }
 
     /**
@@ -147,27 +159,42 @@ final class TableRenderer extends Renderer
         // Top border
         $this->line(' ' . $this->gray('┌' . str_repeat('─', $contentWidth) . '┐'));
 
-        // Header lines
+        // Header lines with padding
         foreach ($headerLines as $line) {
-            $paddedLine = $this->pad($line, $contentWidth);
+            $paddedLine = ' ' . $this->pad($line, $contentWidth - 1);
             $this->line(' ' . $this->gray('│') . $paddedLine . $this->gray('│'));
         }
     }
 
     /**
-     * Render data table lines, replacing top border with connector.
+     * Render data table lines with connector and gray borders.
      *
      * @param list<string> $lines
      */
-    private function renderDataWithoutTopBorder(array $lines): void
+    private function renderDataWithConnector(array $lines): void
     {
         foreach ($lines as $index => $line) {
             if ($index === 0) {
                 // Replace top border characters with connector characters
                 $line = $this->convertTopBorderToConnector($line);
             }
-            $this->line(' ' . $line);
+            // Apply gray color to border characters only
+            $this->line(' ' . $this->colorBorderCharacters($line));
         }
+    }
+
+    /**
+     * Apply gray color to Unicode box-drawing border characters.
+     */
+    private function colorBorderCharacters(string $line): string
+    {
+        $borderChars = ['─', '│', '┌', '┐', '└', '┘', '├', '┤', '┬', '┴', '┼'];
+
+        foreach ($borderChars as $char) {
+            $line = str_replace($char, $this->gray($char), $line);
+        }
+
+        return $line;
     }
 
     /**

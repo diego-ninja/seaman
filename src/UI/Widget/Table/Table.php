@@ -17,15 +17,19 @@ final class Table extends Prompt
     private const string SEPARATOR_MARKER = '__TABLE_SEPARATOR__';
 
     /**
-     * @param list<string> $headerLines Full-width lines above column headers
-     * @param list<string> $headers Column headers
-     * @param list<list<string|list<string>>|string> $rows Table rows (string = separator marker)
+     * @var list<string>
      */
-    public function __construct(
-        public array $headerLines = [],
-        public array $headers = [],
-        public array $rows = [],
-    ) {}
+    private array $headerLines = [];
+
+    /**
+     * @var list<string>
+     */
+    private array $columnHeaders = [];
+
+    /**
+     * @var list<list<string|list<string>>|string>
+     */
+    private array $rows = [];
 
     /**
      * Create a row separator marker.
@@ -43,6 +47,82 @@ final class Table extends Prompt
     public static function isSeparator(array|string $row): bool
     {
         return $row === self::SEPARATOR_MARKER;
+    }
+
+    /**
+     * Add a header line (full-width, above column headers).
+     *
+     * @return $this
+     */
+    public function addHeaderLine(string $line): self
+    {
+        $this->headerLines[] = $line;
+        return $this;
+    }
+
+    /**
+     * Set column headers.
+     *
+     * @param list<string> $headers
+     * @return $this
+     */
+    public function setHeaders(array $headers): self
+    {
+        $this->columnHeaders = $headers;
+        return $this;
+    }
+
+    /**
+     * Add a data row.
+     *
+     * @param list<string|list<string>> $row
+     * @return $this
+     */
+    public function addRow(array $row): self
+    {
+        $this->rows[] = $row;
+        return $this;
+    }
+
+    /**
+     * Add a separator row.
+     *
+     * @return $this
+     */
+    public function addSeparator(): self
+    {
+        $this->rows[] = self::SEPARATOR_MARKER;
+        return $this;
+    }
+
+    /**
+     * Get header lines.
+     *
+     * @return list<string>
+     */
+    public function getHeaderLines(): array
+    {
+        return $this->headerLines;
+    }
+
+    /**
+     * Get column headers.
+     *
+     * @return list<string>
+     */
+    public function getColumnHeaders(): array
+    {
+        return $this->columnHeaders;
+    }
+
+    /**
+     * Get rows.
+     *
+     * @return list<list<string|list<string>>|string>
+     */
+    public function getRows(): array
+    {
+        return $this->rows;
     }
 
     /**
