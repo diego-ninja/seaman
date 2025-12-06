@@ -58,18 +58,16 @@ class InspectCommand extends ModeAwareCommand implements Decorable
      */
     private function buildTable(Configuration $config, array $statuses, string $projectRoot): Table
     {
+        $table = new Table();
+
+        // Build header lines
+        foreach ($this->buildHeaderLines($config, $projectRoot) as $line) {
+            $table->addHeaderLine($line);
+        }
+
+        $table->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
+
         $proxy = $config->proxy();
-        $mainUrl = $proxy->enabled
-            ? "https://{$proxy->getDomain()}"
-            : 'http://localhost:8000';
-
-        $xdebugStatus = $config->php->xdebug->enabled ? 'enabled' : 'disabled';
-        $proxyStatus = $proxy->enabled ? 'Traefik' : 'disabled';
-
-        $table = (new Table())
-            ->addHeaderLine("Project: {$config->projectName} {$projectRoot} {$mainUrl}")
-            ->addHeaderLine("PHP: {$config->php->version->value} | Xdebug: {$xdebugStatus} | Proxy: {$proxyStatus}")
-            ->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
 
         // App service
         $appStatus = $statuses['app'] ?? null;
@@ -143,6 +141,40 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         }
 
         return $table;
+    }
+
+    /**
+     * Build header lines for the table.
+     *
+     * @return list<string>
+     */
+    private function buildHeaderLines(Configuration $config, string $projectRoot): array
+    {
+        $proxy = $config->proxy();
+        $lines = [];
+
+        // Project name and path
+        $lines[] = "Project:  {$config->projectName}  {$projectRoot}";
+
+        // URL
+        $mainUrl = $proxy->enabled
+            ? "https://{$proxy->getDomain()}"
+            : 'http://localhost:8000';
+        $lines[] = "URL:      {$mainUrl}";
+
+        // PHP version
+        $lines[] = "PHP:      {$config->php->version->value}";
+
+        // Proxy (only if enabled)
+        if ($proxy->enabled) {
+            $lines[] = "Proxy:    Traefik";
+        }
+
+        // Xdebug
+        $xdebugStatus = $config->php->xdebug->enabled ? 'enabled' : 'disabled';
+        $lines[] = "Xdebug:   {$xdebugStatus}";
+
+        return $lines;
     }
 
     /**
