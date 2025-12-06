@@ -32,6 +32,18 @@ final class Table extends Prompt
     private array $rows = [];
 
     /**
+     * @var array<int, int>
+     */
+    private array $columnWidths = [];
+
+    /**
+     * @var array<int, int>
+     */
+    private array $columnMaxWidths = [];
+
+    private ?int $minWidth = null;
+
+    /**
      * Create a row separator marker.
      */
     public static function separator(): string
@@ -96,6 +108,53 @@ final class Table extends Prompt
     }
 
     /**
+     * Set minimum width for a specific column.
+     *
+     * @return $this
+     */
+    public function setColumnWidth(int $columnIndex, int $width): self
+    {
+        $this->columnWidths[$columnIndex] = $width;
+        return $this;
+    }
+
+    /**
+     * Set minimum widths for all columns.
+     *
+     * @param list<int> $widths
+     * @return $this
+     */
+    public function setColumnWidths(array $widths): self
+    {
+        foreach ($widths as $index => $width) {
+            $this->columnWidths[$index] = $width;
+        }
+        return $this;
+    }
+
+    /**
+     * Set maximum width for a specific column (content will be truncated).
+     *
+     * @return $this
+     */
+    public function setColumnMaxWidth(int $columnIndex, int $maxWidth): self
+    {
+        $this->columnMaxWidths[$columnIndex] = $maxWidth;
+        return $this;
+    }
+
+    /**
+     * Set minimum total width for the table.
+     *
+     * @return $this
+     */
+    public function setMinWidth(int $width): self
+    {
+        $this->minWidth = $width;
+        return $this;
+    }
+
+    /**
      * Get header lines.
      *
      * @return list<string>
@@ -123,6 +182,34 @@ final class Table extends Prompt
     public function getRows(): array
     {
         return $this->rows;
+    }
+
+    /**
+     * Get column widths configuration.
+     *
+     * @return array<int, int>
+     */
+    public function getColumnWidths(): array
+    {
+        return $this->columnWidths;
+    }
+
+    /**
+     * Get column max widths configuration.
+     *
+     * @return array<int, int>
+     */
+    public function getColumnMaxWidths(): array
+    {
+        return $this->columnMaxWidths;
+    }
+
+    /**
+     * Get minimum table width.
+     */
+    public function getMinWidth(): ?int
+    {
+        return $this->minWidth;
     }
 
     /**
