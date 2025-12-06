@@ -17,6 +17,7 @@ use Seaman\Service\ConfigParser\ServiceConfigParser;
 use Seaman\Service\ConfigParser\VolumeConfigParser;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\PortAllocation;
 use Symfony\Component\Yaml\Yaml;
 
 readonly class ConfigManager
@@ -203,6 +204,17 @@ readonly class ConfigManager
 
     private function generateEnv(Configuration $config): void
     {
+        $this->generateEnvWithAllocation($config, new PortAllocation());
+    }
+
+    /**
+     * Generate .env file with port allocations.
+     *
+     * When a port allocation differs from the desired port, the assigned
+     * port will be used in the .env file instead.
+     */
+    public function generateEnvWithAllocation(Configuration $config, PortAllocation $allocation): void
+    {
         $lines = [
             '# Application configuration',
             'APP_PORT=8000',
@@ -224,6 +236,9 @@ readonly class ConfigManager
                 $service = $this->serviceRegistry->get($serviceConfig->type);
                 $envVars = $service->getEnvVariables($serviceConfig);
 
+                // Apply port allocation overrides
+                $envVars = $this->applyPortAllocation($envVars, $name, $serviceConfig, $allocation);
+
                 $lines[] = '# ' . ucfirst($name) . ' configuration';
                 foreach ($envVars as $key => $value) {
                     $lines[] = $key . '=' . $value;
@@ -240,5 +255,43 @@ readonly class ConfigManager
         if (file_put_contents($envPath, $envContent) === false) {
             throw new RuntimeException('Failed to write .env');
         }
+    }
+
+    /**
+     * Apply port allocation to environment variables.
+     *
+     * @param array<string, string|int> $envVars
+     * @return array<string, string|int>
+     */
+    private function applyPortAllocation(
+        array $envVars,
+        string $serviceName,
+        \Seaman\ValueObject\ServiceConfig $serviceConfig,
+        PortAllocation $allocation,
+    ): array {
+        // Replace main port if allocated differently
+        $mainPort = $serviceConfig->port;
+        if ($mainPort > 0) {
+            $assignedPort = $allocation->getPort($serviceName, $mainPort);
+            foreach ($envVars as $key => $value) {
+                if ($value === $mainPort) {
+                    $envVars[$key] = $assignedPort;
+                }
+            }
+        }
+
+        // Replace additional ports if allocated differently
+        foreach ($serviceConfig->additionalPorts as $desiredPort) {
+            if ($desiredPort > 0) {
+                $assignedPort = $allocation->getPort($serviceName, $desiredPort);
+                foreach ($envVars as $key => $value) {
+                    if ($value === $desiredPort) {
+                        $envVars[$key] = $assignedPort;
+                    }
+                }
+            }
+        }
+
+        return $envVars;
     }
 }

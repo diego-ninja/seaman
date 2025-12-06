@@ -8,10 +8,10 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
-use Seaman\Exception\PortConflictException;
+use Seaman\Exception\PortAllocationException;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
-use Seaman\Service\PortChecker;
+use Seaman\Service\PortAllocator;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -27,7 +27,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 class StartCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly PortChecker $portChecker,
+        private readonly PortAllocator $portAllocator,
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
     ) {
@@ -50,16 +50,11 @@ class StartCommand extends ModeAwareCommand implements Decorable
         /** @var ?string $service */
         $service = $input->getArgument('service');
 
-        // Check for port conflicts before starting
+        // Allocate ports (prompts user if conflicts found)
         try {
-            $this->checkPortConflicts();
-        } catch (PortConflictException $e) {
+            $this->allocatePorts();
+        } catch (PortAllocationException $e) {
             Terminal::error($e->getMessage());
-            Terminal::output()->writeln('');
-            Terminal::output()->writeln('Suggestions:');
-            Terminal::output()->writeln('  • Stop the conflicting process');
-            Terminal::output()->writeln('  • Change the port in .seaman/seaman.yaml');
-            Terminal::output()->writeln('  • Use a different service');
             return Command::FAILURE;
         }
 
@@ -79,44 +74,48 @@ class StartCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @throws PortConflictException
+     * Allocate ports and regenerate .env if alternatives are used.
+     *
+     * @throws PortAllocationException
      */
-    private function checkPortConflicts(): void
+    private function allocatePorts(): void
     {
-        // Only check ports if seaman.yaml exists (managed mode)
+        // Only allocate ports if seaman.yaml exists (managed mode)
         $projectRoot = (string) getcwd();
         if (!file_exists($projectRoot . '/.seaman/seaman.yaml')) {
+            return;
+        }
+
+        // Skip port allocation if stack is already running
+        if ($this->isStackRunning()) {
             return;
         }
 
         try {
             $config = $this->configManager->load();
         } catch (\Exception) {
-            // If we can't load config, skip port checking
+            // If we can't load config, skip port allocation
             return;
         }
 
-        // Collect all ports from enabled services
-        $portsToCheck = [];
-        foreach ($config->services->all() as $serviceConfig) {
-            if (!$serviceConfig->enabled) {
-                continue;
-            }
+        $allocation = $this->portAllocator->allocate($config);
 
-            if ($serviceConfig->port > 0) {
-                $portsToCheck[$serviceConfig->port] = $serviceConfig->name;
-            }
-
-            foreach ($serviceConfig->additionalPorts as $port) {
-                $portsToCheck[$port] = $serviceConfig->name;
-            }
+        // If any port was assigned differently, regenerate .env
+        if ($allocation->hasAlternatives()) {
+            $this->configManager->generateEnvWithAllocation($config, $allocation);
         }
+    }
 
-        // Check each port
-        foreach ($portsToCheck as $port => $serviceName) {
-            if ($port > 0) {
-                $this->portChecker->ensurePortAvailable($port, $serviceName);
-            }
+    /**
+     * Check if any containers from this stack are already running.
+     */
+    private function isStackRunning(): bool
+    {
+        try {
+            $statuses = $this->dockerManager->status();
+            return count($statuses) > 0;
+        } catch (\Exception) {
+            return false;
         }
     }
 }

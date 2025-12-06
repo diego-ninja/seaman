@@ -40,6 +40,7 @@ use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
+use Seaman\Service\PortAllocator;
 use Seaman\Service\PortChecker;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
@@ -60,6 +61,12 @@ return function (ContainerBuilder $builder): void {
         SymfonyDetector::class => create(SymfonyDetector::class),
         PhpVersionDetector::class => create(PhpVersionDetector::class),
         PortChecker::class => create(PortChecker::class),
+
+        PortAllocator::class => factory(
+            fn(ContainerInterface $c): PortAllocator => new PortAllocator(
+                $c->get(PortChecker::class),
+            ),
+        ),
         SymfonyProjectBootstrapper::class => create(SymfonyProjectBootstrapper::class),
         InitializationSummary::class => create(InitializationSummary::class),
         RealCommandExecutor::class => create(RealCommandExecutor::class),
@@ -180,7 +187,7 @@ return function (ContainerBuilder $builder): void {
 
         StartCommand::class => factory(
             fn(ContainerInterface $c): StartCommand => new StartCommand(
-                $c->get(PortChecker::class),
+                $c->get(PortAllocator::class),
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
             ),
