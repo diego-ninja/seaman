@@ -34,7 +34,13 @@ class ConfigurationFactory
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
 
         $proxy = $choices->useProxy
-            ? ProxyConfig::default($choices->projectName)
+            ? new ProxyConfig(
+                enabled: true,
+                domainPrefix: $choices->projectName,
+                certResolver: 'selfsigned',
+                dashboard: true,
+                dnsProvider: $choices->dnsProvider,
+            )
             : ProxyConfig::disabled();
 
         return new Configuration(

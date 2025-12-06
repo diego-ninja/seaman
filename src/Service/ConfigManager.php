@@ -146,6 +146,9 @@ readonly class ConfigManager
             'cert_resolver' => $proxy->certResolver,
             'dashboard' => $proxy->dashboard,
         ];
+        if ($proxy->dnsProvider !== null) {
+            $data['proxy']['dns_provider'] = $proxy->dnsProvider->value;
+        }
 
         // Add custom services if present
         if ($config->hasCustomServices()) {

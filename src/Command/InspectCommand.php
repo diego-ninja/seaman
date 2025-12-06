@@ -168,6 +168,11 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         // Proxy (only if enabled)
         if ($proxy->enabled) {
             $lines[] = "Proxy:    Traefik";
+
+            // DNS provider (only if configured)
+            if ($proxy->dnsProvider !== null) {
+                $lines[] = "DNS:      {$proxy->dnsProvider->getDisplayName()}";
+            }
         }
 
         // Xdebug

@@ -3,9 +3,11 @@
 declare(strict_types=1);
 
 // ABOUTME: Configuration for Traefik reverse proxy.
-// ABOUTME: Manages domain prefix, certificate resolver, and dashboard settings.
+// ABOUTME: Manages domain prefix, certificate resolver, DNS provider, and dashboard settings.
 
 namespace Seaman\ValueObject;
+
+use Seaman\Enum\DnsProvider;
 
 final readonly class ProxyConfig
 {
@@ -14,6 +16,7 @@ final readonly class ProxyConfig
         public string $domainPrefix,
         public string $certResolver,
         public bool $dashboard,
+        public ?DnsProvider $dnsProvider = null,
     ) {}
 
     /**

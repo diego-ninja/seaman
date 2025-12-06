@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
+use Seaman\Enum\DnsProvider;
 use Seaman\ValueObject\ProxyConfig;
 
 final readonly class ProxyConfigParser
@@ -41,11 +42,15 @@ final readonly class ProxyConfigParser
             $dashboard = true;
         }
 
+        $dnsProviderValue = $proxyData['dns_provider'] ?? null;
+        $dnsProvider = is_string($dnsProviderValue) ? DnsProvider::tryFrom($dnsProviderValue) : null;
+
         return new ProxyConfig(
             enabled: $enabled,
             domainPrefix: $domainPrefix,
             certResolver: $certResolver,
             dashboard: $dashboard,
+            dnsProvider: $dnsProvider,
         );
     }
 }
