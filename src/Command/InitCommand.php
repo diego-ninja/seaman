@@ -24,7 +24,6 @@ use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
@@ -116,13 +115,13 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
-        // Run initialization wizard to collect all choices
+        // Run initialization wizard to collect all choices (including DNS)
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
         // Build configuration from choices
         $config = $this->configFactory->createFromChoices($choices, $projectType);
 
-        // Show configuration summary
+        // Show configuration summary (now includes DNS)
         $this->summary->display(
             database: $choices->database,
             services: $choices->services,
@@ -130,6 +129,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
             projectType: $projectType,
             devContainer: $choices->generateDevContainer,
             proxyEnabled: $choices->useProxy,
+            configureDns: $choices->configureDns,
+            dnsProvider: $choices->dnsProvider,
         );
 
         if (!confirm(label: 'Continue with this configuration?')) {
@@ -149,10 +150,9 @@ class InitCommand extends ModeAwareCommand implements Decorable
             $this->initializer->generateDevContainer($projectRoot);
         }
 
-        // Offer DNS configuration
-        Terminal::output()->writeln('');
-        if (confirm(label: 'Configure DNS for local development?')) {
-            $this->configureDns($config->projectName);
+        // Apply DNS configuration if selected
+        if ($choices->configureDns && $choices->dnsProvider !== null) {
+            $this->applyDnsConfiguration($config->projectName, $choices->dnsProvider);
         }
 
         Terminal::success('Seaman initialized successfully');
@@ -291,13 +291,17 @@ class InitCommand extends ModeAwareCommand implements Decorable
             customServices: $importResult->custom,
         );
 
+        // Ask about DNS configuration before summary
+        [$configureDns, $dnsProvider] = $this->wizard->selectDnsConfiguration($projectName);
+
         summary(
             title: 'Configuration Summary',
             icon: '⚙',
             data: [
-                "Project" => $projectName,
-                "Managed Services" => count($serviceConfigs),
-                "Custom Services" => $importResult->custom->count(),
+                'Project' => $projectName,
+                'Managed Services' => count($serviceConfigs),
+                'Custom Services' => $importResult->custom->count(),
+                'DNS' => $configureDns ? ($dnsProvider?->getDisplayName() ?? 'Auto-detect') : 'Skip',
             ],
         );
 
@@ -309,10 +313,9 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Initialize Docker environment
         $this->initializer->initializeDockerEnvironment($config, $projectRoot);
 
-        // Offer DNS configuration
-        Terminal::output()->writeln('');
-        if (confirm(label: 'Configure DNS for local development?', default: true)) {
-            $this->configureDns($config->projectName);
+        // Apply DNS configuration if selected
+        if ($configureDns && $dnsProvider !== null) {
+            $this->applyDnsConfiguration($config->projectName, $dnsProvider);
         }
 
         Terminal::success('Seaman initialized with imported configuration');
@@ -367,71 +370,23 @@ class InitCommand extends ModeAwareCommand implements Decorable
         }
     }
 
-    private function configureDns(string $projectName): void
+    /**
+     * Apply DNS configuration for the selected provider.
+     */
+    private function applyDnsConfiguration(string $projectName, DnsProvider $provider): void
     {
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=cyan>DNS Configuration</>');
+        Terminal::output()->writeln('  <fg=cyan>Configuring DNS...</>');
         Terminal::output()->writeln('');
 
         $executor = new RealCommandExecutor();
         $helper = new DnsConfigurationHelper($executor);
 
-        $providers = $helper->detectAvailableProviders($projectName);
-
-        if (empty($providers)) {
-            $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
-            return;
-        }
-
-        $recommended = $providers[0];
-
-        Terminal::output()->writeln("  Detected: <fg=green>{$recommended->provider->getDisplayName()}</>");
-        Terminal::output()->writeln("  {$recommended->provider->getDescription()}");
-        Terminal::output()->writeln('');
-
-        if (confirm("Use {$recommended->provider->getDisplayName()} for DNS?", true)) {
-            $result = $helper->configureProvider($projectName, $recommended->provider);
-            $this->applyDnsConfiguration($result, $projectName);
-            return;
-        }
-
-        // User rejected recommendation, show alternatives
-        if (count($providers) > 1) {
-            $options = $this->buildProviderOptions($providers);
-            /** @var string $choice */
-            $choice = select(
-                label: 'Select DNS provider',
-                options: $options,
-            );
-
-            if ($choice === 'manual') {
-                $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
-            } else {
-                $provider = DnsProvider::from($choice);
-                $result = $helper->configureProvider($projectName, $provider);
-                $this->applyDnsConfiguration($result, $projectName);
-            }
-        } else {
-            $this->handleManualDnsConfiguration($helper->configureProvider($projectName, DnsProvider::Manual));
-        }
+        $result = $helper->configureProvider($projectName, $provider);
+        $this->processDnsResult($result, $projectName);
     }
 
-    /**
-     * @param list<DetectedDnsProvider> $providers
-     * @return array<string, string>
-     */
-    private function buildProviderOptions(array $providers): array
-    {
-        $options = [];
-        foreach ($providers as $detected) {
-            $options[$detected->provider->value] = $detected->provider->getDisplayName()
-                . ' - ' . $detected->provider->getDescription();
-        }
-        $options['manual'] = 'Manual - Configure /etc/hosts yourself';
-        return $options;
-    }
-
-    private function applyDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
+    private function processDnsResult(DnsConfigurationResult $result, string $projectName): void
     {
         if (!$result->automatic) {
             $this->handleManualDnsConfiguration($result);

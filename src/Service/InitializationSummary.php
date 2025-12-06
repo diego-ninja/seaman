@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\ValueObject\PhpConfig;
@@ -27,8 +28,12 @@ class InitializationSummary
         ProjectType $projectType,
         bool $devContainer,
         bool $proxyEnabled = true,
+        bool $configureDns = false,
+        ?DnsProvider $dnsProvider = null,
     ): void {
         $formattedServices = $this->formatServiceList($services);
+
+        $dnsDisplay = $this->formatDnsDisplay($configureDns, $dnsProvider);
 
         summary(
             title: 'Seaman Configuration',
@@ -40,6 +45,7 @@ class InitializationSummary
                 'Database' => $database->name,
                 'Services' => $formattedServices,
                 'Reverse Proxy' => $proxyEnabled ? 'Traefik (HTTPS)' : 'Disabled (direct ports)',
+                'DNS' => $dnsDisplay,
                 'Xdebug' => $phpConfig->xdebug->enabled ? 'Enabled' : 'Disabled',
                 'DevContainer' => $devContainer ? 'Enabled' : 'Disabled',
             ],
@@ -61,5 +67,18 @@ class InitializationSummary
             fn(Service $service): string => ucfirst($service->value),
             $services,
         ));
+    }
+
+    private function formatDnsDisplay(bool $configureDns, ?DnsProvider $dnsProvider): string
+    {
+        if (!$configureDns) {
+            return 'Skip (manual /etc/hosts)';
+        }
+
+        if ($dnsProvider === null) {
+            return 'Auto-detect';
+        }
+
+        return $dnsProvider->getDisplayName();
     }
 }

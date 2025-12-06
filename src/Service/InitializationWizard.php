@@ -7,10 +7,13 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\Detector\PhpVersionDetector;
+use Seaman\Service\Process\CommandExecutorInterface;
+use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Input\InputInterface;
@@ -24,6 +27,7 @@ final readonly class InitializationWizard
 {
     public function __construct(
         private PhpVersionDetector $detector,
+        private ?DnsConfigurationHelper $dnsHelper = null,
     ) {}
 
     /**
@@ -39,6 +43,13 @@ final readonly class InitializationWizard
         $useProxy = $this->shouldUseProxy();
         $devContainer = $this->enableDevContainer($input);
 
+        // DNS configuration (only if proxy is enabled)
+        $configureDns = false;
+        $dnsProvider = null;
+        if ($useProxy) {
+            [$configureDns, $dnsProvider] = $this->selectDnsConfiguration($projectName);
+        }
+
         return new InitializationChoices(
             projectName: $projectName,
             phpVersion: $phpVersion,
@@ -47,6 +58,8 @@ final readonly class InitializationWizard
             xdebug: $xdebug,
             generateDevContainer: $devContainer,
             useProxy: $useProxy,
+            configureDns: $configureDns,
+            dnsProvider: $dnsProvider,
         );
     }
 
@@ -171,5 +184,70 @@ final readonly class InitializationWizard
         }
 
         return basename($currentDir);
+    }
+
+    /**
+     * Ask user about DNS configuration.
+     *
+     * @return array{0: bool, 1: ?DnsProvider}
+     */
+    public function selectDnsConfiguration(string $projectName): array
+    {
+        $configureDns = confirm(
+            label: 'Configure DNS for local development?',
+            default: true,
+            hint: "Enables *.{$projectName}.local domains",
+        );
+
+        if (!$configureDns) {
+            return [false, null];
+        }
+
+        // Detect available providers
+        $providers = $this->detectDnsProviders($projectName);
+
+        if (empty($providers)) {
+            return [true, DnsProvider::Manual];
+        }
+
+        $recommended = $providers[0];
+
+        // Build options
+        $options = [];
+        foreach ($providers as $detected) {
+            $label = $detected->provider->getDisplayName();
+            if ($detected === $recommended) {
+                $label .= ' (recommended)';
+            }
+            $options[$detected->provider->value] = $label . ' - ' . $detected->provider->getDescription();
+        }
+        $options['manual'] = 'Manual - Configure /etc/hosts yourself';
+
+        /** @var string $choice */
+        $choice = select(
+            label: 'Select DNS provider',
+            options: $options,
+            default: $recommended->provider->value,
+        );
+
+        if ($choice === 'manual') {
+            return [true, DnsProvider::Manual];
+        }
+
+        return [true, DnsProvider::from($choice)];
+    }
+
+    /**
+     * Detect available DNS providers.
+     *
+     * @return list<DetectedDnsProvider>
+     */
+    private function detectDnsProviders(string $projectName): array
+    {
+        if ($this->dnsHelper === null) {
+            return [];
+        }
+
+        return $this->dnsHelper->detectAvailableProviders($projectName);
     }
 }
