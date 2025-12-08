@@ -53,3 +53,42 @@ test('creates Configuration with disabled proxy when useProxy is false', functio
 
     expect($config->proxy()->enabled)->toBeFalse();
 });
+
+test('includes Traefik service when proxy is enabled', function () {
+    $registry = ServiceRegistry::create();
+    $factory = new ConfigurationFactory($registry);
+
+    $choices = new InitializationChoices(
+        projectName: 'myproject',
+        phpVersion: PhpVersion::Php84,
+        database: Service::PostgreSQL,
+        services: [Service::Redis],
+        xdebug: XdebugConfig::default(),
+        generateDevContainer: false,
+        useProxy: true,
+    );
+
+    $config = $factory->createFromChoices($choices, ProjectType::WebApplication);
+
+    expect($config->services->has('traefik'))->toBeTrue()
+        ->and($config->services->get('traefik')->type)->toBe(Service::Traefik);
+});
+
+test('does not include Traefik service when proxy is disabled', function () {
+    $registry = ServiceRegistry::create();
+    $factory = new ConfigurationFactory($registry);
+
+    $choices = new InitializationChoices(
+        projectName: 'myproject',
+        phpVersion: PhpVersion::Php84,
+        database: Service::PostgreSQL,
+        services: [Service::Redis],
+        xdebug: XdebugConfig::default(),
+        generateDevContainer: false,
+        useProxy: false,
+    );
+
+    $config = $factory->createFromChoices($choices, ProjectType::WebApplication);
+
+    expect($config->services->has('traefik'))->toBeFalse();
+});

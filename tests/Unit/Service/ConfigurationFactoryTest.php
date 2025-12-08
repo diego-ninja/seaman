@@ -23,6 +23,7 @@ test('creates configuration from choices with database and services', function (
         services: [Service::Redis, Service::Mailpit],
         xdebug: new XdebugConfig(true, 'seaman', 'host.docker.internal'),
         generateDevContainer: false,
+        useProxy: false,
     );
 
     $config = $factory->createFromChoices($choices, ProjectType::WebApplication);
@@ -47,6 +48,7 @@ test('creates configuration without database when None selected', function () {
         services: [Service::Redis],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
         generateDevContainer: true,
+        useProxy: false,
     );
 
     $config = $factory->createFromChoices($choices, ProjectType::Skeleton);

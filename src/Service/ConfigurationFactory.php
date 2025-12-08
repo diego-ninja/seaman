@@ -30,7 +30,7 @@ class ConfigurationFactory
     ): Configuration {
         $php = new PhpConfig($choices->phpVersion, $choices->xdebug);
 
-        $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services);
+        $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services, $choices->useProxy);
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
 
         $proxy = $choices->useProxy
@@ -58,10 +58,25 @@ class ConfigurationFactory
      * @param list<Service> $services
      * @return array<string, ServiceConfig>
      */
-    private function buildServiceConfigs(Service $database, array $services): array
+    private function buildServiceConfigs(Service $database, array $services, bool $useProxy): array
     {
         /** @var array<string, ServiceConfig> $serviceConfigs */
         $serviceConfigs = [];
+
+        // Add Traefik if proxy is enabled
+        if ($useProxy) {
+            $traefikImpl = $this->registry->get(Service::Traefik);
+            $traefikConfig = $traefikImpl->getDefaultConfig();
+            $serviceConfigs[Service::Traefik->value] = new ServiceConfig(
+                name: $traefikConfig->name,
+                enabled: true,
+                type: $traefikConfig->type,
+                version: $traefikConfig->version,
+                port: $traefikConfig->port,
+                additionalPorts: $traefikConfig->additionalPorts,
+                environmentVariables: $traefikConfig->environmentVariables,
+            );
+        }
 
         // Add database if selected
         if ($database !== Service::None) {
