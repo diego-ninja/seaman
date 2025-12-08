@@ -61,7 +61,7 @@ RUN curl -sS https://get.symfony.com/cli/installer | bash \
 WORKDIR /var/www/html
 
 # Make xdebug-toggle script executable
-COPY scripts/xdebug-toggle.sh /usr/local/bin/xdebug-toggle
+COPY .seaman/scripts/xdebug-toggle.sh /usr/local/bin/xdebug-toggle
 RUN chmod +x /usr/local/bin/xdebug-toggle || true
 
 EXPOSE 8000

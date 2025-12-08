@@ -57,15 +57,7 @@ class ProjectInitializer
             'xdebug' => $config->php->xdebug,
         ]);
 
-        // Create in project root for Docker build
-        $rootScriptDir = $projectRoot . '/scripts';
-        if (!is_dir($rootScriptDir)) {
-            mkdir($rootScriptDir, 0755, true);
-        }
-        file_put_contents($rootScriptDir . '/xdebug-toggle.sh', $xdebugScript);
-        chmod($rootScriptDir . '/xdebug-toggle.sh', 0755);
-
-        // Also create in .seaman for volume mount reference
+        // Create in .seaman/scripts for Docker build and volume mount
         $seamanScriptDir = $seamanDir . '/scripts';
         if (!is_dir($seamanScriptDir)) {
             mkdir($seamanScriptDir, 0755, true);

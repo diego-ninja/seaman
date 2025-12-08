@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 use DI\ContainerBuilder;
 use Psr\Container\ContainerInterface;
+use Seaman\Command\CleanCommand;
 use Seaman\Command\Database\DbDumpCommand;
 use Seaman\Command\Database\DbRestoreCommand;
 use Seaman\Command\Database\DbShellCommand;
@@ -221,6 +222,12 @@ return function (ContainerBuilder $builder): void {
         DestroyCommand::class => factory(
             fn(ContainerInterface $c): DestroyCommand => new DestroyCommand(
                 $c->get(ConfigManager::class),
+                $c->get(DockerManager::class),
+            ),
+        ),
+
+        CleanCommand::class => factory(
+            fn(ContainerInterface $c): CleanCommand => new CleanCommand(
                 $c->get(DockerManager::class),
             ),
         ),

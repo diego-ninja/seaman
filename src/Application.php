@@ -11,6 +11,7 @@ use DI\Container;
 use DI\ContainerBuilder;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
+use Seaman\Command\CleanCommand;
 use Seaman\Command\Database\DbDumpCommand;
 use Seaman\Command\Database\DbRestoreCommand;
 use Seaman\Command\Database\DbShellCommand;
@@ -111,6 +112,7 @@ class Application extends BaseApplication
             $container->get(StatusCommand::class),
             $container->get(RebuildCommand::class),
             $container->get(DestroyCommand::class),
+            $container->get(CleanCommand::class),
             $container->get(ShellCommand::class),
             $container->get(LogsCommand::class),
             $container->get(XdebugCommand::class),

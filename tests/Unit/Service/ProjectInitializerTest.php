@@ -58,8 +58,7 @@ test('initializes project with Docker files', function () {
     // Verify Dockerfile was created
     expect(file_exists($this->testDir . '/.seaman/Dockerfile'))->toBeTrue();
 
-    // Verify xdebug-toggle.sh was created in both locations
-    expect(file_exists($this->testDir . '/scripts/xdebug-toggle.sh'))->toBeTrue();
+    // Verify xdebug-toggle.sh was created in .seaman/scripts
     expect(file_exists($this->testDir . '/.seaman/scripts/xdebug-toggle.sh'))->toBeTrue();
 });
 
@@ -116,10 +115,8 @@ test('xdebug toggle scripts are executable', function () {
     $initializer = new ProjectInitializer($this->registry);
     $initializer->initializeDockerEnvironment($config, $this->testDir);
 
-    $rootScript = $this->testDir . '/scripts/xdebug-toggle.sh';
     $seamanScript = $this->testDir . '/.seaman/scripts/xdebug-toggle.sh';
 
-    expect(is_executable($rootScript))->toBeTrue();
     expect(is_executable($seamanScript))->toBeTrue();
 });
 
