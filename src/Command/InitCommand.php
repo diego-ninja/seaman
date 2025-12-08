@@ -33,14 +33,11 @@ use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Seaman\UI\Prompts;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
@@ -85,11 +82,11 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Check if seaman.yaml already exists
         if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
-            if (!confirm(
+            if (!Prompts::confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
                 default: false,
             )) {
-                info('Initialization cancelled.');
+                Prompts::info('Initialization cancelled.');
                 return Command::SUCCESS;
             }
         }
@@ -133,7 +130,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
             dnsProvider: $choices->dnsProvider,
         );
 
-        if (!confirm(label: 'Continue with this configuration?')) {
+        if (!Prompts::confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
         }
@@ -174,7 +171,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         /** @var string $choice */
-        $choice = select(
+        $choice = Prompts::select(
             label: 'How would you like to proceed?',
             options: [
                 'import' => 'Import existing docker-compose.yml',
@@ -204,7 +201,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         $this->displayImportSummary($result);
 
-        if (!confirm(label: 'Import these services?')) {
+        if (!Prompts::confirm(label: 'Import these services?')) {
             return null;
         }
 
@@ -305,7 +302,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
             ],
         );
 
-        if (!confirm(label: 'Continue with this configuration?')) {
+        if (!Prompts::confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
         }
@@ -333,12 +330,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     {
         // Check if Symfony project exists
         if (!$this->projectDetector->isSymfonyProject($projectRoot)) {
-            $shouldBootstrap = confirm(
+            $shouldBootstrap = Prompts::confirm(
                 label: 'No Symfony application detected. Create new project?',
             );
 
             if (!$shouldBootstrap) {
-                info('Please create a Symfony project first, then run init again.');
+                Prompts::info('Please create a Symfony project first, then run init again.');
                 exit(Command::FAILURE);
             }
 
@@ -417,8 +414,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
         Terminal::output()->writeln('');
 
-        if (!confirm('Apply this DNS configuration?', true)) {
-            info('DNS configuration skipped.');
+        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+            Prompts::info('DNS configuration skipped.');
             return;
         }
 

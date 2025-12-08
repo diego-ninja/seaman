@@ -14,6 +14,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,9 +22,6 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'db:restore',
@@ -92,11 +90,11 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        if (!confirm(
+        if (!Prompts::confirm(
             label: "This will overwrite the '{$databaseServiceConfig->name}' database. Continue?",
             default: false,
         )) {
-            info('Restore cancelled.');
+            Prompts::info('Restore cancelled.');
             return Command::SUCCESS;
         }
 

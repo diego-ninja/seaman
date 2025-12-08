@@ -9,13 +9,12 @@ namespace Seaman\Command\Concern;
 
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-
-use function Laravel\Prompts\select;
 
 trait SelectsDatabaseService
 {
@@ -106,7 +105,7 @@ trait SelectsDatabaseService
             $choices[$db->name] = sprintf('%s (%s)', $db->name, $db->type->value);
         }
 
-        $selected = select(
+        $selected = Prompts::select(
             label: 'Select database service:',
             options: $choices,
         );

@@ -12,13 +12,11 @@ use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Generator\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
+use Seaman\UI\Prompts;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'devcontainer:generate',
@@ -53,11 +51,11 @@ class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
 
         // Check if devcontainer already exists
         if (file_exists($projectRoot . '/.devcontainer/devcontainer.json')) {
-            if (!confirm(
+            if (!Prompts::confirm(
                 label: 'DevContainer configuration already exists. Overwrite?',
                 default: false,
             )) {
-                info('DevContainer generation cancelled.');
+                Prompts::info('DevContainer generation cancelled.');
                 return Command::SUCCESS;
             }
         }
@@ -66,15 +64,15 @@ class DevContainerGenerateCommand extends ModeAwareCommand implements Decorable
         $generator = $this->generator ?? $this->createGenerator();
         $generator->generate($projectRoot);
 
-        info('');
-        info('✓ DevContainer configuration created in .devcontainer/');
-        info('');
-        info('Next steps:');
-        info('  1. Open this project in VS Code');
-        info('  2. Click "Reopen in Container" when prompted');
-        info('  3. Wait for container to build and extensions to install');
-        info('  4. Start coding!');
-        info('');
+        Prompts::info('');
+        Prompts::info('✓ DevContainer configuration created in .devcontainer/');
+        Prompts::info('');
+        Prompts::info('Next steps:');
+        Prompts::info('  1. Open this project in VS Code');
+        Prompts::info('  2. Click "Reopen in Container" when prompted');
+        Prompts::info('  3. Wait for container to build and extensions to install');
+        Prompts::info('  4. Start coding!');
+        Prompts::info('');
 
         return Command::SUCCESS;
     }

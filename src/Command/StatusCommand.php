@@ -10,13 +10,12 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'seaman:status',
@@ -73,7 +72,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
             ];
         }
 
-        table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
+        Prompts::table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
 
         return Command::SUCCESS;
     }

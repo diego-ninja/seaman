@@ -11,6 +11,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
@@ -18,8 +19,6 @@ use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:add',
@@ -59,7 +58,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         }
 
         /** @var array<int, string> $selected */
-        $selected = multiselect(
+        $selected = Prompts::multiselect(
             label: 'Which service would you like to add?',
             options: $choices,
         );

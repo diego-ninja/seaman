@@ -10,15 +10,13 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\multiselect;
 
 #[AsCommand(
     name: 'service:remove',
@@ -58,7 +56,7 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         }
 
         /** @var array<int, string> $selected */
-        $selected = multiselect(
+        $selected = Prompts::multiselect(
             label: 'Which services would you like to remove?',
             options: $choices,
         );
@@ -68,7 +66,7 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        if (!confirm(label: 'Are you sure you want to remove these services?', default: false)) {
+        if (!Prompts::confirm(label: 'Are you sure you want to remove these services?', default: false)) {
             Terminal::success('Operation cancelled.');
             return Command::SUCCESS;
         }

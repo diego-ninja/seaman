@@ -14,14 +14,13 @@ use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'db:shell',
@@ -72,7 +71,7 @@ class DbShellCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        info("Opening {$databaseServiceConfig->type->value} shell...");
+        Prompts::info("Opening {$databaseServiceConfig->type->value} shell...");
 
         $shellCommand = $service->getShellCommand($databaseServiceConfig);
 

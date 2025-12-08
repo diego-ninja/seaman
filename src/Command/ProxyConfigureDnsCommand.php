@@ -13,15 +13,13 @@ use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
 
 #[AsCommand(
     name: 'proxy:configure-dns',
@@ -91,8 +89,8 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
         Terminal::output()->writeln('');
 
-        if (!confirm('Apply this DNS configuration?', true)) {
-            info('DNS configuration cancelled.');
+        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+            Prompts::info('DNS configuration cancelled.');
             return;
         }
 
