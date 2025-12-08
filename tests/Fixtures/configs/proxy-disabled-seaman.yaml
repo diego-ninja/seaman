@@ -1,0 +1,32 @@
+project_name: test-project
+version: '1.0'
+
+php:
+  version: '8.4'
+  extensions:
+    - pdo_pgsql
+  xdebug:
+    enabled: false
+    ide_key: PHPSTORM
+    client_host: host.docker.internal
+
+services:
+  postgresql:
+    enabled: true
+    type: postgresql
+    version: '16'
+    port: 5432
+    environment:
+      POSTGRES_DB: seaman
+      POSTGRES_USER: seaman
+      POSTGRES_PASSWORD: seaman
+
+proxy:
+  enabled: false
+  domain_prefix: ''
+  cert_resolver: ''
+  dashboard: false
+
+volumes:
+  persist:
+    - postgresql
