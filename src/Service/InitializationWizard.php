@@ -13,15 +13,11 @@ use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\Process\CommandExecutorInterface;
+use Seaman\UI\Prompts;
 use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Input\InputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\multiselect;
-use function Laravel\Prompts\select;
 
 final readonly class InitializationWizard
 {
@@ -65,7 +61,7 @@ final readonly class InitializationWizard
 
     public function selectProjectType(): ProjectType
     {
-        $choice = select(
+        $choice = Prompts::select(
             label: 'Select project type',
             options: [
                 'web' => ProjectType::WebApplication->getLabel() . ' - ' . ProjectType::WebApplication->getDescription(),
@@ -84,7 +80,7 @@ final readonly class InitializationWizard
         $detectedVersion = $this->detectPhpVersion($projectRoot);
         $defaultVersion = $detectedVersion ?? PhpVersion::Php84;
 
-        $choice = select(
+        $choice = Prompts::select(
             label: sprintf('Select PHP version (default: %s)', $defaultVersion->value),
             options: array_map(fn(PhpVersion $version): string => $version->value, PhpVersion::supported()),
             default: $defaultVersion->value,
@@ -95,7 +91,7 @@ final readonly class InitializationWizard
 
     public function selectDatabase(): Service
     {
-        $choice = select(
+        $choice = Prompts::select(
             label: 'Select database (default: postgresql)',
             options: Service::databases(),
             default: Service::PostgreSQL->value,
@@ -111,7 +107,7 @@ final readonly class InitializationWizard
     {
         $defaults = $this->getDefaultServices($projectType);
         /** @var array<int, string> $selected */
-        $selected = multiselect(
+        $selected = Prompts::multiselect(
             label: 'Select additional services',
             options: Service::services(),
             default: array_map(fn(Service $service) => $service->value, $defaults),
@@ -125,14 +121,14 @@ final readonly class InitializationWizard
 
     public function enableXdebug(): XdebugConfig
     {
-        $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
+        $xdebugEnabled = Prompts::confirm(label: 'Do you want to enable Xdebug?', default: false);
         return new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
     }
 
     public function enableDevContainer(InputInterface $input): bool
     {
         return $input->getOption('with-devcontainer')
-            || confirm(label: 'Do you want to enable DevContainer support?', default: false);
+            || Prompts::confirm(label: 'Do you want to enable DevContainer support?', default: false);
     }
 
     /**
@@ -140,7 +136,7 @@ final readonly class InitializationWizard
      */
     public function shouldUseProxy(): bool
     {
-        return confirm(
+        return Prompts::confirm(
             label: 'Use Traefik as reverse proxy?',
             default: true,
             hint: 'Enables HTTPS and local domains (app.project.local). Disable for direct port access.',
@@ -178,7 +174,7 @@ final readonly class InitializationWizard
         $files = array_diff(scandir($currentDir) ?: [], ['.', '..']);
 
         if (count($files) > 0) {
-            info('Current directory is not empty.');
+            Prompts::info('Current directory is not empty.');
             // For now, just use a default - we'll enhance this later
             return 'symfony-app';
         }
@@ -193,7 +189,7 @@ final readonly class InitializationWizard
      */
     public function selectDnsConfiguration(string $projectName): array
     {
-        $configureDns = confirm(
+        $configureDns = Prompts::confirm(
             label: 'Configure DNS for local development?',
             default: true,
             hint: "Enables *.{$projectName}.local domains",
@@ -224,7 +220,7 @@ final readonly class InitializationWizard
         $options['manual'] = 'Manual - Configure /etc/hosts yourself';
 
         /** @var string $choice */
-        $choice = select(
+        $choice = Prompts::select(
             label: 'Select DNS provider',
             options: $options,
             default: $recommended->provider->value,
