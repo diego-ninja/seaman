@@ -9,6 +9,7 @@ use Symfony\Component\Console\Formatter\OutputFormatterStyleInterface;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\StreamableInputInterface;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function Termwind\terminal;
@@ -17,6 +18,7 @@ final class Terminal
 {
     private static ?self $instance = null;
     private static ?bool $supportsAnsi = null;
+    private static ?OutputInterface $currentOutput = null;
 
     /**
      * Get the singleton instance of the Terminal class.
@@ -35,13 +37,32 @@ final class Terminal
     }
 
     /**
+     * Set a custom output interface for the terminal.
+     * This allows commands to inject their own output for testing.
+     *
+     * @param OutputInterface $output The output interface to use.
+     */
+    public static function setOutput(OutputInterface $output): void
+    {
+        self::$currentOutput = $output;
+    }
+
+    /**
+     * Reset the output interface to the default singleton output.
+     */
+    public static function resetOutput(): void
+    {
+        self::$currentOutput = null;
+    }
+
+    /**
      * Get the console output object.
      *
-     * @return ConsoleOutput The console output object.
+     * @return OutputInterface The console output object.
      */
-    public static function output(): ConsoleOutput
+    public static function output(): OutputInterface
     {
-        return self::getInstance()->output;
+        return self::$currentOutput ?? self::getInstance()->output;
     }
 
     /**
