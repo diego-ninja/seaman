@@ -11,7 +11,7 @@ use Seaman\Exception\PortAllocationException;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PortAllocation;
 
-use function Laravel\Prompts\confirm;
+use Seaman\UI\Prompts;
 
 final readonly class PortAllocator
 {
@@ -66,7 +66,7 @@ final readonly class PortAllocator
         // Get process using the port for better UX
         $process = $this->portChecker->getProcessUsingPort($desiredPort) ?? 'another process';
 
-        $confirmed = confirm(
+        $confirmed = Prompts::confirm(
             label: sprintf(
                 'Port %d is in use by %s. Use %d for %s?',
                 $desiredPort,
