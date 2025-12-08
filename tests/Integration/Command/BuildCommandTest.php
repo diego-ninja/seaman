@@ -15,7 +15,7 @@ use function PHPUnit\Framework\assertStringContainsString;
 
 beforeEach(function (): void {
     // Clean up any previous PHAR
-    $pharPath = getcwd() . '/build/seaman.phar';
+    $pharPath = getcwd() . '/dist/seaman.phar';
     if (file_exists($pharPath)) {
         unlink($pharPath);
     }
@@ -23,7 +23,7 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     // Clean up PHAR artifact
-    $pharPath = getcwd() . '/build/seaman.phar';
+    $pharPath = getcwd() . '/dist/seaman.phar';
     if (file_exists($pharPath)) {
         unlink($pharPath);
     }
@@ -45,9 +45,8 @@ it('builds PHAR successfully', function (): void {
     }
 
     expect($statusCode)->toBe(0);
-    assertStringContainsString('Building PHAR', $output);
-    assertStringContainsString('successfully', $output);
-    assertFileExists(getcwd() . '/build/seaman.phar');
+    assertStringContainsString('Compiling seaman.phar', $output);
+    assertFileExists(getcwd() . '/dist/seaman.phar');
 });
 
 it('shows error if box is not available', function (): void {

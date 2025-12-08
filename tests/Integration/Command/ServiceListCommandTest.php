@@ -33,6 +33,7 @@ beforeEach(function () {
 
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -107,7 +108,7 @@ test('lists all services with status', function () {
     expect($output)->toContain('MySQL');
     expect($output)->toContain('Redis');
     expect($output)->toContain('enabled');
-    expect($output)->toContain('available');
+    expect($output)->toContain('disabled');
 });
 
 test('shows enabled status for active services', function () {
@@ -136,7 +137,7 @@ test('shows enabled status for active services', function () {
     expect($mysqlLine)->toContain('enabled');
 });
 
-test('shows available status for inactive services', function () {
+test('shows disabled status for inactive services', function () {
     /** @var ConfigManager $configManager */
     $configManager = $this->configManager;
     /** @var ServiceRegistry $registry */
@@ -162,9 +163,9 @@ test('shows available status for inactive services', function () {
     }
 
     expect($postgresLine)->not->toBeNull();
-    expect($postgresLine)->toContain('available');
+    expect($postgresLine)->toContain('disabled');
     expect($redisLine)->not->toBeNull();
-    expect($redisLine)->toContain('available');
+    expect($redisLine)->toContain('disabled');
 });
 
 test('displays ports for each service', function () {

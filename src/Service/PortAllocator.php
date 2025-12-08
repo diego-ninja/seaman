@@ -10,7 +10,6 @@ namespace Seaman\Service;
 use Seaman\Exception\PortAllocationException;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PortAllocation;
-
 use Seaman\UI\Prompts;
 
 final readonly class PortAllocator

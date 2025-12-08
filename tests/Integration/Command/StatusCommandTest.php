@@ -32,21 +32,21 @@ afterEach(function () {
 });
 
 
-test('status command requires seaman.yaml', function () {
+test('status command requires docker-compose.yml', function () {
     $application = new Application();
     $commandTester = new CommandTester($application->find('status'));
 
-    $commandTester->execute([]);
-
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'Docker Compose file not found');
 });
 
-test('status command shows all containers', function () {
+test('status command works in unmanaged mode without seaman.yaml', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
     $application = new Application();
     $commandTester = new CommandTester($application->find('status'));
 
     $commandTester->execute([]);
 
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    expect($commandTester->getStatusCode())->toBe(0);
 });

@@ -55,6 +55,7 @@ final readonly class TraefikLabelGenerator
             Service::Dozzle,
             Service::MinIO,
             Service::Elasticsearch,
+            Service::OpenSearch,
             Service::Traefik => ServiceExposureType::ProxyOnly,
 
             // Data services - need direct port access
@@ -63,8 +64,11 @@ final readonly class TraefikLabelGenerator
             Service::MariaDB,
             Service::MongoDB,
             Service::Redis,
+            Service::Valkey,
             Service::Memcached,
             Service::Kafka,
+            Service::Mercure,
+            Service::Soketi,
             Service::SQLite,
             Service::None => ServiceExposureType::DirectPort,
         };

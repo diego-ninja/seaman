@@ -180,7 +180,7 @@ test('adds single service to configuration', function () {
     $reloadedConfig = $configManager->load();
     expect($reloadedConfig->services->has('mysql'))->toBeTrue();
     expect($reloadedConfig->services->get('mysql')->enabled)->toBeTrue();
-    expect($reloadedConfig->services->get('mysql')->type)->toBe('mysql');
+    expect($reloadedConfig->services->get('mysql')->type)->toBe(\Seaman\Enum\Service::MySQL);
 });
 
 test('adds multiple services to configuration', function () {

@@ -48,6 +48,7 @@ test('devcontainer:generate creates valid JSON configuration', function () {
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "existing"
 php:
@@ -102,6 +103,7 @@ test('devcontainer configuration includes database extensions when database enab
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "existing"
 php:
@@ -140,6 +142,7 @@ test('devcontainer configuration includes redis extension when redis enabled', f
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "existing"
 php:
@@ -178,6 +181,7 @@ test('devcontainer configuration includes API Platform extension when project ty
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "api"
 php:
@@ -211,6 +215,7 @@ test('devcontainer README.md is generated with project information', function ()
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "existing"
 php:
@@ -244,6 +249,7 @@ test('devcontainer xdebug settings reflect seaman.yaml configuration', function 
     file_put_contents(
         '.seaman/seaman.yaml',
         <<<YAML
+project_name: "test-project"
 version: "1.0"
 project_type: "existing"
 php:

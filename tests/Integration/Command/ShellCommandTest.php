@@ -32,20 +32,22 @@ afterEach(function () {
 });
 
 
-test('shell command requires seaman.yaml', function () {
+test('shell command requires docker-compose.yml', function () {
     $application = new Application();
     $commandTester = new CommandTester($application->find('shell'));
 
-    $commandTester->execute([]);
-
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'Docker Compose file not found');
 });
 
-test('shell command with specific service', function () {
+test('shell command works in unmanaged mode without seaman.yaml', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
     $application = new Application();
     $commandTester = new CommandTester($application->find('shell'));
 
+    // Shell command will fail because the container isn't running, but it should not fail
+    // due to missing seaman.yaml. The exit code can be 0 or 1 depending on container state.
     $commandTester->execute(['service' => 'app']);
 
     expect($commandTester->getStatusCode())->toBeIn([0, 1]);

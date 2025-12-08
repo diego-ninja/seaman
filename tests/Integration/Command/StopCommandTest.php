@@ -32,21 +32,21 @@ afterEach(function () {
 });
 
 
-test('stop command requires seaman.yaml', function () {
+test('stop command requires docker-compose.yml', function () {
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('stop'));
+
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'Docker Compose file not found');
+});
+
+test('stop command works in unmanaged mode without seaman.yaml', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
     $application = new Application();
     $commandTester = new CommandTester($application->find('stop'));
 
     $commandTester->execute([]);
 
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
-});
-
-test('stop command with specific service', function () {
-    $application = new Application();
-    $commandTester = new CommandTester($application->find('stop'));
-
-    $commandTester->execute(['service' => 'redis']);
-
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    expect($commandTester->getStatusCode())->toBe(0);
 });
