@@ -24,7 +24,7 @@ readonly class TraefikService extends AbstractService
             name: $this->getType()->value,
             enabled: true, // Traefik is always enabled
             type: $this->getType(),
-            version: 'v3.1',
+            version: 'v3.6',
             port: $this->getType()->port(),
             additionalPorts: [80, 8080],
             environmentVariables: [],
@@ -87,6 +87,8 @@ readonly class TraefikService extends AbstractService
      */
     public function getEnvVariables(ServiceConfig $config): array
     {
-        return [];
+        return [
+            'DOCKER_API_VERSION' => '1.44',
+        ];
     }
 }

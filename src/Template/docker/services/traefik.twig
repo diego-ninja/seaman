@@ -29,6 +29,7 @@
       - seaman
     environment:
       - PROJECT_NAME={{ project_name }}
+      - DOCKER_API_VERSION=1.44
     healthcheck:
       test: ["CMD", "traefik", "healthcheck"]
       interval: 10s

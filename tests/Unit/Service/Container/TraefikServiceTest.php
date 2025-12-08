@@ -50,7 +50,7 @@ test('TraefikService returns default config with correct values', function () {
         ->and($config->name)->toBe('traefik')
         ->and($config->enabled)->toBe(true) // Always enabled
         ->and($config->type)->toBe(Service::Traefik)
-        ->and($config->version)->toBe('v3.1')
+        ->and($config->version)->toBe('v3.6')
         ->and($config->port)->toBe(443)
         ->and($config->additionalPorts)->toBe([80, 8080])
         ->and($config->environmentVariables)->toBe([]);
@@ -68,7 +68,7 @@ test('TraefikService generates docker compose config', function () {
         name: 'traefik',
         enabled: true,
         type: Service::Traefik,
-        version: 'v3.1',
+        version: 'v3.6',
         port: 443,
         additionalPorts: [80, 8080],
         environmentVariables: [],
@@ -77,7 +77,7 @@ test('TraefikService generates docker compose config', function () {
     $compose = $service->generateComposeConfig($config);
 
     expect($compose)->toHaveKey('image')
-        ->and($compose['image'])->toBe('traefik:v3.1')
+        ->and($compose['image'])->toBe('traefik:v3.6')
         ->and($compose)->toHaveKey('ports')
         ->and($compose['ports'])->toContain('80:80')
         ->and($compose['ports'])->toContain('443:443')
@@ -95,13 +95,13 @@ test('TraefikService generates docker compose config', function () {
         ->and($compose)->toHaveKey('networks');
 });
 
-test('TraefikService env variables are empty', function () {
+test('TraefikService env variables include Docker API version', function () {
     $service = new TraefikService();
     $config = new ServiceConfig(
         name: 'traefik',
         enabled: true,
         type: Service::Traefik,
-        version: 'v3.1',
+        version: 'v3.6',
         port: 443,
         additionalPorts: [80, 8080],
         environmentVariables: [],
@@ -109,5 +109,6 @@ test('TraefikService env variables are empty', function () {
 
     $envVars = $service->getEnvVariables($config);
 
-    expect($envVars)->toBe([]);
+    expect($envVars)->toHaveKey('DOCKER_API_VERSION')
+        ->and($envVars['DOCKER_API_VERSION'])->toBe('1.44');
 });
