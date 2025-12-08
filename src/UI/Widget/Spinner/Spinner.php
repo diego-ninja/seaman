@@ -7,6 +7,7 @@ namespace Seaman\UI\Widget\Spinner;
 use Exception;
 use RuntimeException;
 use Seaman\Signal\SignalHandler;
+use Seaman\UI\HeadlessMode;
 use Seaman\UI\Terminal;
 
 class Spinner
@@ -119,10 +120,39 @@ class Spinner
      */
     public function callback(callable $callback): mixed
     {
-        if (!extension_loaded('pcntl') || !posix_isatty(STDOUT)) {
-            return $callback();
+        // Headless: static output without fork
+        if (HeadlessMode::isHeadless() || !extension_loaded('pcntl') || !posix_isatty(STDOUT)) {
+            return $this->runHeadless($callback);
         }
 
+        return $this->runInteractive($callback);
+    }
+
+    private function runHeadless(callable $callback): mixed
+    {
+        // Show initial message
+        Terminal::output()->write(sprintf("  ◦ %s", $this->message));
+
+        $result = $callback();
+
+        // Clear line and show result
+        if (Terminal::supportsCursor()) {
+            Terminal::output()->write("\r" . str_repeat(' ', strlen($this->message) + 10) . "\r");
+        } else {
+            Terminal::output()->writeln('');
+        }
+
+        if ($result !== false) {
+            Terminal::output()->writeln(sprintf("  ⬡ %s", $this->message));
+        } else {
+            Terminal::output()->writeln(sprintf("  ✗ %s", $this->message));
+        }
+
+        return $result;
+    }
+
+    private function runInteractive(callable $callback): mixed
+    {
         return $this->runCallBack($callback);
     }
 
