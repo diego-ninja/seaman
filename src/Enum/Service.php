@@ -70,7 +70,7 @@ enum Service: string
             self::MongoDB => 27017,
             self::Redis, self::Valkey => 6379,
             self::Memcached => 11211,
-            self::Dozzle => 8080,
+            self::Dozzle => 9080,
             self::Elasticsearch, self::OpenSearch => 9200,
             self::Mailpit => 8025,
             self::MinIO => 9000,
