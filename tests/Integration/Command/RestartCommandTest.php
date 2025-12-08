@@ -14,9 +14,12 @@ namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Tests\Integration\TestHelper;
+use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
 
 beforeEach(function () {
+    HeadlessMode::reset();
+    HeadlessMode::enable();
     $this->tempDir = TestHelper::createTempDir();
     $originalDir = getcwd();
     if ($originalDir === false) {
@@ -27,6 +30,7 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    HeadlessMode::reset();
     chdir($this->originalDir);
     TestHelper::removeTempDir($this->tempDir);
 });

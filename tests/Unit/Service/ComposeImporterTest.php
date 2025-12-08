@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use PHPUnit\Framework\Attributes\Test;
+use Seaman\Enum\Confidence;
 use Seaman\Enum\Service;
 use Seaman\Service\ComposeImporter;
 use Seaman\Service\Detector\ServiceDetector;
@@ -109,7 +110,7 @@ YAML;
         $this->assertInstanceOf(DetectedService::class, $recognized->detected);
         $this->assertSame(Service::PostgreSQL, $recognized->detected->type);
         $this->assertSame('16', $recognized->detected->version);
-        $this->assertSame('high', $recognized->detected->confidence);
+        $this->assertSame(Confidence::High, $recognized->detected->confidence);
     }
 
     #[Test]

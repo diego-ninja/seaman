@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\ValueObject;
 
+use Seaman\Enum\Confidence;
 use Seaman\Enum\Service;
 use Seaman\ValueObject\DetectedService;
 
@@ -14,27 +15,27 @@ test('creates detected service with high confidence', function () {
     $detected = new DetectedService(
         type: Service::PostgreSQL,
         version: '16',
-        confidence: 'high',
+        confidence: Confidence::High,
     );
 
     expect($detected->type)->toBe(Service::PostgreSQL)
         ->and($detected->version)->toBe('16')
-        ->and($detected->confidence)->toBe('high');
+        ->and($detected->confidence)->toBe(Confidence::High);
 });
 
 test('creates detected service with medium confidence', function () {
     $detected = new DetectedService(
         type: Service::Redis,
         version: '7-alpine',
-        confidence: 'medium',
+        confidence: Confidence::Medium,
     );
 
-    expect($detected->confidence)->toBe('medium');
+    expect($detected->confidence)->toBe(Confidence::Medium);
 });
 
 test('is high confidence helper', function () {
-    $high = new DetectedService(Service::MySQL, '8.0', 'high');
-    $medium = new DetectedService(Service::Redis, '7', 'medium');
+    $high = new DetectedService(Service::MySQL, '8.0', Confidence::High);
+    $medium = new DetectedService(Service::Redis, '7', Confidence::Medium);
 
     expect($high->isHighConfidence())->toBeTrue()
         ->and($medium->isHighConfidence())->toBeFalse();
@@ -49,7 +50,7 @@ test('version defaults to latest', function () {
 test('confidence defaults to high', function () {
     $detected = new DetectedService(Service::PostgreSQL, '16');
 
-    expect($detected->confidence)->toBe('high');
+    expect($detected->confidence)->toBe(Confidence::High);
 });
 
 test('DetectedService is readonly', function () {
