@@ -6,7 +6,8 @@
         "vendor",
         "assets",
         "config",
-        "docker"
+        "docker",
+        "resources"
     ],
     "files": [
         "composer.json"

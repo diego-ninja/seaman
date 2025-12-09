@@ -155,3 +155,27 @@ test('initializes traefik when proxy enabled', function () {
     expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeTrue();
     expect(is_dir($this->testDir . '/.seaman/certs'))->toBeTrue();
 });
+
+test('creates traefik dynamic certs configuration', function () {
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        projectType: ProjectType::WebApplication,
+        proxy: ProxyConfig::default('testproject'),
+    );
+
+    $initializer = new ProjectInitializer($this->registry);
+    $initializer->initializeDockerEnvironment($config, $this->testDir);
+
+    // Verify certs.yml was created
+    $certsYml = $this->testDir . '/.seaman/traefik/dynamic/certs.yml';
+    expect(file_exists($certsYml))->toBeTrue();
+
+    // Verify content
+    $content = file_get_contents($certsYml);
+    expect($content)->toContain('/certs/cert.pem')
+        ->and($content)->toContain('/certs/key.pem');
+});

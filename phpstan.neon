@@ -6,6 +6,9 @@ parameters:
     paths:
         - src
         - tests
+        - helpers
+    scanFiles:
+        - helpers/functions.php
     excludePaths:
         - tests/Fixtures
         - config/container.php

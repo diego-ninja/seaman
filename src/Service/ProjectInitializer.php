@@ -126,13 +126,13 @@ class ProjectInitializer
         }
 
         // Copy Traefik static configuration
-        $traefikTemplate = __DIR__ . '/../../resources/templates/traefik/traefik.yml';
+        $traefikTemplate = PathResolver::seamanPath('resources/templates/traefik/traefik.yml');
         if (file_exists($traefikTemplate)) {
             copy($traefikTemplate, $traefikDir . '/traefik.yml');
         }
 
         // Copy Traefik dynamic certificate configuration
-        $certsTemplate = __DIR__ . '/../../resources/templates/traefik/dynamic/certs.yml';
+        $certsTemplate = PathResolver::seamanPath('resources/templates/traefik/dynamic/certs.yml');
         if (file_exists($certsTemplate)) {
             copy($certsTemplate, $dynamicDir . '/certs.yml');
         }
