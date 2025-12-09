@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // ABOUTME: Removes all Seaman-generated files from the project.
-// ABOUTME: Stops containers first, then deletes .seaman/, .devcontainer/, docker-compose.yml, and seaman.yaml.
+// ABOUTME: Restores backed-up docker-compose.yml and cleans .env if applicable.
 
 namespace Seaman\Command;
 
@@ -53,13 +53,15 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         $filesToRemove = $this->findFilesToRemove($projectRoot);
         $directoriesToRemove = $this->findDirectoriesToRemove($projectRoot);
+        $backupFile = $this->findDockerComposeBackup($projectRoot);
+        $hasSeamanEnvSection = $this->hasSeamanEnvSection($projectRoot);
 
         if (empty($filesToRemove) && empty($directoriesToRemove)) {
             Terminal::success('No Seaman files found to clean.');
             return Command::SUCCESS;
         }
 
-        $this->displayFilesToRemove($filesToRemove, $directoriesToRemove);
+        $this->displayFilesToRemove($filesToRemove, $directoriesToRemove, $backupFile, $hasSeamanEnvSection);
 
         if (!Prompts::confirm('This will remove all Seaman files. Are you sure?')) {
             Terminal::success('Cancelled');
@@ -74,6 +76,16 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         // Remove files and directories
         $this->removeFiles($filesToRemove);
         $this->removeDirectories($directoriesToRemove);
+
+        // Restore docker-compose.yml backup if it exists
+        if ($backupFile !== null) {
+            $this->restoreDockerComposeBackup($projectRoot, $backupFile);
+        }
+
+        // Clean Seaman variables from .env
+        if ($hasSeamanEnvSection) {
+            $this->cleanEnvFile($projectRoot);
+        }
 
         Terminal::success('Seaman files cleaned successfully!');
         return Command::SUCCESS;
@@ -113,8 +125,12 @@ class CleanCommand extends ModeAwareCommand implements Decorable
      * @param list<string> $files
      * @param list<string> $directories
      */
-    private function displayFilesToRemove(array $files, array $directories): void
-    {
+    private function displayFilesToRemove(
+        array $files,
+        array $directories,
+        ?string $backupFile,
+        bool $hasSeamanEnvSection,
+    ): void {
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=yellow>The following will be removed:</>');
         Terminal::output()->writeln('');
@@ -128,6 +144,18 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         }
 
         Terminal::output()->writeln('');
+
+        if ($backupFile !== null) {
+            Terminal::output()->writeln('  <fg=cyan>The following will be restored:</>');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('    • docker-compose.yml (from ' . basename($backupFile) . ')');
+            Terminal::output()->writeln('');
+        }
+
+        if ($hasSeamanEnvSection) {
+            Terminal::output()->writeln('  <fg=cyan>Seaman variables will be removed from .env</>');
+            Terminal::output()->writeln('');
+        }
     }
 
     private function stopContainers(): void
@@ -186,5 +214,130 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         }
 
         rmdir($dir);
+    }
+
+    /**
+     * Find the most recent docker-compose.yml backup file.
+     */
+    private function findDockerComposeBackup(string $projectRoot): ?string
+    {
+        $pattern = $projectRoot . '/docker-compose.yml.backup-*';
+        $backups = glob($pattern);
+
+        if ($backups === false || empty($backups)) {
+            return null;
+        }
+
+        // Sort by modification time, newest first
+        usort($backups, fn(string $a, string $b): int => filemtime($b) <=> filemtime($a));
+
+        return $backups[0];
+    }
+
+    /**
+     * Check if .env file contains Seaman managed section.
+     */
+    private function hasSeamanEnvSection(string $projectRoot): bool
+    {
+        $envPath = $projectRoot . '/.env';
+
+        if (!file_exists($envPath)) {
+            return false;
+        }
+
+        $content = file_get_contents($envPath);
+        if ($content === false) {
+            return false;
+        }
+
+        return str_contains($content, '---- SEAMAN MANAGED ----');
+    }
+
+    /**
+     * Restore docker-compose.yml from backup and remove all backup files.
+     */
+    private function restoreDockerComposeBackup(string $projectRoot, string $backupFile): void
+    {
+        $targetPath = $projectRoot . '/docker-compose.yml';
+
+        // Restore from backup
+        if (copy($backupFile, $targetPath)) {
+            Terminal::output()->writeln('  <fg=green>✓</> Restored docker-compose.yml from backup');
+        } else {
+            Terminal::error('Failed to restore docker-compose.yml from backup');
+            return;
+        }
+
+        // Remove all backup files
+        $pattern = $projectRoot . '/docker-compose.yml.backup-*';
+        $backups = glob($pattern);
+
+        if ($backups !== false) {
+            foreach ($backups as $backup) {
+                unlink($backup);
+            }
+            Terminal::output()->writeln('  <fg=green>✓</> Removed backup files');
+        }
+    }
+
+    /**
+     * Remove Seaman managed section from .env file.
+     */
+    private function cleanEnvFile(string $projectRoot): void
+    {
+        $envPath = $projectRoot . '/.env';
+
+        if (!file_exists($envPath)) {
+            return;
+        }
+
+        $content = file_get_contents($envPath);
+        if ($content === false) {
+            return;
+        }
+
+        $lines = explode("\n", $content);
+        $cleanedLines = [];
+        $inSeamanSection = false;
+
+        foreach ($lines as $line) {
+            // Detect Seaman managed section markers
+            if (str_contains($line, '---- SEAMAN MANAGED ----')) {
+                $inSeamanSection = true;
+                continue;
+            }
+            if (str_contains($line, '---- END SEAMAN MANAGED ----')) {
+                $inSeamanSection = false;
+                continue;
+            }
+
+            // Keep lines outside Seaman section
+            if (!$inSeamanSection) {
+                $cleanedLines[] = $line;
+            }
+        }
+
+        // Remove trailing empty lines
+        while (!empty($cleanedLines) && trim(end($cleanedLines)) === '') {
+            array_pop($cleanedLines);
+        }
+
+        $cleanedContent = implode("\n", $cleanedLines);
+
+        // If file is empty after cleaning, remove it entirely
+        if (trim($cleanedContent) === '') {
+            unlink($envPath);
+            Terminal::output()->writeln('  <fg=green>✓</> Removed empty .env file');
+            return;
+        }
+
+        // Add final newline
+        $cleanedContent .= "\n";
+
+        if (file_put_contents($envPath, $cleanedContent) !== false) {
+            Terminal::output()->writeln('  <fg=green>✓</> Cleaned Seaman variables from .env');
+        } else {
+            Terminal::error('Failed to clean .env file');
+        }
     }
 }

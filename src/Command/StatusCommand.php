@@ -91,7 +91,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
 
     private function formatContainerLink(string $containerId): string
     {
-        return sprintf("<href=http://localhost:8080/container/%s>%s</>", $containerId, $containerId);
+        return sprintf("<href=http://localhost:9080/container/%s>%s</>", $containerId, $containerId);
     }
 
     /**
