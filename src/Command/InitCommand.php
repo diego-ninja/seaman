@@ -451,11 +451,20 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         $escapedTempFile = escapeshellarg($tempFile);
         $escapedConfigPath = escapeshellarg($result->configPath);
-        $cpCmd = $result->requiresSudo
-            ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
-            : "cp {$escapedTempFile} {$escapedConfigPath}";
 
-        exec($cpCmd, $output, $exitCode);
+        // For /etc/hosts, append instead of overwrite
+        if ($result->type === 'hosts-file') {
+            $appendCmd = $result->requiresSudo
+                ? "cat {$escapedTempFile} | sudo tee -a {$escapedConfigPath} > /dev/null"
+                : "cat {$escapedTempFile} >> {$escapedConfigPath}";
+            exec($appendCmd, $output, $exitCode);
+        } else {
+            $cpCmd = $result->requiresSudo
+                ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
+                : "cp {$escapedTempFile} {$escapedConfigPath}";
+            exec($cpCmd, $output, $exitCode);
+        }
+
         unlink($tempFile);
 
         if ($exitCode !== 0) {

@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Exception;
 use Seaman\Contract\Decorable;
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsConfigurationHelper;
@@ -19,6 +20,7 @@ use Seaman\ValueObject\DnsConfigurationResult;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
@@ -39,6 +41,22 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         return $mode === OperatingMode::Managed;
     }
 
+    protected function configure(): void
+    {
+        $this->addOption(
+            'auto',
+            'a',
+            InputOption::VALUE_NONE,
+            'Automatically configure DNS using the best available method',
+        );
+        $this->addOption(
+            'provider',
+            'p',
+            InputOption::VALUE_REQUIRED,
+            'Specify DNS provider (dnsmasq, systemd-resolved, networkmanager, hosts-file, manual)',
+        );
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         try {
@@ -49,101 +67,224 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
+        $projectName = $config->projectName;
+
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=cyan>DNS Configuration for ' . $config->projectName . '</>');
+        Terminal::output()->writeln("  <fg=cyan>DNS Configuration for {$projectName}</>");
         Terminal::output()->writeln('');
 
-        // Detect DNS configuration method
         $executor = new RealCommandExecutor();
         $helper = new DnsConfigurationHelper($executor);
-        $result = $helper->configure($config->projectName);
 
-        if ($result->automatic) {
-            $this->handleAutomaticConfiguration($result);
-        } else {
-            $this->handleManualConfiguration($result);
+        // Handle --auto flag
+        $auto = $input->getOption('auto');
+        /** @var string|null $providerOption */
+        $providerOption = $input->getOption('provider');
+
+        if ($auto || $providerOption !== null) {
+            return $this->handleAutomaticMode($helper, $projectName, $providerOption);
         }
 
+        // Interactive mode - let user choose
+        return $this->handleInteractiveMode($helper, $projectName);
+    }
+
+    private function handleAutomaticMode(
+        DnsConfigurationHelper $helper,
+        string $projectName,
+        ?string $providerOption,
+    ): int {
+        // Determine which provider to use
+        if ($providerOption !== null) {
+            try {
+                $provider = DnsProvider::from($providerOption);
+            } catch (\ValueError) {
+                Terminal::error("Invalid provider: {$providerOption}");
+                Terminal::output()->writeln('  Valid providers: dnsmasq, systemd-resolved, networkmanager, hosts-file, manual');
+                return Command::FAILURE;
+            }
+        } else {
+            $recommended = $helper->getRecommendedProvider($projectName);
+            if ($recommended === null) {
+                Terminal::error('No DNS providers available for automatic configuration');
+                return Command::FAILURE;
+            }
+            $provider = $recommended->provider;
+            Terminal::output()->writeln("  Using best available method: <fg=green>{$provider->getDisplayName()}</>");
+            Terminal::output()->writeln('');
+        }
+
+        $result = $helper->configureProvider($projectName, $provider);
+
+        if ($result->automatic) {
+            return $this->applyConfiguration($result, $projectName) ? Command::SUCCESS : Command::FAILURE;
+        }
+
+        $this->handleManualConfiguration($result);
         return Command::SUCCESS;
     }
 
-    private function handleAutomaticConfiguration(DnsConfigurationResult $result): void
+    private function handleInteractiveMode(DnsConfigurationHelper $helper, string $projectName): int
+    {
+        // Detect available providers
+        $providers = $helper->detectAvailableProviders($projectName);
+
+        if (empty($providers)) {
+            Terminal::output()->writeln('  <fg=yellow>No automatic DNS configuration methods detected.</>');
+            Terminal::output()->writeln('');
+            $result = $helper->configureProvider($projectName, DnsProvider::Manual);
+            $this->handleManualConfiguration($result);
+            return Command::SUCCESS;
+        }
+
+        // Show available options
+        Terminal::output()->writeln('  <fg=white>Available DNS configuration methods:</>');
+        Terminal::output()->writeln('');
+
+        $options = ['auto' => 'Auto (recommended) - Let Seaman choose the best method'];
+        foreach ($providers as $detected) {
+            $label = $detected->provider->getDisplayName();
+            $description = $detected->provider->getDescription();
+            $options[$detected->provider->value] = "{$label} - {$description}";
+        }
+        $options['manual'] = 'Manual - Show instructions to configure manually';
+        $options['skip'] = 'Skip - Do not configure DNS';
+
+        /** @var string $choice */
+        $choice = Prompts::select(
+            label: 'How would you like to configure DNS?',
+            options: $options,
+            default: 'auto',
+        );
+
+        if ($choice === 'skip') {
+            Terminal::output()->writeln('');
+            Prompts::info('DNS configuration skipped.');
+            return Command::SUCCESS;
+        }
+
+        if ($choice === 'auto') {
+            $recommended = $helper->getRecommendedProvider($projectName);
+            if ($recommended === null) {
+                Terminal::error('No providers available');
+                return Command::FAILURE;
+            }
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln("  Selected: <fg=green>{$recommended->provider->getDisplayName()}</>");
+            $result = $helper->configureProvider($projectName, $recommended->provider);
+        } elseif ($choice === 'manual') {
+            $result = $helper->configureProvider($projectName, DnsProvider::Manual);
+        } else {
+            $result = $helper->configureProvider($projectName, DnsProvider::from($choice));
+        }
+
+        if ($result->automatic) {
+            return $this->applyConfiguration($result, $projectName) ? Command::SUCCESS : Command::FAILURE;
+        }
+
+        $this->handleManualConfiguration($result);
+        return Command::SUCCESS;
+    }
+
+    /**
+     * Apply DNS configuration with user confirmation.
+     */
+    private function applyConfiguration(DnsConfigurationResult $result, string $projectName): bool
     {
         // Validate that automatic configuration has required fields
         if ($result->configPath === null || $result->configContent === null) {
             Terminal::error('Invalid automatic configuration: missing path or content');
-            return;
+            return false;
         }
 
-        Terminal::output()->writeln("  Detected: <fg=green>{$result->type}</>");
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln("  Method: <fg=green>{$result->type}</>");
         Terminal::output()->writeln('');
 
         if ($result->requiresSudo) {
-            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires sudo access</>');
+            Terminal::output()->writeln('  <fg=yellow>⚠ This requires administrator (sudo) access</>');
             Terminal::output()->writeln('');
         }
 
         Terminal::output()->writeln("  Configuration file: <fg=cyan>{$result->configPath}</>");
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  Content:');
+        Terminal::output()->writeln('  Content to write:');
         Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
         Terminal::output()->writeln('');
 
         if (!Prompts::confirm('Apply this DNS configuration?', true)) {
             Prompts::info('DNS configuration cancelled.');
-            return;
+            return true; // Not an error, just cancelled
         }
 
         // Create directory if needed
         $configDir = dirname($result->configPath);
+        $escapedConfigDir = escapeshellarg($configDir);
         if (!is_dir($configDir)) {
-            $mkdirCmd = $result->requiresSudo ? "sudo mkdir -p {$configDir}" : "mkdir -p {$configDir}";
+            $mkdirCmd = $result->requiresSudo
+                ? "sudo mkdir -p {$escapedConfigDir}"
+                : "mkdir -p {$escapedConfigDir}";
             Terminal::output()->writeln("  Creating directory: {$configDir}");
             exec($mkdirCmd, $output, $exitCode);
 
             if ($exitCode !== 0) {
                 Terminal::error('Failed to create configuration directory');
-                return;
+                return false;
             }
         }
 
         // Write configuration
         $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
+        if ($tempFile === false) {
+            Terminal::error('Failed to create temporary file');
+            return false;
+        }
         file_put_contents($tempFile, $result->configContent);
 
-        $cpCmd = $result->requiresSudo
-            ? "sudo cp {$tempFile} {$result->configPath}"
-            : "cp {$tempFile} {$result->configPath}";
+        $escapedTempFile = escapeshellarg($tempFile);
+        $escapedConfigPath = escapeshellarg($result->configPath);
 
-        exec($cpCmd, $output, $exitCode);
+        // For /etc/hosts, append instead of overwrite
+        if ($result->type === 'hosts-file') {
+            $writeCmd = $result->requiresSudo
+                ? "cat {$escapedTempFile} | sudo tee -a {$escapedConfigPath} > /dev/null"
+                : "cat {$escapedTempFile} >> {$escapedConfigPath}";
+        } else {
+            $writeCmd = $result->requiresSudo
+                ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
+                : "cp {$escapedTempFile} {$escapedConfigPath}";
+        }
+
+        exec($writeCmd, $output, $exitCode);
         unlink($tempFile);
 
         if ($exitCode !== 0) {
             Terminal::error('Failed to write DNS configuration');
-            return;
+            return false;
         }
 
-        // Restart DNS service
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
-        Terminal::output()->writeln('');
 
-        if ($result->type === 'dnsmasq') {
-            Terminal::output()->writeln('  Restarting dnsmasq...');
-            $restartCmd = PHP_OS_FAMILY === 'Darwin'
-                ? 'sudo brew services restart dnsmasq'
-                : 'sudo systemctl restart dnsmasq';
-            exec($restartCmd);
-        } elseif ($result->type === 'systemd-resolved') {
-            Terminal::output()->writeln('  Restarting systemd-resolved...');
-            exec('sudo systemctl restart systemd-resolved');
+        // Restart DNS service if needed
+        if ($result->restartCommand !== null) {
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Restarting DNS service...');
+            exec($result->restartCommand, $output, $exitCode);
+            if ($exitCode !== 0) {
+                Terminal::output()->writeln('  <fg=yellow>⚠ Service restart failed. You may need to restart manually.</>');
+            }
         }
 
+        Terminal::output()->writeln('');
         Terminal::success('DNS configured successfully!');
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  Your services are now accessible at:');
-        Terminal::output()->writeln("  • https://app.{$result->configContent}.local");
-        Terminal::output()->writeln("  • https://traefik.{$result->configContent}.local");
+        Terminal::output()->writeln("  • https://app.{$projectName}.local");
+        Terminal::output()->writeln("  • https://traefik.{$projectName}.local");
+        Terminal::output()->writeln('');
+
+        return true;
     }
 
     private function handleManualConfiguration(DnsConfigurationResult $result): void

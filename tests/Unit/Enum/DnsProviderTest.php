@@ -12,11 +12,12 @@ use Seaman\Enum\DnsProvider;
 test('DnsProvider has all expected cases', function () {
     $cases = DnsProvider::cases();
 
-    expect($cases)->toHaveCount(5)
+    expect($cases)->toHaveCount(6)
         ->and(DnsProvider::Dnsmasq->value)->toBe('dnsmasq')
         ->and(DnsProvider::SystemdResolved->value)->toBe('systemd-resolved')
         ->and(DnsProvider::NetworkManager->value)->toBe('networkmanager')
         ->and(DnsProvider::MacOSResolver->value)->toBe('macos-resolver')
+        ->and(DnsProvider::HostsFile->value)->toBe('hosts-file')
         ->and(DnsProvider::Manual->value)->toBe('manual');
 });
 
@@ -36,8 +37,9 @@ test('DnsProvider has descriptions', function () {
 test('DnsProvider has correct priorities', function () {
     expect(DnsProvider::MacOSResolver->getPriority())->toBe(1)
         ->and(DnsProvider::Dnsmasq->getPriority())->toBe(2)
-        ->and(DnsProvider::SystemdResolved->getPriority())->toBe(3)
-        ->and(DnsProvider::NetworkManager->getPriority())->toBe(4)
+        ->and(DnsProvider::NetworkManager->getPriority())->toBe(3)
+        ->and(DnsProvider::SystemdResolved->getPriority())->toBe(4)
+        ->and(DnsProvider::HostsFile->getPriority())->toBe(5)
         ->and(DnsProvider::Manual->getPriority())->toBe(99);
 });
 

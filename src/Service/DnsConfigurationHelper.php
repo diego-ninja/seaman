@@ -51,8 +51,8 @@ final readonly class DnsConfigurationHelper
             );
         }
 
-        // dnsmasq
-        if ($this->hasDnsmasq()) {
+        // dnsmasq - only if it can actually run (port 53 available or already running)
+        if ($this->hasDnsmasq() && $this->canUseDnsmasq()) {
             $providers[] = new DetectedDnsProvider(
                 provider: DnsProvider::Dnsmasq,
                 configPath: $this->getDnsmasqConfigPath($projectName),
@@ -60,8 +60,17 @@ final readonly class DnsConfigurationHelper
             );
         }
 
-        // systemd-resolved
-        if ($this->hasSystemdResolved()) {
+        // NetworkManager with dnsmasq plugin
+        if ($this->hasNetworkManagerWithDnsmasq()) {
+            $providers[] = new DetectedDnsProvider(
+                provider: DnsProvider::NetworkManager,
+                configPath: "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf",
+                requiresSudo: true,
+            );
+        }
+
+        // systemd-resolved - but warn if stub listener is active
+        if ($this->hasSystemdResolved() && !$this->hasSystemdResolvedStubListener()) {
             $providers[] = new DetectedDnsProvider(
                 provider: DnsProvider::SystemdResolved,
                 configPath: "/etc/systemd/resolved.conf.d/seaman-{$projectName}.conf",
@@ -69,14 +78,12 @@ final readonly class DnsConfigurationHelper
             );
         }
 
-        // NetworkManager
-        if ($this->hasNetworkManager()) {
-            $providers[] = new DetectedDnsProvider(
-                provider: DnsProvider::NetworkManager,
-                configPath: "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf",
-                requiresSudo: true,
-            );
-        }
+        // /etc/hosts is always available as fallback
+        $providers[] = new DetectedDnsProvider(
+            provider: DnsProvider::HostsFile,
+            configPath: '/etc/hosts',
+            requiresSudo: true,
+        );
 
         // Sort by priority
         usort(
@@ -108,6 +115,7 @@ final readonly class DnsConfigurationHelper
             DnsProvider::SystemdResolved => $this->configureSystemdResolved($projectName),
             DnsProvider::NetworkManager => $this->configureNetworkManager($projectName),
             DnsProvider::MacOSResolver => $this->configureMacOSResolver($projectName),
+            DnsProvider::HostsFile => $this->configureHostsFile($projectName),
             DnsProvider::Manual => $this->getManualInstructions($projectName),
         };
     }
@@ -141,6 +149,73 @@ final readonly class DnsConfigurationHelper
         }
 
         return is_dir('/etc/NetworkManager');
+    }
+
+    /**
+     * Check if NetworkManager is configured to use dnsmasq.
+     */
+    public function hasNetworkManagerWithDnsmasq(): bool
+    {
+        if (!$this->hasNetworkManager()) {
+            return false;
+        }
+
+        // Check if dnsmasq plugin is enabled in NetworkManager
+        $nmConfPath = '/etc/NetworkManager/NetworkManager.conf';
+        if (!file_exists($nmConfPath)) {
+            return false;
+        }
+
+        $content = file_get_contents($nmConfPath);
+        if ($content === false) {
+            return false;
+        }
+
+        return str_contains($content, 'dns=dnsmasq');
+    }
+
+    /**
+     * Check if dnsmasq can actually be used (port 53 available or dnsmasq already running).
+     */
+    public function canUseDnsmasq(): bool
+    {
+        // Check if dnsmasq is already running
+        $result = $this->executor->execute(['systemctl', 'is-active', 'dnsmasq']);
+        if ($result->isSuccessful()) {
+            return true;
+        }
+
+        // Check if port 53 is available (not blocked by systemd-resolved stub)
+        return !$this->isPort53Occupied();
+    }
+
+    /**
+     * Check if port 53 is occupied by something other than dnsmasq.
+     */
+    private function isPort53Occupied(): bool
+    {
+        // Check if systemd-resolved stub listener is active on 127.0.0.53:53
+        $result = $this->executor->execute(['ss', '-tlnp']);
+        if (!$result->isSuccessful()) {
+            return false;
+        }
+
+        $output = $result->output;
+
+        // If something is listening on 127.0.0.53:53 or 127.0.0.1:53, port is occupied
+        return str_contains($output, '127.0.0.53:53') || str_contains($output, '127.0.0.1:53');
+    }
+
+    /**
+     * Check if systemd-resolved stub listener is active (blocking port 53).
+     */
+    public function hasSystemdResolvedStubListener(): bool
+    {
+        if (!$this->hasSystemdResolved()) {
+            return false;
+        }
+
+        return $this->isPort53Occupied();
     }
 
     /**
@@ -226,6 +301,34 @@ final readonly class DnsConfigurationHelper
     }
 
     /**
+     * Configure DNS using /etc/hosts file.
+     */
+    private function configureHostsFile(string $projectName): DnsConfigurationResult
+    {
+        $hostsEntries = [
+            "app.{$projectName}.local",
+            "traefik.{$projectName}.local",
+            "mailpit.{$projectName}.local",
+            "dozzle.{$projectName}.local",
+        ];
+
+        $configContent = "\n# Seaman - {$projectName}\n";
+        foreach ($hostsEntries as $host) {
+            $configContent .= "127.0.0.1 {$host}\n";
+        }
+
+        return new DnsConfigurationResult(
+            type: 'hosts-file',
+            automatic: true,
+            requiresSudo: true,
+            configPath: '/etc/hosts',
+            configContent: $configContent,
+            instructions: [],
+            restartCommand: null,
+        );
+    }
+
+    /**
      * Get manual instructions for DNS configuration.
      */
     private function getManualInstructions(string $projectName): DnsConfigurationResult
@@ -237,9 +340,17 @@ final readonly class DnsConfigurationHelper
             "127.0.0.1 traefik.{$projectName}.local",
             "127.0.0.1 mailpit.{$projectName}.local",
             '',
-            'Or install dnsmasq for wildcard domain support:',
-            '  - macOS: brew install dnsmasq',
-            '  - Ubuntu/Debian: apt-get install dnsmasq',
+            'Or configure dnsmasq for wildcard domain support:',
+            '',
+            'On systems with systemd-resolved blocking port 53:',
+            '  1. Disable stub listener: sudo mkdir -p /etc/systemd/resolved.conf.d',
+            "  2. Create config: echo -e '[Resolve]\\nDNSStubListener=no' | sudo tee /etc/systemd/resolved.conf.d/no-stub.conf",
+            '  3. Restart resolved: sudo systemctl restart systemd-resolved',
+            '  4. Start dnsmasq: sudo systemctl enable --now dnsmasq',
+            '',
+            'Or use NetworkManager with dnsmasq:',
+            "  1. Add 'dns=dnsmasq' to [main] section in /etc/NetworkManager/NetworkManager.conf",
+            '  2. Restart NetworkManager: sudo systemctl restart NetworkManager',
         ];
 
         return new DnsConfigurationResult(
