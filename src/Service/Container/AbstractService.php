@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Base class for Docker container service implementations.
+// ABOUTME: Provides common functionality for all service types.
+
 namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\ValueObject\HealthCheck;
 
 abstract readonly class AbstractService implements ServiceInterface
 {
@@ -30,4 +34,46 @@ abstract readonly class AbstractService implements ServiceInterface
         return '⚙';
     }
 
+    /**
+     * @return list<string>
+     */
+    public function getDependencies(): array
+    {
+        return [];
+    }
+
+    /**
+     * Formats a HealthCheck for Docker Compose configuration.
+     *
+     * @return array<string, mixed>|null
+     */
+    protected function formatHealthCheck(?HealthCheck $healthCheck): ?array
+    {
+        if ($healthCheck === null) {
+            return null;
+        }
+
+        return [
+            'test' => $healthCheck->test,
+            'interval' => $healthCheck->interval,
+            'timeout' => $healthCheck->timeout,
+            'retries' => $healthCheck->retries,
+        ];
+    }
+
+    /**
+     * Adds healthcheck to compose config if present.
+     *
+     * @param array<string, mixed> $composeConfig
+     * @return array<string, mixed>
+     */
+    protected function addHealthCheckToConfig(array $composeConfig): array
+    {
+        $healthCheck = $this->formatHealthCheck($this->getHealthCheck());
+        if ($healthCheck !== null) {
+            $composeConfig['healthcheck'] = $healthCheck;
+        }
+
+        return $composeConfig;
+    }
 }

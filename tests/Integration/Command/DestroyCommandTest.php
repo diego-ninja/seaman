@@ -14,9 +14,12 @@ namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Tests\Integration\TestHelper;
+use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
 
 beforeEach(function () {
+    HeadlessMode::reset();
+    HeadlessMode::enable();
     $this->tempDir = TestHelper::createTempDir();
     $originalDir = getcwd();
     if ($originalDir === false) {
@@ -27,27 +30,33 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    HeadlessMode::reset();
     chdir($this->originalDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
 
-test('destroy command requires seaman.yaml', function () {
+test('destroy command requires docker-compose.yml', function () {
+    // Preset confirmation to true so we get past the prompt
+    HeadlessMode::preset([
+        'This will remove all containers, networks, and volumes. Are you sure?' => true,
+    ]);
+
     $application = new Application();
     $commandTester = new CommandTester($application->find('destroy'));
 
-    $commandTester->execute([]);
-
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
+    // Command throws RuntimeException when docker-compose.yml is missing
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'Docker Compose file not found');
 });
 
-test('destroy command requires confirmation', function () {
+test('destroy command cancels when user declines', function () {
+    // Default confirm() returns false in headless mode
     $application = new Application();
     $commandTester = new CommandTester($application->find('destroy'));
 
-    $commandTester->setInputs(['no']);
     $commandTester->execute([]);
 
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    expect($commandTester->getStatusCode())->toBe(0);
+    expect($commandTester->getDisplay())->toContain('Cancelled');
 });

@@ -1,12 +1,18 @@
   {{ name }}:
     image: elasticsearch:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTICSEARCH_PORT}:9200"
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

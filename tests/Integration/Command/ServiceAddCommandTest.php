@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RedisService;
@@ -26,6 +27,7 @@ beforeEach(function () {
 
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -45,7 +47,7 @@ YAML;
     $this->registry->register(new MysqlService());
     $this->registry->register(new PostgresqlService());
     $this->registry->register(new RedisService());
-    $this->configManager = new ConfigManager($this->tempDir, $this->registry);
+    $this->configManager = new ConfigManager($this->tempDir, $this->registry, new ConfigurationValidator());
 });
 
 afterEach(function () {
@@ -99,6 +101,7 @@ test('registry shows no available services when all are enabled', function () {
 
     // Create config with all services enabled
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -132,7 +135,7 @@ YAML;
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
     /** @var ConfigManager $configManager */
-    $configManager = new ConfigManager($tempDir, $registry);
+    $configManager = new ConfigManager($tempDir, $registry, new ConfigurationValidator());
 
     $config = $configManager->load();
     $available = $registry->disabled($config);
@@ -164,6 +167,7 @@ test('adds single service to configuration', function () {
 
     $services = $config->services->add('mysql', $serviceConfig);
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,
@@ -176,7 +180,7 @@ test('adds single service to configuration', function () {
     $reloadedConfig = $configManager->load();
     expect($reloadedConfig->services->has('mysql'))->toBeTrue();
     expect($reloadedConfig->services->get('mysql')->enabled)->toBeTrue();
-    expect($reloadedConfig->services->get('mysql')->type)->toBe('mysql');
+    expect($reloadedConfig->services->get('mysql')->type)->toBe(\Seaman\Enum\Service::MySQL);
 });
 
 test('adds multiple services to configuration', function () {
@@ -214,6 +218,7 @@ test('adds multiple services to configuration', function () {
     ));
 
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,
@@ -253,6 +258,7 @@ test('regenerates .env file after adding services', function () {
     ));
 
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,

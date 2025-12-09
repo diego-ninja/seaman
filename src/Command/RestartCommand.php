@@ -21,19 +21,29 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Restart seaman stack services',
     aliases: ['restart'],
 )]
-class RestartCommand extends AbstractSeamanCommand implements Decorable
+class RestartCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to restart');
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         /** @var ?string $service */
         $service = $input->getArgument('service');
-        $manager = new DockerManager((string) getcwd());
-        $result = $manager->restart($service);
+        $result = $this->dockerManager->restart($service);
 
         if ($result->isSuccessful()) {
             return Command::SUCCESS;

@@ -28,6 +28,7 @@ beforeEach(function () {
 
     // Create a configuration with some enabled services
     $this->config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(
             version: PhpVersion::Php84,
@@ -70,7 +71,7 @@ test('can register a service', function () {
     $service = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'test-service';
+            return 'none';
         }
 
         public function getDisplayName(): string
@@ -91,7 +92,7 @@ test('can register a service', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'test-service',
+                name: 'none',
                 enabled: false,
                 type: Service::None,
                 version: '1.0',
@@ -209,7 +210,7 @@ test('returns all registered services', function () {
 
         public function getIcon(): string
         {
-            // TODO: Implement getIcon() method.
+            return '⚙️';
         }
     };
 
@@ -322,7 +323,7 @@ test('returns only enabled services', function () {
             return new ServiceConfig(
                 name: 'mysql',
                 enabled: false,
-                type: 'mysql',
+                type: Service::MySQL,
                 version: '8.0',
                 port: 3306,
                 additionalPorts: [],
@@ -348,6 +349,16 @@ test('returns only enabled services', function () {
         public function getEnvVariables(ServiceConfig $config): array
         {
             return [];
+        }
+
+        public function getType(): Service
+        {
+            return Service::MySQL;
+        }
+
+        public function getIcon(): string
+        {
+            return '🐬';
         }
     };
 
@@ -377,7 +388,7 @@ test('returns only enabled services', function () {
             return new ServiceConfig(
                 name: 'redis',
                 enabled: false,
-                type: 'redis',
+                type: Service::Redis,
                 version: '7.0',
                 port: 6379,
                 additionalPorts: [],
@@ -403,6 +414,16 @@ test('returns only enabled services', function () {
         public function getEnvVariables(ServiceConfig $config): array
         {
             return [];
+        }
+
+        public function getType(): Service
+        {
+            return Service::Redis;
+        }
+
+        public function getIcon(): string
+        {
+            return '🧵';
         }
     };
 
@@ -448,7 +469,7 @@ test('returns only available services', function () {
             return new ServiceConfig(
                 name: 'mysql',
                 enabled: false,
-                type: 'mysql',
+                type: Service::MySQL,
                 version: '8.0',
                 port: 3306,
                 additionalPorts: [],
@@ -474,6 +495,16 @@ test('returns only available services', function () {
         public function getEnvVariables(ServiceConfig $config): array
         {
             return [];
+        }
+
+        public function getType(): Service
+        {
+            return Service::MySQL;
+        }
+
+        public function getIcon(): string
+        {
+            return '🐬';
         }
     };
 
@@ -503,7 +534,7 @@ test('returns only available services', function () {
             return new ServiceConfig(
                 name: 'redis',
                 enabled: false,
-                type: 'redis',
+                type: Service::Redis,
                 version: '7.0',
                 port: 6379,
                 additionalPorts: [],
@@ -530,6 +561,16 @@ test('returns only available services', function () {
         {
             return [];
         }
+
+        public function getType(): Service
+        {
+            return Service::Redis;
+        }
+
+        public function getIcon(): string
+        {
+            return '🧵';
+        }
     };
 
     $registry->register($mysqlService);
@@ -548,7 +589,7 @@ test('replaces service with same name on re-registration', function () {
     $service1 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'test';
+            return 'none';
         }
 
         public function getDisplayName(): string
@@ -569,9 +610,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'test',
+                name: 'none',
                 enabled: false,
-                type: 'test',
+                type: Service::None,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -598,12 +639,22 @@ test('replaces service with same name on re-registration', function () {
         {
             return [];
         }
+
+        public function getType(): Service
+        {
+            return Service::None;
+        }
+
+        public function getIcon(): string
+        {
+            return '⚙️';
+        }
     };
 
     $service2 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'test';
+            return 'none';
         }
 
         public function getDisplayName(): string
@@ -624,9 +675,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'test',
+                name: 'none',
                 enabled: false,
-                type: 'test',
+                type: Service::None,
                 version: '2.0',
                 port: 8000,
                 additionalPorts: [],
@@ -653,12 +704,22 @@ test('replaces service with same name on re-registration', function () {
         {
             return [];
         }
+
+        public function getType(): Service
+        {
+            return Service::None;
+        }
+
+        public function getIcon(): string
+        {
+            return '⚙️';
+        }
     };
 
     $registry->register($service1);
     $registry->register($service2);
 
     expect($registry->all())->toHaveCount(1)
-        ->and($registry->get('test'))->toBe($service2)
-        ->and($registry->get('test')->getDisplayName())->toBe('Test V2');
+        ->and($registry->get(Service::None))->toBe($service2)
+        ->and($registry->get(Service::None)->getDisplayName())->toBe('Test V2');
 });

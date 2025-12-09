@@ -8,10 +8,12 @@ use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\ProjectInitializer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
@@ -30,6 +32,7 @@ afterEach(function () {
 
 test('initializes project with Docker files', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(
             PhpVersion::Php84,
@@ -55,13 +58,13 @@ test('initializes project with Docker files', function () {
     // Verify Dockerfile was created
     expect(file_exists($this->testDir . '/.seaman/Dockerfile'))->toBeTrue();
 
-    // Verify xdebug-toggle.sh was created in both locations
-    expect(file_exists($this->testDir . '/scripts/xdebug-toggle.sh'))->toBeTrue();
+    // Verify xdebug-toggle.sh was created in .seaman/scripts
     expect(file_exists($this->testDir . '/.seaman/scripts/xdebug-toggle.sh'))->toBeTrue();
 });
 
 test('creates .seaman directory if it does not exist', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -79,6 +82,7 @@ test('creates .seaman directory if it does not exist', function () {
 
 test('saves configuration correctly', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php83, new XdebugConfig(true, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -90,7 +94,7 @@ test('saves configuration correctly', function () {
     $initializer->initializeDockerEnvironment($config, $this->testDir);
 
     // Verify config can be loaded back
-    $configManager = new ConfigManager($this->testDir, $this->registry);
+    $configManager = new ConfigManager($this->testDir, $this->registry, new ConfigurationValidator());
     $loadedConfig = $configManager->load();
 
     expect($loadedConfig->php->version)->toBe(PhpVersion::Php83)
@@ -100,6 +104,7 @@ test('saves configuration correctly', function () {
 
 test('xdebug toggle scripts are executable', function () {
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(true, 'seaman', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -110,9 +115,43 @@ test('xdebug toggle scripts are executable', function () {
     $initializer = new ProjectInitializer($this->registry);
     $initializer->initializeDockerEnvironment($config, $this->testDir);
 
-    $rootScript = $this->testDir . '/scripts/xdebug-toggle.sh';
     $seamanScript = $this->testDir . '/.seaman/scripts/xdebug-toggle.sh';
 
-    expect(is_executable($rootScript))->toBeTrue();
     expect(is_executable($seamanScript))->toBeTrue();
+});
+
+test('does not initialize traefik when proxy disabled', function () {
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        projectType: ProjectType::WebApplication,
+        proxy: ProxyConfig::disabled(),
+    );
+
+    $initializer = new ProjectInitializer($this->registry);
+    $initializer->initializeDockerEnvironment($config, $this->testDir);
+
+    expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeFalse();
+    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeFalse();
+});
+
+test('initializes traefik when proxy enabled', function () {
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'seaman', 'host.docker.internal')),
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        projectType: ProjectType::WebApplication,
+        proxy: ProxyConfig::default('testproject'),
+    );
+
+    $initializer = new ProjectInitializer($this->registry);
+    $initializer->initializeDockerEnvironment($config, $this->testDir);
+
+    expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeTrue();
+    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeTrue();
 });

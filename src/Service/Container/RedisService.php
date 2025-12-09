@@ -18,14 +18,6 @@ readonly class RedisService extends AbstractService
         return Service::Redis;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getIcon(): string
     {
         return '🧵';
@@ -49,23 +41,13 @@ readonly class RedisService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
         $composeConfig = [
             'image' => "redis:{$config->version}",
             'ports' => ['${REDIS_PORT}:6379'],
             'networks' => ['seaman'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

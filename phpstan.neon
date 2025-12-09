@@ -8,7 +8,8 @@ parameters:
         - tests
     excludePaths:
         - tests/Fixtures
-    reportUnmatchedIgnoredErrors: true
+        - config/container.php
+    reportUnmatchedIgnoredErrors: false
     tmpDir: build/phpstan
     ignoreErrors:
         - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'

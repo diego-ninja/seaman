@@ -7,57 +7,54 @@ declare(strict_types=1);
 
 namespace Tests\Integration\Command;
 
+use Seaman\Application;
+use Seaman\Tests\Integration\TestHelper;
+use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
-use Seaman\Command\RebuildCommand;
 
 /**
- * @property string $testDir
+ * @property string $tempDir
+ * @property string $originalDir
  */
 beforeEach(function (): void {
-    $this->testDir = sys_get_temp_dir() . '/seaman-rebuild-test-' . uniqid();
-    mkdir($this->testDir, 0755, true);
-    mkdir($this->testDir . '/.seaman', 0755, true);
-    chdir($this->testDir);
-
-    // Create minimal seaman.yaml
-    file_put_contents($this->testDir . '/seaman.yaml', 'version: 1.0');
-
-    // Create minimal Dockerfile
-    file_put_contents(
-        $this->testDir . '/.seaman/Dockerfile',
-        "FROM ubuntu:24.04\nRUN echo 'test'",
-    );
-
-    // Create minimal docker-compose.yml
-    file_put_contents(
-        $this->testDir . '/docker-compose.yml',
-        "version: '3.8'\nservices:\n  app:\n    image: seaman/seaman:latest",
-    );
+    HeadlessMode::reset();
+    HeadlessMode::enable();
+    $this->tempDir = TestHelper::createTempDir();
+    $originalDir = getcwd();
+    if ($originalDir === false) {
+        throw new \RuntimeException('Failed to get current working directory');
+    }
+    $this->originalDir = $originalDir;
+    chdir($this->tempDir);
 });
 
 afterEach(function (): void {
-    if (is_dir($this->testDir)) {
-        exec("rm -rf {$this->testDir}");
-    }
+    HeadlessMode::reset();
+    chdir($this->originalDir);
+    TestHelper::removeTempDir($this->tempDir);
 });
 
 test('rebuild command requires seaman.yaml', function (): void {
-    chdir(sys_get_temp_dir());
+    // Create docker-compose.yml but no seaman.yaml
+    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
 
-    $command = new RebuildCommand();
-    $tester = new CommandTester($command);
-    $tester->execute([]);
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('rebuild'));
 
-    expect($tester->getStatusCode())->toBe(1)
-        ->and($tester->getDisplay())->toContain('seaman.yaml not found');
+    // Command throws RuntimeException when seaman.yaml is missing
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'seaman.yaml not found');
 });
 
-test('rebuild command builds image and restarts services', function (): void {
-    $command = new RebuildCommand();
-    $tester = new CommandTester($command);
+test('rebuild command requires Dockerfile', function (): void {
+    // Setup with seaman.yaml but no Dockerfile
+    TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
+    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
 
-    $result = $tester->execute([]);
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('rebuild'));
+    $commandTester->execute([]);
 
-    $output = $tester->getDisplay();
-    expect($output)->toContain('Building Docker image');
+    // Should fail because Dockerfile doesn't exist
+    expect($commandTester->getStatusCode())->toBe(1);
 });

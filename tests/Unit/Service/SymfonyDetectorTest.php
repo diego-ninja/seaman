@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use Seaman\Service\SymfonyDetector;
+use Seaman\Service\Detector\SymfonyDetector;
 
 test('detects symfony when all indicators present', function (): void {
     $detector = new SymfonyDetector();

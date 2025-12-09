@@ -1,12 +1,18 @@
   {{ name }}:
     image: postgres:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - POSTGRES_DB=${DB_NAME:-seaman}
       - POSTGRES_USER=${DB_USER:-seaman}
       - POSTGRES_PASSWORD=${DB_PASSWORD:-secret}
     ports:
       - "${DB_PORT}:5432"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

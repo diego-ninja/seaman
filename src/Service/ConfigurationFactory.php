@@ -13,6 +13,7 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
@@ -29,15 +30,27 @@ class ConfigurationFactory
     ): Configuration {
         $php = new PhpConfig($choices->phpVersion, $choices->xdebug);
 
-        $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services);
+        $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services, $choices->useProxy);
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
 
+        $proxy = $choices->useProxy
+            ? new ProxyConfig(
+                enabled: true,
+                domainPrefix: $choices->projectName,
+                certResolver: 'selfsigned',
+                dashboard: true,
+                dnsProvider: $choices->dnsProvider,
+            )
+            : ProxyConfig::disabled();
+
         return new Configuration(
+            projectName: $choices->projectName,
             version: '1.0',
             php: $php,
             services: new ServiceCollection($serviceConfigs),
             volumes: new VolumeConfig($persistVolumes),
             projectType: $projectType,
+            proxy: $proxy,
         );
     }
 
@@ -45,10 +58,25 @@ class ConfigurationFactory
      * @param list<Service> $services
      * @return array<string, ServiceConfig>
      */
-    private function buildServiceConfigs(Service $database, array $services): array
+    private function buildServiceConfigs(Service $database, array $services, bool $useProxy): array
     {
         /** @var array<string, ServiceConfig> $serviceConfigs */
         $serviceConfigs = [];
+
+        // Add Traefik if proxy is enabled
+        if ($useProxy) {
+            $traefikImpl = $this->registry->get(Service::Traefik);
+            $traefikConfig = $traefikImpl->getDefaultConfig();
+            $serviceConfigs[Service::Traefik->value] = new ServiceConfig(
+                name: $traefikConfig->name,
+                enabled: true,
+                type: $traefikConfig->type,
+                version: $traefikConfig->version,
+                port: $traefikConfig->port,
+                additionalPorts: $traefikConfig->additionalPorts,
+                environmentVariables: $traefikConfig->environmentVariables,
+            );
+        }
 
         // Add database if selected
         if ($database !== Service::None) {

@@ -7,23 +7,16 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class SqliteService extends AbstractService
+readonly class SqliteService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
         return Service::SQLite;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
     }
 
     public function getDefaultConfig(): ServiceConfig
@@ -76,5 +69,40 @@ readonly class SqliteService extends AbstractService
             'DB_CONNECTION' => 'sqlite',
             'DB_DATABASE' => $dbPath,
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'sqlite3',
+            $env['DATABASE_PATH'] ?? '/data/database.db',
+            '.dump',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'sqlite3',
+            $env['DATABASE_PATH'] ?? '/data/database.db',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }

@@ -8,8 +8,9 @@ use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
-use Seaman\Service\DevContainerGenerator;
+use Seaman\Service\Generator\DevContainerGenerator;
 use Seaman\Service\TemplateRenderer;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
@@ -24,7 +25,7 @@ function createGenerator(): DevContainerGenerator
     $templateDir = __DIR__ . '/../../../src/Template';
     $renderer = new TemplateRenderer($templateDir);
     $registry = new ServiceRegistry();
-    $configManager = new ConfigManager($tempDir, $registry);
+    $configManager = new ConfigManager($tempDir, $registry, new ConfigurationValidator());
 
     return new DevContainerGenerator($renderer, $configManager);
 }
@@ -33,6 +34,7 @@ test('builds base extensions correctly', function () {
     $generator = createGenerator();
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'VSCODE', 'host.docker.internal')),
         services: new ServiceCollection([]),
@@ -61,6 +63,7 @@ test('adds database extension when postgresql enabled', function () {
     );
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'VSCODE', 'host.docker.internal')),
         services: new ServiceCollection(['postgresql' => $serviceConfig]),
@@ -86,6 +89,7 @@ test('adds redis extension when redis enabled', function () {
     );
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'VSCODE', 'host.docker.internal')),
         services: new ServiceCollection(['redis' => $serviceConfig]),
@@ -101,6 +105,7 @@ test('adds API Platform extension when project type is ApiPlatform', function ()
     $generator = createGenerator();
 
     $config = new Configuration(
+        projectName: 'test-project',
         version: '1.0',
         php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'VSCODE', 'host.docker.internal')),
         services: new ServiceCollection([]),

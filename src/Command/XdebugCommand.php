@@ -19,21 +19,32 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'seaman:xdebug',
-    description: 'Toggle xdebug on application container',
+    description: 'Toggle xdebug on application container (requires init)',
     aliases: ['xdebug'],
 )]
-class XdebugCommand extends AbstractSeamanCommand implements Decorable
+class XdebugCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addArgument('mode', InputArgument::REQUIRED, 'Mode: on or off');
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $mode = $input->getArgument('mode');
         if (!is_string($mode)) {
-            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', $mode));
+            Terminal::error(sprintf('Argument "mode" must be a string. Received: %s', get_debug_type($mode)));
             return Command::FAILURE;
         }
 
@@ -42,8 +53,7 @@ class XdebugCommand extends AbstractSeamanCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $manager = new DockerManager((string) getcwd());
-        $result = $manager->executeInService('app', ['xdebug-toggle', strtolower($mode)]);
+        $result = $this->dockerManager->executeInService('app', ['xdebug-toggle', strtolower($mode)]);
 
         if ($result->isSuccessful()) {
             Terminal::success("Xdebug is now <fg=bright-green>{$mode}</>");

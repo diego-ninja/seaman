@@ -1,6 +1,6 @@
   {{ name }}:
     image: mariadb:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-secret}
       - MARIADB_DATABASE=${DB_NAME:-seaman}
@@ -8,6 +8,12 @@
       - MARIADB_PASSWORD=${DB_PASSWORD:-secret}
     ports:
       - "${DB_PORT}:3306"
+{% if labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

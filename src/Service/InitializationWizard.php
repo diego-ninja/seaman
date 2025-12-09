@@ -7,22 +7,23 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
+use Seaman\Service\Detector\PhpVersionDetector;
+use Seaman\Service\Process\CommandExecutorInterface;
+use Seaman\UI\Prompts;
+use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Input\InputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\multiselect;
-use function Laravel\Prompts\select;
 
 final readonly class InitializationWizard
 {
     public function __construct(
         private PhpVersionDetector $detector,
+        private ?DnsConfigurationHelper $dnsHelper = null,
     ) {}
 
     /**
@@ -30,24 +31,37 @@ final readonly class InitializationWizard
      */
     public function run(InputInterface $input, ProjectType $projectType, string $projectRoot): InitializationChoices
     {
+        $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
         $xdebug = $this->enableXdebug();
+        $useProxy = $this->shouldUseProxy();
         $devContainer = $this->enableDevContainer($input);
 
+        // DNS configuration (only if proxy is enabled)
+        $configureDns = false;
+        $dnsProvider = null;
+        if ($useProxy) {
+            [$configureDns, $dnsProvider] = $this->selectDnsConfiguration($projectName);
+        }
+
         return new InitializationChoices(
+            projectName: $projectName,
             phpVersion: $phpVersion,
             database: $database,
             services: $services,
             xdebug: $xdebug,
             generateDevContainer: $devContainer,
+            useProxy: $useProxy,
+            configureDns: $configureDns,
+            dnsProvider: $dnsProvider,
         );
     }
 
     public function selectProjectType(): ProjectType
     {
-        $choice = select(
+        $choice = Prompts::select(
             label: 'Select project type',
             options: [
                 'web' => ProjectType::WebApplication->getLabel() . ' - ' . ProjectType::WebApplication->getDescription(),
@@ -66,7 +80,7 @@ final readonly class InitializationWizard
         $detectedVersion = $this->detectPhpVersion($projectRoot);
         $defaultVersion = $detectedVersion ?? PhpVersion::Php84;
 
-        $choice = select(
+        $choice = Prompts::select(
             label: sprintf('Select PHP version (default: %s)', $defaultVersion->value),
             options: array_map(fn(PhpVersion $version): string => $version->value, PhpVersion::supported()),
             default: $defaultVersion->value,
@@ -77,7 +91,7 @@ final readonly class InitializationWizard
 
     public function selectDatabase(): Service
     {
-        $choice = select(
+        $choice = Prompts::select(
             label: 'Select database (default: postgresql)',
             options: Service::databases(),
             default: Service::PostgreSQL->value,
@@ -93,7 +107,7 @@ final readonly class InitializationWizard
     {
         $defaults = $this->getDefaultServices($projectType);
         /** @var array<int, string> $selected */
-        $selected = multiselect(
+        $selected = Prompts::multiselect(
             label: 'Select additional services',
             options: Service::services(),
             default: array_map(fn(Service $service) => $service->value, $defaults),
@@ -107,14 +121,26 @@ final readonly class InitializationWizard
 
     public function enableXdebug(): XdebugConfig
     {
-        $xdebugEnabled = confirm(label: 'Do you want to enable Xdebug?', default: false);
+        $xdebugEnabled = Prompts::confirm(label: 'Do you want to enable Xdebug?', default: false);
         return new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
     }
 
     public function enableDevContainer(InputInterface $input): bool
     {
         return $input->getOption('with-devcontainer')
-            || confirm(label: 'Do you want to enable DevContainer support?', default: false);
+            || Prompts::confirm(label: 'Do you want to enable DevContainer support?', default: false);
+    }
+
+    /**
+     * Ask if user wants to use Traefik proxy.
+     */
+    public function shouldUseProxy(): bool
+    {
+        return Prompts::confirm(
+            label: 'Use Traefik as reverse proxy?',
+            default: true,
+            hint: 'Enables HTTPS and local domains (app.project.local). Disable for direct port access.',
+        );
     }
 
     /**
@@ -148,11 +174,76 @@ final readonly class InitializationWizard
         $files = array_diff(scandir($currentDir) ?: [], ['.', '..']);
 
         if (count($files) > 0) {
-            info('Current directory is not empty.');
+            Prompts::info('Current directory is not empty.');
             // For now, just use a default - we'll enhance this later
             return 'symfony-app';
         }
 
         return basename($currentDir);
+    }
+
+    /**
+     * Ask user about DNS configuration.
+     *
+     * @return array{0: bool, 1: ?DnsProvider}
+     */
+    public function selectDnsConfiguration(string $projectName): array
+    {
+        $configureDns = Prompts::confirm(
+            label: 'Configure DNS for local development?',
+            default: true,
+            hint: "Enables *.{$projectName}.local domains",
+        );
+
+        if (!$configureDns) {
+            return [false, null];
+        }
+
+        // Detect available providers
+        $providers = $this->detectDnsProviders($projectName);
+
+        if (empty($providers)) {
+            return [true, DnsProvider::Manual];
+        }
+
+        $recommended = $providers[0];
+
+        // Build options
+        $options = [];
+        foreach ($providers as $detected) {
+            $label = $detected->provider->getDisplayName();
+            if ($detected === $recommended) {
+                $label .= ' (recommended)';
+            }
+            $options[$detected->provider->value] = $label . ' - ' . $detected->provider->getDescription();
+        }
+        $options['manual'] = 'Manual - Configure /etc/hosts yourself';
+
+        /** @var string $choice */
+        $choice = Prompts::select(
+            label: 'Select DNS provider',
+            options: $options,
+            default: $recommended->provider->value,
+        );
+
+        if ($choice === 'manual') {
+            return [true, DnsProvider::Manual];
+        }
+
+        return [true, DnsProvider::from($choice)];
+    }
+
+    /**
+     * Detect available DNS providers.
+     *
+     * @return list<DetectedDnsProvider>
+     */
+    private function detectDnsProviders(string $projectName): array
+    {
+        if ($this->dnsHelper === null) {
+            return [];
+        }
+
+        return $this->dnsHelper->detectAvailableProviders($projectName);
     }
 }

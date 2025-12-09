@@ -16,20 +16,21 @@ test('Application can be instantiated', function (): void {
 test('Application has correct name', function (): void {
     $application = new Application();
 
-    expect($application->getName())->toBe('Seaman');
+    // Name includes mode suffix when not in managed mode
+    expect($application->getName())->toContain('🔱 Seaman');
 });
 
 test('Application has correct version', function (): void {
     $application = new Application();
 
-    expect($application->getVersion())->toBe('1.0.0');
+    expect($application->getVersion())->toBe('1.0.0-beta');
 });
 
-test('bin/seaman.php is executable and runs', function (): void {
-    $binPath = __DIR__ . '/../../bin/seaman.php';
+test('bin/seaman is executable and runs', function (): void {
+    $binPath = __DIR__ . '/../../bin/seaman';
 
-    expect(file_exists($binPath))->toBeTrue('bin/seaman.php should exist');
-    expect(is_executable($binPath))->toBeTrue('bin/seaman.php should be executable');
+    expect(file_exists($binPath))->toBeTrue('bin/seaman should exist');
+    expect(is_executable($binPath))->toBeTrue('bin/seaman should be executable');
 
     // Execute and capture output
     exec("php {$binPath} --version 2>&1", $output, $exitCode);

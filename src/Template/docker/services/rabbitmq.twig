@@ -1,12 +1,18 @@
   {{ name }}:
     image: rabbitmq:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - RABBITMQ_DEFAULT_USER=${RABBITMQ_USER:-seaman}
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-secret}
     ports:
       - "${RABBITMQ_PORT}:5672"
       - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
+    labels:
+{% for label in labels %}
+      - "{{ label }}"
+{% endfor %}
+{% endif %}
     networks:
       - seaman
 {% if volumes.shouldPersist(name) %}

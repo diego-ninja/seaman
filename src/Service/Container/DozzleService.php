@@ -18,11 +18,6 @@ readonly class DozzleService extends AbstractService
         return Service::Dozzle;
     }
 
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -37,28 +32,19 @@ readonly class DozzleService extends AbstractService
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
         $composeConfig = [
             'image' => 'amir20/dozzle:' . $config->version,
             'ports' => ['${DOZZLE_PORT}:8080'],
-            'volumes' => [
-                '/var/run/docker.sock:/var/run/docker.sock',
-            ],
+            'volumes' => ['/var/run/docker.sock:/var/run/docker.sock'],
             'networks' => ['seaman'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     public function getRequiredPorts(): array

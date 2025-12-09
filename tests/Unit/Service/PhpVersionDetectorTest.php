@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
-use Seaman\Service\PhpVersionDetector;
+use Seaman\Service\Detector\PhpVersionDetector;
 
 beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();

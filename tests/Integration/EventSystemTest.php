@@ -27,14 +27,14 @@ test('listeners from Listener directory are discovered', function (): void {
 
     expect($listeners)->not->toBeEmpty();
 
-    // Verify at least LogCommandListener is registered
-    $hasLogListener = false;
+    // Verify at least CommandDecorationListener is registered
+    $hasListener = false;
     foreach ($listeners as $listener) {
-        if ($listener instanceof \Seaman\Listener\LogCommandListener) {
-            $hasLogListener = true;
+        if ($listener instanceof \Seaman\Listener\CommandDecorationListener) {
+            $hasListener = true;
             break;
         }
     }
 
-    expect($hasLogListener)->toBeTrue();
+    expect($hasListener)->toBeTrue();
 });

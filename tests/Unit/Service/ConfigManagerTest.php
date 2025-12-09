@@ -10,6 +10,7 @@ namespace Seaman\Tests\Unit\Service;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
@@ -26,7 +27,8 @@ beforeEach(function () {
     $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
     mkdir($this->tempDir, 0755, true);
     $registry = new ServiceRegistry();
-    $this->manager = new ConfigManager($this->tempDir, $registry);
+    $validator = new ConfigurationValidator();
+    $this->manager = new ConfigManager($this->tempDir, $registry, $validator);
 });
 
 afterEach(function () {
@@ -108,7 +110,13 @@ test('saves configuration to YAML', function () {
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $config = new Configuration('1.0', $php, $services, $volumes);
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
 
     /** @var ConfigManager $manager */
     $manager = $this->manager;
@@ -130,7 +138,13 @@ test('generates .env file when saving', function () {
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $config = new Configuration('1.0', $php, $services, $volumes);
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
 
     /** @var ConfigManager $manager */
     $manager = $this->manager;
@@ -154,7 +168,13 @@ test('merges service into existing configuration', function () {
     $services = new ServiceCollection(['postgresql' => $existingService]);
     $volumes = new VolumeConfig(['database']);
 
-    $baseConfig = new Configuration('1.0', $php, $services, $volumes);
+    $baseConfig = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
 
     $overrides = [
         'services' => [
@@ -186,7 +206,13 @@ test('merge preserves existing configuration', function () {
     $services = new ServiceCollection([]);
     $volumes = new VolumeConfig([]);
 
-    $baseConfig = new Configuration('1.0', $php, $services, $volumes);
+    $baseConfig = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
 
     $overrides = [];
 

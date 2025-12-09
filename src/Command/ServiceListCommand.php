@@ -10,25 +10,29 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\Prompts;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
-use function Laravel\Prompts\table;
-
 #[AsCommand(
     name: 'service:list',
-    description: 'Lists all available services and their status',
+    description: 'Lists all available services and their status (requires init)',
 )]
-class ServiceListCommand extends AbstractSeamanCommand implements Decorable
+class ServiceListCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -54,7 +58,7 @@ class ServiceListCommand extends AbstractSeamanCommand implements Decorable
             ];
         }
 
-        table(
+        Prompts::table(
             ['Name', 'Display Name', 'Status', 'Port(s)'],
             $rows,
         );

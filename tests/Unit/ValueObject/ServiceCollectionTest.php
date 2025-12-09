@@ -7,6 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\ValueObject;
 
+use Seaman\Enum\Service;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 
@@ -20,8 +21,8 @@ test('creates empty service collection', function () {
 
 test('creates collection with services', function () {
     $services = [
-        'postgresql' => new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []),
-        'redis' => new ServiceConfig('redis', true, 'redis', '7-alpine', 6379, [], []),
+        'postgresql' => new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []),
+        'redis' => new ServiceConfig('redis', true, Service::Redis, '7-alpine', 6379, [], []),
     ];
 
     $collection = new ServiceCollection($services);
@@ -34,8 +35,8 @@ test('creates collection with services', function () {
 
 test('filters enabled services', function () {
     $services = [
-        'postgresql' => new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []),
-        'redis' => new ServiceConfig('redis', false, 'redis', '7-alpine', 6379, [], []),
+        'postgresql' => new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []),
+        'redis' => new ServiceConfig('redis', false, Service::Redis, '7-alpine', 6379, [], []),
     ];
 
     $collection = new ServiceCollection($services);
@@ -46,7 +47,7 @@ test('filters enabled services', function () {
 });
 
 test('gets service by name', function () {
-    $service = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
+    $service = new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []);
     $collection = new ServiceCollection(['postgresql' => $service]);
 
     $retrieved = $collection->get('postgresql');
@@ -61,7 +62,7 @@ test('throws when getting non-existent service', function () {
 
 test('adds new service', function () {
     $collection = new ServiceCollection([]);
-    $service = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
+    $service = new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []);
 
     $newCollection = $collection->add('postgresql', $service);
 
@@ -70,7 +71,7 @@ test('adds new service', function () {
 });
 
 test('removes service', function () {
-    $service = new ServiceConfig('postgresql', true, 'postgresql', '16', 5432, [], []);
+    $service = new ServiceConfig('postgresql', true, Service::PostgreSQL, '16', 5432, [], []);
     $collection = new ServiceCollection(['postgresql' => $service]);
 
     $newCollection = $collection->remove('postgresql');

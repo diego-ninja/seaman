@@ -9,26 +9,30 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-use function Laravel\Prompts\table;
-
 #[AsCommand(
     name: 'seaman:status',
     description: 'Show status of all services',
     aliases: ['status'],
 )]
-class StatusCommand extends AbstractSeamanCommand implements Decorable
+class StatusCommand extends ModeAwareCommand implements Decorable
 {
-    public function __construct(private readonly ServiceRegistry $serviceRegistry)
-    {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
         parent::__construct();
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
     }
 
     /**
@@ -36,8 +40,7 @@ class StatusCommand extends AbstractSeamanCommand implements Decorable
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $manager = new DockerManager((string) getcwd());
-        $services = $manager->status();
+        $services = $this->dockerManager->status();
 
         if (empty($services)) {
             Terminal::output()->writeln('  No services are running or defined.');
@@ -46,16 +49,18 @@ class StatusCommand extends AbstractSeamanCommand implements Decorable
 
         $rows = [];
         foreach ($services as $service) {
-            $ports = array_unique(array_map(function (array $port) {
-                $publishedPort = isset($port['PublishedPort']) && is_int($port['PublishedPort']) ? $port['PublishedPort'] : 0;
-                $protocol = isset($port['Protocol']) && is_string($port['Protocol']) ? $port['Protocol'] : '';
+            /** @var list<array{PublishedPort?: int, Protocol?: string}> $publishers */
+            $publishers = $service['Publishers'] ?? [];
+            $ports = array_unique(array_map(function (array $port): string {
+                $publishedPort = $port['PublishedPort'] ?? 0;
+                $protocol = $port['Protocol'] ?? '';
 
                 return sprintf(
                     '%d/%s',
                     $publishedPort,
                     $protocol,
                 );
-            }, $service['Publishers'] ?? []));
+            }, $publishers));
 
             $rows[] = [
                 sprintf('%s %s', Service::from($service['Service'])->icon(), $service['Name']),
@@ -67,7 +72,7 @@ class StatusCommand extends AbstractSeamanCommand implements Decorable
             ];
         }
 
-        table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
+        Prompts::table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
 
         return Command::SUCCESS;
     }

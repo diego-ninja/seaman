@@ -17,11 +17,13 @@ test('creates configuration from choices with database and services', function (
     $factory = new ConfigurationFactory($registry);
 
     $choices = new InitializationChoices(
+        projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
         database: Service::PostgreSQL,
         services: [Service::Redis, Service::Mailpit],
         xdebug: new XdebugConfig(true, 'seaman', 'host.docker.internal'),
         generateDevContainer: false,
+        useProxy: false,
     );
 
     $config = $factory->createFromChoices($choices, ProjectType::WebApplication);
@@ -40,11 +42,13 @@ test('creates configuration without database when None selected', function () {
     $factory = new ConfigurationFactory($registry);
 
     $choices = new InitializationChoices(
+        projectName: 'test-project',
         phpVersion: PhpVersion::Php83,
         database: Service::None,
         services: [Service::Redis],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
         generateDevContainer: true,
+        useProxy: false,
     );
 
     $config = $factory->createFromChoices($choices, ProjectType::Skeleton);
@@ -59,6 +63,7 @@ test('includes database in persist volumes', function () {
     $factory = new ConfigurationFactory($registry);
 
     $choices = new InitializationChoices(
+        projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
         database: Service::PostgreSQL,
         services: [],
@@ -76,6 +81,7 @@ test('includes persistable services in persist volumes', function () {
     $factory = new ConfigurationFactory($registry);
 
     $choices = new InitializationChoices(
+        projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
         database: Service::None,
         services: [Service::Redis, Service::MongoDB, Service::Elasticsearch],
@@ -95,6 +101,7 @@ test('does not include non-persistable services in persist volumes', function ()
     $factory = new ConfigurationFactory($registry);
 
     $choices = new InitializationChoices(
+        projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
         database: Service::None,
         services: [Service::Mailpit, Service::Dozzle],

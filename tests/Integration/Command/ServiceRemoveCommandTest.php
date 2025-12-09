@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Service\ConfigManager;
+use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RedisService;
@@ -25,6 +26,7 @@ beforeEach(function () {
 
     // Create a minimal seaman.yaml with some enabled services
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -54,7 +56,7 @@ YAML;
     $this->registry->register(new MysqlService());
     $this->registry->register(new PostgresqlService());
     $this->registry->register(new RedisService());
-    $this->configManager = new ConfigManager($this->tempDir, $this->registry);
+    $this->configManager = new ConfigManager($this->tempDir, $this->registry, new ConfigurationValidator());
 });
 
 afterEach(function () {
@@ -91,6 +93,7 @@ test('registry shows no enabled services when none are enabled', function () {
 
     // Create config with no enabled services
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -109,7 +112,7 @@ YAML;
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
     /** @var ConfigManager $configManager */
-    $configManager = new ConfigManager($tempDir, $registry);
+    $configManager = new ConfigManager($tempDir, $registry, new ConfigurationValidator());
 
     $config = $configManager->load();
     $enabled = $registry->enabled($config);
@@ -142,6 +145,7 @@ test('removes single service from configuration', function () {
     // Remove MySQL
     $services = $config->services->remove('mysql');
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,
@@ -168,6 +172,7 @@ test('removes multiple services from configuration', function () {
     $services = $services->remove('redis');
 
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,
@@ -193,6 +198,7 @@ test('regenerates .env file after removing services', function () {
     // Remove MySQL
     $services = $config->services->remove('mysql');
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,
@@ -218,6 +224,7 @@ test('service collection handles removal of non-existent service', function () {
     // Try to remove a service that doesn't exist
     $services = $config->services->remove('nonexistent');
     $config = new Configuration(
+        projectName: $config->projectName,
         version: $config->version,
         php: $config->php,
         services: $services,

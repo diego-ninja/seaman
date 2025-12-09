@@ -11,6 +11,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
@@ -19,11 +20,9 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-use function Laravel\Prompts\multiselect;
-
 #[AsCommand(
     name: 'service:add',
-    description: 'Interactively add services to configuration',
+    description: 'Interactively add services to configuration (requires init)',
 )]
 class ServiceAddCommand extends AbstractServiceCommand implements Decorable
 {
@@ -32,6 +31,11 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         private readonly ServiceRegistry $registry,
     ) {
         parent::__construct();
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -54,7 +58,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         }
 
         /** @var array<int, string> $selected */
-        $selected = multiselect(
+        $selected = Prompts::multiselect(
             label: 'Which service would you like to add?',
             options: $choices,
         );
@@ -81,6 +85,7 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
             );
             $services = $newConfig->services->add($serviceName, $serviceConfig);
             $newConfig = new Configuration(
+                projectName: $newConfig->projectName,
                 version: $newConfig->version,
                 php: $newConfig->php,
                 services: $services,

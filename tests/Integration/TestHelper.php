@@ -47,7 +47,7 @@ class TestHelper
     {
         $fixturesDir = __DIR__ . '/../Fixtures/configs';
         $sourcePath = $fixturesDir . '/' . $fixtureName;
-        $targetPath = $targetDir . '/seaman.yaml';
+        $targetPath = $targetDir . '/.seaman/seaman.yaml';
 
         if (!file_exists($sourcePath)) {
             throw new \RuntimeException("Fixture not found: {$sourcePath}");

@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\OperatingMode;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Exception\BinaryNotFoundException;
 use Seaman\UI\Terminal;
@@ -22,11 +23,17 @@ use Symfony\Component\Process\Process;
     name: 'seaman:build',
     description: 'Build PHAR executable using Box',
     aliases: ['build'],
+    hidden: true,
 )]
-class BuildCommand extends AbstractSeamanCommand implements Decorable
+class BuildCommand extends ModeAwareCommand implements Decorable
 {
+    public function supportsMode(OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     /**
-     * @throws BinaryNotFoundException
+     * @throws \Exception
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
@@ -36,9 +43,6 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
         $boxPath =  $this->ensureBoxIsInstalled($projectRoot);
 
         $this->generateListenersConfig($projectRoot);
-
-        // Install production dependencies only
-        //$this->installProductionDependencies($projectRoot);
 
         // Run box compile
         $process = new Process(
@@ -50,9 +54,6 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
         );
 
         SpinnerFactory::for($process, sprintf('Compiling seaman.phar using Box at: %s', $boxPath));
-
-        // Restore dev dependencies
-        //$this->restoreDevDependencies($projectRoot);
 
         if (!$process->isSuccessful()) {
             Terminal::error('Failed to build PHAR');
@@ -133,41 +134,4 @@ class BuildCommand extends AbstractSeamanCommand implements Decorable
         Terminal::error('Box not found. Please run: composer install --dev');
         exit(Command::FAILURE);
     }
-
-    private function installProductionDependencies(string $projectRoot): void
-    {
-        $process = new Process(
-            ['composer', 'install', '--no-dev', '--no-interaction', '--optimize-autoloader', '--classmap-authoritative'],
-            $projectRoot,
-            null,
-            null,
-            300,
-        );
-
-        SpinnerFactory::for($process, 'Installing production dependencies only');
-
-        if (!$process->isSuccessful()) {
-            Terminal::error('Failed to install production dependencies');
-            Terminal::output()->writeln($process->getErrorOutput());
-            exit(Command::FAILURE);
-        }
-    }
-
-    private function restoreDevDependencies(string $projectRoot): void
-    {
-        $process = new Process(
-            ['composer', 'install', '--no-interaction'],
-            $projectRoot,
-            null,
-            null,
-            300,
-        );
-
-        $process->run();
-
-        if (!$process->isSuccessful()) {
-            Terminal::error('Failed to restore dev dependencies. You may need to run composer install manually.');
-        }
-    }
-
 }

@@ -7,23 +7,16 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class PostgresqlService extends AbstractService
+readonly class PostgresqlService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
         return Service::PostgreSQL;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
     }
 
     public function getDefaultConfig(): ServiceConfig
@@ -44,34 +37,18 @@ readonly class PostgresqlService extends AbstractService
     }
 
     /**
-     * @param ServiceConfig $config
      * @return array<string, mixed>
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'postgres:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':5432',
-            ],
-            'volumes' => [
-                'postgresql_data:/var/lib/postgresql/data',
-            ],
+            'ports' => [$config->port . ':5432'],
+            'volumes' => ['postgresql_data:/var/lib/postgresql/data'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**
@@ -103,5 +80,43 @@ readonly class PostgresqlService extends AbstractService
             'DB_USER' => $config->environmentVariables['POSTGRES_USER'] ?? 'seaman',
             'DB_PASSWORD' => $config->environmentVariables['POSTGRES_PASSWORD'] ?? 'seaman',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'pg_dump',
+            '-U',
+            $env['POSTGRES_USER'] ?? 'postgres',
+            $env['POSTGRES_DB'] ?? 'postgres',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'psql',
+            '-U',
+            $env['POSTGRES_USER'] ?? 'postgres',
+            $env['POSTGRES_DB'] ?? 'postgres',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }

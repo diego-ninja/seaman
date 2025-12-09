@@ -23,8 +23,14 @@ use Symfony\Component\Console\Style\SymfonyStyle;
     description: 'View service logs',
     aliases: ['logs'],
 )]
-class LogsCommand extends AbstractSeamanCommand implements Decorable
+class LogsCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this
@@ -34,10 +40,14 @@ class LogsCommand extends AbstractSeamanCommand implements Decorable
             ->addOption('since', 's', InputOption::VALUE_REQUIRED, 'Show logs since timestamp or relative');
     }
 
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    {
+        return true; // Works in all modes
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $projectRoot = (string) getcwd();
 
         /** @var string $service */
         $service = $input->getArgument('service');
@@ -52,10 +62,8 @@ class LogsCommand extends AbstractSeamanCommand implements Decorable
             since: $since,
         );
 
-        $manager = new DockerManager($projectRoot);
-
         try {
-            $result = $manager->logs($service, $options);
+            $result = $this->dockerManager->logs($service, $options);
         } catch (\RuntimeException $e) {
             $io->error($e->getMessage());
             return Command::FAILURE;

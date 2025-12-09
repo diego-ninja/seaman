@@ -7,23 +7,16 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class MariadbService extends AbstractService
+readonly class MariadbService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
         return Service::MariaDB;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
     }
 
     public function getDefaultConfig(): ServiceConfig
@@ -45,34 +38,18 @@ readonly class MariadbService extends AbstractService
     }
 
     /**
-     * @param ServiceConfig $config
      * @return array<string, mixed>
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'mariadb:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':3306',
-            ],
-            'volumes' => [
-                'mariadb_data:/var/lib/mysql',
-            ],
+            'ports' => [$config->port . ':3306'],
+            'volumes' => ['mariadb_data:/var/lib/mysql'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**
@@ -105,5 +82,45 @@ readonly class MariadbService extends AbstractService
             'DB_PASSWORD' => $config->environmentVariables['MARIADB_PASSWORD'] ?? 'seaman',
             'DB_ROOT_PASSWORD' => $config->environmentVariables['MARIADB_ROOT_PASSWORD'] ?? 'root',
         ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mariadb-dump',
+            '-u',
+            $env['MARIADB_USER'] ?? 'root',
+            '-p' . ($env['MARIADB_PASSWORD'] ?? ''),
+            $env['MARIADB_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mariadb',
+            '-u',
+            $env['MARIADB_USER'] ?? 'root',
+            '-p' . ($env['MARIADB_PASSWORD'] ?? ''),
+            $env['MARIADB_DATABASE'] ?? 'mysql',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        return $this->getRestoreCommand($config);
     }
 }
