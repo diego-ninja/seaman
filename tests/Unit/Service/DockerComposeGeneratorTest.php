@@ -167,3 +167,44 @@ test('generates docker-compose with traefik labels when proxy enabled', function
 
     expect($yaml)->toContain('traefik.enable=true');
 });
+
+test('includes traefik service when proxy enabled', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        proxy: ProxyConfig::default('testproject'),
+    );
+
+    $yaml = $this->generator->generate($config);
+
+    expect($yaml)->toContain('traefik:')
+        ->and($yaml)->toContain('image: traefik:v3.6')
+        ->and($yaml)->toContain('--api.dashboard=true')
+        ->and($yaml)->toContain('--providers.docker=true')
+        ->and($yaml)->toContain('/var/run/docker.sock');
+});
+
+test('does not include traefik service when proxy disabled', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        proxy: ProxyConfig::disabled(),
+    );
+
+    $yaml = $this->generator->generate($config);
+
+    expect($yaml)->not->toContain('traefik:')
+        ->and($yaml)->not->toContain('image: traefik:');
+});

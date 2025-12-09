@@ -378,3 +378,98 @@ test('detectAvailableProviders excludes systemd-resolved when stub listener is a
     $hostsFile = array_filter($providers, fn($p) => $p->provider === DnsProvider::HostsFile);
     expect($hostsFile)->not->toBeEmpty();
 });
+
+test('configureHostsFile includes marker comments', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    $result = $helper->configureProvider('testproject', DnsProvider::HostsFile);
+
+    expect($result->configContent)->toContain('# BEGIN Seaman - testproject')
+        ->and($result->configContent)->toContain('# END Seaman - testproject');
+});
+
+test('configureHostsFile generates entries for services', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    // When no services provided, uses default ProxyOnly services
+    $result = $helper->configureProvider('testproject', DnsProvider::HostsFile);
+
+    expect($result->configContent)->toContain('app.testproject.local')
+        ->and($result->configContent)->toContain('traefik.testproject.local')
+        ->and($result->configContent)->toContain('mailpit.testproject.local')
+        ->and($result->configContent)->toContain('dozzle.testproject.local')
+        ->and($result->configContent)->toContain('minio.testproject.local')
+        ->and($result->configContent)->toContain('rabbitmq.testproject.local');
+});
+
+test('configureHostsFile generates entries for enabled services', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    // Create a ServiceCollection with specific services
+    $services = new \Seaman\ValueObject\ServiceCollection([
+        'mailpit' => new \Seaman\ValueObject\ServiceConfig(
+            name: 'mailpit',
+            enabled: true,
+            type: \Seaman\Enum\Service::Mailpit,
+            version: 'latest',
+            port: 8025,
+            additionalPorts: [],
+            environmentVariables: [],
+        ),
+        'redis' => new \Seaman\ValueObject\ServiceConfig(
+            name: 'redis',
+            enabled: true,
+            type: \Seaman\Enum\Service::Redis,
+            version: '7',
+            port: 6379,
+            additionalPorts: [],
+            environmentVariables: [],
+        ),
+    ]);
+
+    $result = $helper->configureProvider('testproject', DnsProvider::HostsFile, $services);
+
+    // Should include app, traefik, and mailpit (ProxyOnly)
+    expect($result->configContent)->toContain('app.testproject.local')
+        ->and($result->configContent)->toContain('traefik.testproject.local')
+        ->and($result->configContent)->toContain('mailpit.testproject.local');
+
+    // Should NOT include redis (DirectPort service)
+    expect($result->configContent)->not->toContain('redis.testproject.local');
+});
+
+test('cleanupDns returns result for hosts-file cleanup', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    // Since we can't actually read /etc/hosts, the cleanup will return "not found"
+    $result = $helper->cleanupDns('testproject', DnsProvider::HostsFile);
+
+    expect($result->type)->toBe('hosts-file')
+        ->and($result->automatic)->toBeFalse();
+});
+
+test('cleanupDns returns result for dnsmasq cleanup', function () {
+    $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
+    $helper = new DnsConfigurationHelper($executor);
+
+    $result = $helper->cleanupDns('testproject', DnsProvider::Dnsmasq);
+
+    // Config file doesn't exist, so it returns non-automatic
+    expect($result->type)->toBe('dnsmasq-cleanup')
+        ->and($result->automatic)->toBeFalse();
+});
+
+test('cleanupDns returns result for manual provider', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsConfigurationHelper($executor);
+
+    $result = $helper->cleanupDns('testproject', DnsProvider::Manual);
+
+    expect($result->type)->toBe('manual')
+        ->and($result->automatic)->toBeFalse()
+        ->and($result->instructions)->not->toBeEmpty();
+});

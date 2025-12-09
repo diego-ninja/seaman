@@ -229,6 +229,7 @@ return function (ContainerBuilder $builder): void {
         CleanCommand::class => factory(
             fn(ContainerInterface $c): CleanCommand => new CleanCommand(
                 $c->get(DockerManager::class),
+                $c->get(ConfigManager::class),
             ),
         ),
 

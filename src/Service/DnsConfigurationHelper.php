@@ -9,11 +9,17 @@ namespace Seaman\Service;
 
 use Seaman\Contract\CommandExecutor;
 use Seaman\Enum\DnsProvider;
+use Seaman\Enum\Service;
+use Seaman\Enum\ServiceExposureType;
 use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\DnsConfigurationResult;
+use Seaman\ValueObject\ServiceCollection;
 
 final readonly class DnsConfigurationHelper
 {
+    private const string HOSTS_MARKER_START = '# BEGIN Seaman -';
+    private const string HOSTS_MARKER_END = '# END Seaman -';
+
     public function __construct(
         private CommandExecutor $executor,
     ) {}
@@ -108,15 +114,18 @@ final readonly class DnsConfigurationHelper
     /**
      * Configure DNS using a specific provider.
      */
-    public function configureProvider(string $projectName, DnsProvider $provider): DnsConfigurationResult
-    {
+    public function configureProvider(
+        string $projectName,
+        DnsProvider $provider,
+        ?ServiceCollection $services = null,
+    ): DnsConfigurationResult {
         return match ($provider) {
             DnsProvider::Dnsmasq => $this->configureDnsmasq($projectName),
             DnsProvider::SystemdResolved => $this->configureSystemdResolved($projectName),
             DnsProvider::NetworkManager => $this->configureNetworkManager($projectName),
             DnsProvider::MacOSResolver => $this->configureMacOSResolver($projectName),
-            DnsProvider::HostsFile => $this->configureHostsFile($projectName),
-            DnsProvider::Manual => $this->getManualInstructions($projectName),
+            DnsProvider::HostsFile => $this->configureHostsFile($projectName, $services),
+            DnsProvider::Manual => $this->getManualInstructions($projectName, $services),
         };
     }
 
@@ -303,19 +312,35 @@ final readonly class DnsConfigurationHelper
     /**
      * Configure DNS using /etc/hosts file.
      */
-    private function configureHostsFile(string $projectName): DnsConfigurationResult
+    private function configureHostsFile(string $projectName, ?ServiceCollection $services = null): DnsConfigurationResult
     {
-        $hostsEntries = [
-            "app.{$projectName}.local",
-            "traefik.{$projectName}.local",
-            "mailpit.{$projectName}.local",
-            "dozzle.{$projectName}.local",
-        ];
+        $hostsEntries = $this->getHostsEntries($projectName, $services);
 
-        $configContent = "\n# Seaman - {$projectName}\n";
-        foreach ($hostsEntries as $host) {
+        // Filter out entries that already exist
+        $existingEntries = $this->getExistingHostsEntries();
+        $newEntries = array_filter(
+            $hostsEntries,
+            fn(string $host): bool => !in_array($host, $existingEntries, true),
+        );
+
+        if ($newEntries === []) {
+            return new DnsConfigurationResult(
+                type: 'hosts-file',
+                automatic: true,
+                requiresSudo: false,
+                configPath: '/etc/hosts',
+                configContent: null,
+                instructions: ['All DNS entries already exist in /etc/hosts'],
+                restartCommand: null,
+            );
+        }
+
+        // Use markers for easy cleanup
+        $configContent = "\n" . self::HOSTS_MARKER_START . " {$projectName}\n";
+        foreach ($newEntries as $host) {
             $configContent .= "127.0.0.1 {$host}\n";
         }
+        $configContent .= self::HOSTS_MARKER_END . " {$projectName}\n";
 
         return new DnsConfigurationResult(
             type: 'hosts-file',
@@ -329,16 +354,330 @@ final readonly class DnsConfigurationHelper
     }
 
     /**
+     * Get all hosts entries needed for a project.
+     *
+     * @return list<string>
+     */
+    private function getHostsEntries(string $projectName, ?ServiceCollection $services = null): array
+    {
+        // Always include app and traefik
+        $entries = [
+            "app.{$projectName}.local",
+            "traefik.{$projectName}.local",
+        ];
+
+        // Add entries for all ProxyOnly services
+        if ($services !== null) {
+            foreach ($services->enabled() as $name => $service) {
+                if ($this->isProxyOnlyService($service->type)) {
+                    $entries[] = "{$name}.{$projectName}.local";
+                }
+            }
+        } else {
+            // Fallback: include common ProxyOnly services
+            $defaultServices = ['mailpit', 'dozzle', 'minio', 'rabbitmq', 'opensearch', 'elasticsearch'];
+            foreach ($defaultServices as $name) {
+                $entries[] = "{$name}.{$projectName}.local";
+            }
+        }
+
+        return array_values(array_unique($entries));
+    }
+
+    /**
+     * Determine if a service type should be exposed via proxy.
+     */
+    private function isProxyOnlyService(Service $service): bool
+    {
+        return match ($service) {
+            Service::App,
+            Service::Mailpit,
+            Service::RabbitMq,
+            Service::Dozzle,
+            Service::MinIO,
+            Service::Elasticsearch,
+            Service::OpenSearch,
+            Service::Traefik => true,
+            default => false,
+        };
+    }
+
+    /**
+     * Get existing hosts entries from /etc/hosts.
+     *
+     * @return list<string>
+     */
+    private function getExistingHostsEntries(): array
+    {
+        if (!file_exists('/etc/hosts')) {
+            return [];
+        }
+
+        $content = file_get_contents('/etc/hosts');
+        if ($content === false) {
+            return [];
+        }
+
+        $entries = [];
+        foreach (explode("\n", $content) as $line) {
+            $line = trim($line);
+            // Skip comments and empty lines
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            // Parse hosts entry: IP hostname [hostname2 ...]
+            $parts = preg_split('/\s+/', $line);
+            if ($parts === false || count($parts) < 2) {
+                continue;
+            }
+
+            // Add all hostnames (skip IP)
+            for ($i = 1; $i < count($parts); $i++) {
+                $entries[] = $parts[$i];
+            }
+        }
+
+        return $entries;
+    }
+
+    /**
+     * Remove DNS entries for a project from /etc/hosts.
+     */
+    public function removeHostsEntries(string $projectName): DnsConfigurationResult
+    {
+        if (!file_exists('/etc/hosts')) {
+            return new DnsConfigurationResult(
+                type: 'hosts-file',
+                automatic: false,
+                requiresSudo: false,
+                configPath: '/etc/hosts',
+                configContent: null,
+                instructions: ['/etc/hosts file not found'],
+                restartCommand: null,
+            );
+        }
+
+        $content = file_get_contents('/etc/hosts');
+        if ($content === false) {
+            return new DnsConfigurationResult(
+                type: 'hosts-file',
+                automatic: false,
+                requiresSudo: false,
+                configPath: '/etc/hosts',
+                configContent: null,
+                instructions: ['Could not read /etc/hosts'],
+                restartCommand: null,
+            );
+        }
+
+        $startMarker = self::HOSTS_MARKER_START . " {$projectName}";
+        $endMarker = self::HOSTS_MARKER_END . " {$projectName}";
+
+        // Check if markers exist
+        if (!str_contains($content, $startMarker)) {
+            return new DnsConfigurationResult(
+                type: 'hosts-file',
+                automatic: false,
+                requiresSudo: false,
+                configPath: '/etc/hosts',
+                configContent: null,
+                instructions: ["No Seaman DNS entries found for project '{$projectName}'"],
+                restartCommand: null,
+            );
+        }
+
+        // Remove the section between markers (including markers)
+        $pattern = '/\n?' . preg_quote($startMarker, '/') . '.*?' . preg_quote($endMarker, '/') . '\n?/s';
+        $newContent = preg_replace($pattern, '', $content);
+
+        if ($newContent === null || $newContent === $content) {
+            return new DnsConfigurationResult(
+                type: 'hosts-file',
+                automatic: false,
+                requiresSudo: false,
+                configPath: '/etc/hosts',
+                configContent: null,
+                instructions: ['Could not remove DNS entries from /etc/hosts'],
+                restartCommand: null,
+            );
+        }
+
+        return new DnsConfigurationResult(
+            type: 'hosts-file-cleanup',
+            automatic: true,
+            requiresSudo: true,
+            configPath: '/etc/hosts',
+            configContent: $newContent,
+            instructions: [],
+            restartCommand: null,
+        );
+    }
+
+    /**
+     * Clean up DNS configuration for a project based on the provider used.
+     */
+    public function cleanupDns(string $projectName, DnsProvider $provider): DnsConfigurationResult
+    {
+        return match ($provider) {
+            DnsProvider::HostsFile => $this->removeHostsEntries($projectName),
+            DnsProvider::Dnsmasq => $this->removeDnsmasqConfig($projectName),
+            DnsProvider::SystemdResolved => $this->removeSystemdResolvedConfig($projectName),
+            DnsProvider::NetworkManager => $this->removeNetworkManagerConfig($projectName),
+            DnsProvider::MacOSResolver => $this->removeMacOSResolverConfig($projectName),
+            DnsProvider::Manual => new DnsConfigurationResult(
+                type: 'manual',
+                automatic: false,
+                requiresSudo: false,
+                configPath: null,
+                configContent: null,
+                instructions: ['Manual DNS configuration - please remove entries manually'],
+                restartCommand: null,
+            ),
+        };
+    }
+
+    /**
+     * Remove dnsmasq configuration for a project.
+     */
+    private function removeDnsmasqConfig(string $projectName): DnsConfigurationResult
+    {
+        $configPath = $this->getDnsmasqConfigPath($projectName);
+
+        if (!file_exists($configPath)) {
+            return new DnsConfigurationResult(
+                type: 'dnsmasq-cleanup',
+                automatic: false,
+                requiresSudo: false,
+                configPath: $configPath,
+                configContent: null,
+                instructions: ["No dnsmasq config found at {$configPath}"],
+                restartCommand: null,
+            );
+        }
+
+        $restartCommand = PHP_OS_FAMILY === 'Darwin'
+            ? 'sudo brew services restart dnsmasq'
+            : 'sudo systemctl restart dnsmasq';
+
+        return new DnsConfigurationResult(
+            type: 'dnsmasq-cleanup',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: null,
+            instructions: [],
+            restartCommand: $restartCommand,
+        );
+    }
+
+    /**
+     * Remove systemd-resolved configuration for a project.
+     */
+    private function removeSystemdResolvedConfig(string $projectName): DnsConfigurationResult
+    {
+        $configPath = "/etc/systemd/resolved.conf.d/seaman-{$projectName}.conf";
+
+        if (!file_exists($configPath)) {
+            return new DnsConfigurationResult(
+                type: 'systemd-resolved-cleanup',
+                automatic: false,
+                requiresSudo: false,
+                configPath: $configPath,
+                configContent: null,
+                instructions: ["No systemd-resolved config found at {$configPath}"],
+                restartCommand: null,
+            );
+        }
+
+        return new DnsConfigurationResult(
+            type: 'systemd-resolved-cleanup',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: null,
+            instructions: [],
+            restartCommand: 'sudo systemctl restart systemd-resolved',
+        );
+    }
+
+    /**
+     * Remove NetworkManager dnsmasq configuration for a project.
+     */
+    private function removeNetworkManagerConfig(string $projectName): DnsConfigurationResult
+    {
+        $configPath = "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf";
+
+        if (!file_exists($configPath)) {
+            return new DnsConfigurationResult(
+                type: 'networkmanager-cleanup',
+                automatic: false,
+                requiresSudo: false,
+                configPath: $configPath,
+                configContent: null,
+                instructions: ["No NetworkManager config found at {$configPath}"],
+                restartCommand: null,
+            );
+        }
+
+        return new DnsConfigurationResult(
+            type: 'networkmanager-cleanup',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: null,
+            instructions: [],
+            restartCommand: 'sudo systemctl restart NetworkManager',
+        );
+    }
+
+    /**
+     * Remove macOS resolver configuration for a project.
+     */
+    private function removeMacOSResolverConfig(string $projectName): DnsConfigurationResult
+    {
+        $configPath = "/etc/resolver/{$projectName}.local";
+
+        if (!file_exists($configPath)) {
+            return new DnsConfigurationResult(
+                type: 'macos-resolver-cleanup',
+                automatic: false,
+                requiresSudo: false,
+                configPath: $configPath,
+                configContent: null,
+                instructions: ["No macOS resolver config found at {$configPath}"],
+                restartCommand: null,
+            );
+        }
+
+        return new DnsConfigurationResult(
+            type: 'macos-resolver-cleanup',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: null,
+            instructions: [],
+            restartCommand: null,
+        );
+    }
+
+    /**
      * Get manual instructions for DNS configuration.
      */
-    private function getManualInstructions(string $projectName): DnsConfigurationResult
+    private function getManualInstructions(string $projectName, ?ServiceCollection $services = null): DnsConfigurationResult
     {
+        $hostsEntries = $this->getHostsEntries($projectName, $services);
+
         $instructions = [
             'Add the following entries to /etc/hosts:',
             '',
-            "127.0.0.1 app.{$projectName}.local",
-            "127.0.0.1 traefik.{$projectName}.local",
-            "127.0.0.1 mailpit.{$projectName}.local",
+        ];
+
+        foreach ($hostsEntries as $host) {
+            $instructions[] = "127.0.0.1 {$host}";
+        }
+
+        $instructions = array_merge($instructions, [
             '',
             'Or configure dnsmasq for wildcard domain support:',
             '',
@@ -351,7 +690,7 @@ final readonly class DnsConfigurationHelper
             'Or use NetworkManager with dnsmasq:',
             "  1. Add 'dns=dnsmasq' to [main] section in /etc/NetworkManager/NetworkManager.conf",
             '  2. Restart NetworkManager: sudo systemctl restart NetworkManager',
-        ];
+        ]);
 
         return new DnsConfigurationResult(
             type: 'manual',

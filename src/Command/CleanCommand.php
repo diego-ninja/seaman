@@ -8,8 +8,12 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
+use Seaman\Service\ConfigManager;
+use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\DockerManager;
+use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -38,6 +42,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
     public function __construct(
         private readonly DockerManager $dockerManager,
+        private readonly ConfigManager $configManager,
     ) {
         parent::__construct();
     }
@@ -55,13 +60,14 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $directoriesToRemove = $this->findDirectoriesToRemove($projectRoot);
         $backupFile = $this->findDockerComposeBackup($projectRoot);
         $hasSeamanEnvSection = $this->hasSeamanEnvSection($projectRoot);
+        $dnsInfo = $this->getDnsCleanupInfo($projectRoot);
 
         if (empty($filesToRemove) && empty($directoriesToRemove)) {
             Terminal::success('No Seaman files found to clean.');
             return Command::SUCCESS;
         }
 
-        $this->displayFilesToRemove($filesToRemove, $directoriesToRemove, $backupFile, $hasSeamanEnvSection);
+        $this->displayFilesToRemove($filesToRemove, $directoriesToRemove, $backupFile, $hasSeamanEnvSection, $dnsInfo);
 
         if (!Prompts::confirm('This will remove all Seaman files. Are you sure?')) {
             Terminal::success('Cancelled');
@@ -71,6 +77,11 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         // Stop containers first if docker-compose.yml exists
         if (in_array($projectRoot . '/docker-compose.yml', $filesToRemove, true)) {
             $this->stopContainers();
+        }
+
+        // Clean DNS configuration before removing config files
+        if ($dnsInfo !== null) {
+            $this->cleanDnsConfiguration($dnsInfo['projectName'], $dnsInfo['provider']);
         }
 
         // Remove files and directories
@@ -124,12 +135,14 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     /**
      * @param list<string> $files
      * @param list<string> $directories
+     * @param array{projectName: string, provider: DnsProvider}|null $dnsInfo
      */
     private function displayFilesToRemove(
         array $files,
         array $directories,
         ?string $backupFile,
         bool $hasSeamanEnvSection,
+        ?array $dnsInfo = null,
     ): void {
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=yellow>The following will be removed:</>');
@@ -141,6 +154,10 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         foreach ($directories as $dir) {
             Terminal::output()->writeln('    • ' . basename($dir) . '/');
+        }
+
+        if ($dnsInfo !== null) {
+            Terminal::output()->writeln('    • DNS entries (' . $dnsInfo['provider']->getDisplayName() . ')');
         }
 
         Terminal::output()->writeln('');
@@ -338,6 +355,90 @@ class CleanCommand extends ModeAwareCommand implements Decorable
             Terminal::output()->writeln('  <fg=green>✓</> Cleaned Seaman variables from .env');
         } else {
             Terminal::error('Failed to clean .env file');
+        }
+    }
+
+    /**
+     * Get DNS cleanup information from seaman config.
+     *
+     * @return array{projectName: string, provider: DnsProvider}|null
+     */
+    private function getDnsCleanupInfo(string $projectRoot): ?array
+    {
+        try {
+            $config = $this->configManager->load();
+            $proxy = $config->proxy();
+
+            if (!$proxy->enabled || $proxy->dnsProvider === null) {
+                return null;
+            }
+
+            return [
+                'projectName' => $config->projectName,
+                'provider' => $proxy->dnsProvider,
+            ];
+        } catch (\Exception) {
+            return null;
+        }
+    }
+
+    /**
+     * Clean DNS configuration based on the provider used.
+     */
+    private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): void
+    {
+        Terminal::output()->writeln('  Cleaning DNS configuration...');
+
+        $executor = new RealCommandExecutor();
+        $dnsHelper = new DnsConfigurationHelper($executor);
+        $result = $dnsHelper->cleanupDns($projectName, $provider);
+
+        if (!$result->automatic) {
+            foreach ($result->instructions as $instruction) {
+                Terminal::output()->writeln("    {$instruction}");
+            }
+            return;
+        }
+
+        // Handle hosts file cleanup (requires writing new content)
+        if ($result->type === 'hosts-file-cleanup' && $result->configContent !== null) {
+            $tempFile = tempnam(sys_get_temp_dir(), 'hosts_');
+            if ($tempFile === false) {
+                Terminal::error('Failed to create temp file for hosts cleanup');
+                return;
+            }
+
+            file_put_contents($tempFile, $result->configContent);
+
+            $copyResult = $executor->execute(['sudo', 'cp', $tempFile, '/etc/hosts']);
+            unlink($tempFile);
+
+            if ($copyResult->isSuccessful()) {
+                Terminal::output()->writeln('  <fg=green>✓</> Removed DNS entries from /etc/hosts');
+            } else {
+                Terminal::error('Failed to update /etc/hosts (requires sudo)');
+            }
+            return;
+        }
+
+        // Handle file removal for other providers
+        if ($result->configPath !== null && file_exists($result->configPath)) {
+            $removeResult = $executor->execute(['sudo', 'rm', '-f', $result->configPath]);
+
+            if ($removeResult->isSuccessful()) {
+                Terminal::output()->writeln("  <fg=green>✓</> Removed {$result->configPath}");
+
+                // Restart service if needed
+                if ($result->restartCommand !== null) {
+                    $parts = explode(' ', $result->restartCommand);
+                    $restartResult = $executor->execute($parts);
+                    if ($restartResult->isSuccessful()) {
+                        Terminal::output()->writeln('  <fg=green>✓</> Restarted DNS service');
+                    }
+                }
+            } else {
+                Terminal::error("Failed to remove {$result->configPath} (requires sudo)");
+            }
         }
     }
 }

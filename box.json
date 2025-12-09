@@ -12,7 +12,7 @@
     "files": [
         "composer.json"
     ],
-    "compression": "GZ",
+    "compression": "NONE",
     "compactors": [
         "KevinGH\\Box\\Compactor\\Php",
         "KevinGH\\Box\\Compactor\\Json"

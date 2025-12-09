@@ -68,6 +68,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         }
 
         $projectName = $config->projectName;
+        $services = $config->services;
 
         Terminal::output()->writeln('');
         Terminal::output()->writeln("  <fg=cyan>DNS Configuration for {$projectName}</>");
@@ -82,17 +83,18 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         $providerOption = $input->getOption('provider');
 
         if ($auto || $providerOption !== null) {
-            return $this->handleAutomaticMode($helper, $projectName, $providerOption);
+            return $this->handleAutomaticMode($helper, $projectName, $providerOption, $services);
         }
 
         // Interactive mode - let user choose
-        return $this->handleInteractiveMode($helper, $projectName);
+        return $this->handleInteractiveMode($helper, $projectName, $services);
     }
 
     private function handleAutomaticMode(
         DnsConfigurationHelper $helper,
         string $projectName,
         ?string $providerOption,
+        \Seaman\ValueObject\ServiceCollection $services,
     ): int {
         // Determine which provider to use
         if ($providerOption !== null) {
@@ -114,25 +116,28 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
             Terminal::output()->writeln('');
         }
 
-        $result = $helper->configureProvider($projectName, $provider);
+        $result = $helper->configureProvider($projectName, $provider, $services);
 
         if ($result->automatic) {
-            return $this->applyConfiguration($result, $projectName) ? Command::SUCCESS : Command::FAILURE;
+            return $this->applyConfiguration($result, $projectName, $provider) ? Command::SUCCESS : Command::FAILURE;
         }
 
         $this->handleManualConfiguration($result);
         return Command::SUCCESS;
     }
 
-    private function handleInteractiveMode(DnsConfigurationHelper $helper, string $projectName): int
-    {
+    private function handleInteractiveMode(
+        DnsConfigurationHelper $helper,
+        string $projectName,
+        \Seaman\ValueObject\ServiceCollection $services,
+    ): int {
         // Detect available providers
         $providers = $helper->detectAvailableProviders($projectName);
 
         if (empty($providers)) {
             Terminal::output()->writeln('  <fg=yellow>No automatic DNS configuration methods detected.</>');
             Terminal::output()->writeln('');
-            $result = $helper->configureProvider($projectName, DnsProvider::Manual);
+            $result = $helper->configureProvider($projectName, DnsProvider::Manual, $services);
             $this->handleManualConfiguration($result);
             return Command::SUCCESS;
         }
@@ -163,23 +168,27 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
+        $provider = null;
         if ($choice === 'auto') {
             $recommended = $helper->getRecommendedProvider($projectName);
             if ($recommended === null) {
                 Terminal::error('No providers available');
                 return Command::FAILURE;
             }
+            $provider = $recommended->provider;
             Terminal::output()->writeln('');
-            Terminal::output()->writeln("  Selected: <fg=green>{$recommended->provider->getDisplayName()}</>");
-            $result = $helper->configureProvider($projectName, $recommended->provider);
+            Terminal::output()->writeln("  Selected: <fg=green>{$provider->getDisplayName()}</>");
+            $result = $helper->configureProvider($projectName, $provider, $services);
         } elseif ($choice === 'manual') {
-            $result = $helper->configureProvider($projectName, DnsProvider::Manual);
+            $provider = DnsProvider::Manual;
+            $result = $helper->configureProvider($projectName, $provider, $services);
         } else {
-            $result = $helper->configureProvider($projectName, DnsProvider::from($choice));
+            $provider = DnsProvider::from($choice);
+            $result = $helper->configureProvider($projectName, $provider, $services);
         }
 
         if ($result->automatic) {
-            return $this->applyConfiguration($result, $projectName) ? Command::SUCCESS : Command::FAILURE;
+            return $this->applyConfiguration($result, $projectName, $provider) ? Command::SUCCESS : Command::FAILURE;
         }
 
         $this->handleManualConfiguration($result);
@@ -189,7 +198,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
     /**
      * Apply DNS configuration with user confirmation.
      */
-    private function applyConfiguration(DnsConfigurationResult $result, string $projectName): bool
+    private function applyConfiguration(DnsConfigurationResult $result, string $projectName, DnsProvider $provider): bool
     {
         // Validate that automatic configuration has required fields
         if ($result->configPath === null || $result->configContent === null) {
@@ -278,6 +287,10 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 
         Terminal::output()->writeln('');
         Terminal::success('DNS configured successfully!');
+
+        // Save DNS provider to configuration for cleanup
+        $this->saveDnsProvider($provider);
+
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  Your services are now accessible at:');
         Terminal::output()->writeln("  • https://app.{$projectName}.local");
@@ -285,6 +298,42 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         return true;
+    }
+
+    /**
+     * Save DNS provider to seaman configuration.
+     */
+    private function saveDnsProvider(DnsProvider $provider): void
+    {
+        try {
+            $config = $this->configManager->load();
+            $proxy = $config->proxy();
+
+            // Create new proxy config with DNS provider
+            $newProxy = new \Seaman\ValueObject\ProxyConfig(
+                enabled: $proxy->enabled,
+                domainPrefix: $proxy->domainPrefix,
+                certResolver: $proxy->certResolver,
+                dashboard: $proxy->dashboard,
+                dnsProvider: $provider,
+            );
+
+            // Create new configuration with updated proxy
+            $newConfig = new \Seaman\ValueObject\Configuration(
+                projectName: $config->projectName,
+                version: $config->version,
+                php: $config->php,
+                services: $config->services,
+                volumes: $config->volumes,
+                projectType: $config->projectType,
+                proxy: $newProxy,
+                customServices: $config->customServices,
+            );
+
+            $this->configManager->save($newConfig);
+        } catch (\Exception) {
+            // Silently ignore - DNS is configured, just couldn't save provider
+        }
     }
 
     private function handleManualConfiguration(DnsConfigurationResult $result): void
