@@ -11,7 +11,7 @@ tls:
 http:
   routers:
     traefik-dashboard:
-      rule: "Host(`traefik.{{ env \"PROJECT_NAME\" }}.local`)"
+      rule: "Host(`traefik.{{ project_name }}.local`)"
       entryPoints:
         - websecure
       service: api@internal

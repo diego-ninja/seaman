@@ -174,8 +174,13 @@ test('creates traefik dynamic certs configuration', function () {
     $certsYml = $this->testDir . '/.seaman/traefik/dynamic/certs.yml';
     expect(file_exists($certsYml))->toBeTrue();
 
-    // Verify content
+    // Verify TLS certificate configuration
     $content = file_get_contents($certsYml);
     expect($content)->toContain('/certs/cert.pem')
         ->and($content)->toContain('/certs/key.pem');
+
+    // Verify Traefik dashboard router is configured
+    expect($content)->toContain('traefik-dashboard')
+        ->and($content)->toContain('traefik.testproject.local')
+        ->and($content)->toContain('api@internal');
 });
