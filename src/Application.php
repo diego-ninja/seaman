@@ -9,6 +9,8 @@ namespace Seaman;
 
 use DI\Container;
 use DI\ContainerBuilder;
+use DI\DependencyException;
+use DI\NotFoundException;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
 use Seaman\Command\CleanCommand;
@@ -40,6 +42,7 @@ use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Exception\CommandNotAvailableException;
 use Seaman\Service\Detector\ModeDetector;
+use Seaman\UI\Terminal;
 use Symfony\Component\Console\Application as BaseApplication;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\EventDispatcher\EventDispatcher;
@@ -95,7 +98,10 @@ class Application extends BaseApplication
     }
 
     /**
+     * @param Container $container
      * @return list<Command>
+     * @throws DependencyException
+     * @throws NotFoundException
      */
     private function resolveCommands(Container $container): array
     {
@@ -139,9 +145,9 @@ class Application extends BaseApplication
     private function buildApplicationName(): string
     {
         $modeLabel = match ($this->currentMode) {
-            OperatingMode::Managed => 'Managed',
-            OperatingMode::Unmanaged => 'Unmanaged',
-            OperatingMode::Uninitialized => 'Not Initialized',
+            OperatingMode::Managed => Terminal::render('<fg=green>M</>'),
+            OperatingMode::Unmanaged => Terminal::render('<fg=yellow>U</>'),
+            OperatingMode::Uninitialized => Terminal::render('<fg=red>N</>'),
         };
 
         return "🔱 Seaman [{$modeLabel}]";
