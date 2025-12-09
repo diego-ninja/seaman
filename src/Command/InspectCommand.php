@@ -15,6 +15,7 @@ use Seaman\Service\DockerManager;
 use Seaman\UI\Widget\Table\Table;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ProxyConfig;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -54,7 +55,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     /**
      * Build the inspect table with fluent API.
      *
-     * @param array<string, array{state: string, health: string, ports: string}> $statuses
+     * @param array<string, array{state: string, health: string, ports: string, containerId: string}> $statuses
      */
     private function buildTable(Configuration $config, array $statuses, string $projectRoot): Table
     {
@@ -68,6 +69,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         $table->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
 
         $proxy = $config->proxy();
+        $dozzleAvailable = $this->isDozzleAvailable($statuses);
 
         // App service
         $appStatus = $statuses['app'] ?? null;
@@ -77,6 +79,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             $appStatus,
             $this->buildAppUrls($proxy),
             "PHP {$config->php->version->value}",
+            $dozzleAvailable,
         ));
 
         // Database service
@@ -84,13 +87,14 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
                 $table->addSeparator();
                 $dbStatus = $statuses[$name] ?? null;
-                $dbInfo = "{$serviceConfig->type->name} {$serviceConfig->version}";
+                $dbInfo = $this->getServiceInfo($serviceConfig);
                 $table->addRow($this->buildServiceRow(
                     $serviceConfig->type,
                     $name,
                     $dbStatus,
                     "localhost:{$serviceConfig->port}",
                     $dbInfo,
+                    $dozzleAvailable,
                 ));
             }
         }
@@ -104,12 +108,14 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             $table->addSeparator();
             $status = $statuses[$name] ?? null;
             $url = $this->getServiceUrl($serviceConfig->type, $proxy, $serviceConfig->port);
+            $serviceInfo = $this->getServiceInfo($serviceConfig);
             $table->addRow($this->buildServiceRow(
                 $serviceConfig->type,
                 $name,
                 $status,
                 $url,
-                '',
+                $serviceInfo,
+                $dozzleAvailable,
             ));
         }
 
@@ -123,6 +129,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 $traefikStatus,
                 "https://traefik.{$proxy->domainPrefix}.local",
                 'Dashboard',
+                $dozzleAvailable,
             ));
         }
 
@@ -131,8 +138,19 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             foreach ($config->customServices->names() as $name) {
                 $table->addSeparator();
                 $status = $statuses[$name] ?? null;
+                $customServiceName = "⚙️  {$name}";
+
+                // Add dozzle link for custom services too
+                if ($dozzleAvailable && $status !== null && $status['containerId'] !== '') {
+                    $customServiceName = sprintf(
+                        '⚙️  <href=http://localhost:9080/container/%s>%s</>',
+                        $status['containerId'],
+                        $name,
+                    );
+                }
+
                 $table->addRow([
-                    "⚙️  {$name}",
+                    $customServiceName,
                     $this->formatStatus($status),
                     '',
                     'custom',
@@ -201,7 +219,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @param array{state: string, health: string, ports: string}|null $status
+     * @param array{state: string, health: string, ports: string, containerId: string}|null $status
      * @param string|list<string> $url
      * @return array{string, string, string|list<string>, string}
      */
@@ -211,9 +229,22 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         ?array $status,
         string|array $url,
         string $info,
+        bool $dozzleAvailable = false,
     ): array {
+        $serviceName = sprintf('%s %s', $type->icon(), $name);
+
+        // Add dozzle link if available and service is running
+        if ($dozzleAvailable && $status !== null && $status['containerId'] !== '') {
+            $serviceName = sprintf(
+                '%s <href=http://localhost:9080/container/%s>%s</>',
+                $type->icon(),
+                $status['containerId'],
+                $name,
+            );
+        }
+
         return [
-            sprintf('%s %s', $type->icon(), $name),
+            $serviceName,
             $this->formatStatus($status),
             $url,
             $info,
@@ -221,21 +252,21 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @param array{state: string, health: string, ports: string}|null $status
+     * @param array{state: string, health: string, ports: string, containerId: string}|null $status
      */
     private function formatStatus(?array $status): string
     {
         if ($status === null) {
-            return '<fg=gray>not running</>';
+            return '<fg=gray>⚙</> not running';
         }
 
         return match (strtolower($status['state'])) {
             'running' => $status['health'] !== ''
-                ? sprintf('<fg=green>running</> (<fg=green>%s</>)', $status['health'])
-                : '<fg=green>running</>',
-            'exited' => '<fg=red>stopped</>',
-            'restarting' => '<fg=yellow>restarting</>',
-            default => "<fg=gray>{$status['state']}</>",
+                ? sprintf('<fg=green>⚙</> running (<fg=green>%s</>)', $status['health'])
+                : '<fg=yellow>⚙</> running (<fg=yellow>unknown</>)',
+            'exited' => '<fg=red>⚙</> stopped',
+            'restarting' => '<fg=yellow>⚙</> restarting',
+            default => "<fg=gray>⚙</> {$status['state']}",
         };
     }
 
@@ -256,7 +287,56 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @return array<string, array{state: string, health: string, ports: string}>
+     * Get relevant info (credentials, version, etc.) for a service.
+     */
+    private function getServiceInfo(ServiceConfig $service): string
+    {
+        return match ($service->type) {
+            // Databases with credentials
+            Service::MySQL,
+            Service::MariaDB => "v{$service->version} | seaman:secret",
+            Service::PostgreSQL => "v{$service->version} | seaman:secret",
+            Service::MongoDB => "v{$service->version}",
+
+            // Message queues
+            Service::RabbitMq => "v{$service->version} | seaman:secret",
+            Service::Kafka => "v{$service->version}",
+
+            // Cache/storage
+            Service::Redis,
+            Service::Valkey,
+            Service::Memcached => "v{$service->version}",
+            Service::MinIO => "v{$service->version} | seaman:seaman123",
+
+            // Search
+            Service::Elasticsearch,
+            Service::OpenSearch => "v{$service->version}",
+
+            // Real-time
+            Service::Mercure => "v{$service->version}",
+            Service::Soketi => "v{$service->version} | app-key:app-secret",
+
+            // Utility
+            Service::Mailpit => "SMTP: localhost:1025",
+            Service::Dozzle => "Log viewer",
+
+            default => "v{$service->version}",
+        };
+    }
+
+    /**
+     * Check if dozzle is running and available.
+     *
+     * @param array<string, array{state: string, health: string, ports: string, containerId: string}> $statuses
+     */
+    private function isDozzleAvailable(array $statuses): bool
+    {
+        $dozzleStatus = $statuses['dozzle'] ?? null;
+        return $dozzleStatus !== null && strtolower($dozzleStatus['state']) === 'running';
+    }
+
+    /**
+     * @return array<string, array{state: string, health: string, ports: string, containerId: string}>
      */
     private function getServiceStatuses(): array
     {
@@ -287,6 +367,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 'state' => $service['State'] ?? 'unknown',
                 'health' => $service['Health'] ?? '',
                 'ports' => implode(', ', $ports),
+                'containerId' => $service['ID'] ?? '',
             ];
         }
 
