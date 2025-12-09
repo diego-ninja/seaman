@@ -9,7 +9,6 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\DockerManager;
-use Seaman\UI\Terminal;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
@@ -51,14 +50,8 @@ class ExecuteCommand extends ModeAwareCommand implements Decorable
 
         $command = [...$this->commandPrefix, ...$args];
 
-        $result = $this->dockerManager->executeInService('app', $command);
-        Terminal::output()->writeln($result->output);
+        $exitCode = $this->dockerManager->executePassthrough('app', $command);
 
-        if (!$result->isSuccessful()) {
-            Terminal::error($result->output);
-            return Command::FAILURE;
-        }
-
-        return Command::SUCCESS;
+        return $exitCode === 0 ? Command::SUCCESS : Command::FAILURE;
     }
 }

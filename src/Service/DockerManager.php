@@ -168,6 +168,52 @@ readonly class DockerManager
     }
 
     /**
+     * Executes a command with full passthrough (TTY if supported, streaming otherwise).
+     *
+     * This method provides real-time output streaming with ANSI support,
+     * making it ideal for commands like composer, phpunit, etc.
+     *
+     * @param string $service The service name
+     * @param list<string> $command The command and arguments to execute
+     * @return int The exit code of the command
+     * @throws \RuntimeException When docker-compose.yml does not exist
+     */
+    public function executePassthrough(string $service, array $command): int
+    {
+        $this->ensureComposeFileExists();
+
+        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec'];
+
+        // Use TTY if supported for full terminal emulation
+        if (Process::isTtySupported()) {
+            $fullCommand[] = $service;
+            $fullCommand = array_merge($fullCommand, $command);
+
+            $process = new Process($fullCommand);
+            $process->setTty(true);
+            $process->setTimeout(null);
+
+            return $process->run();
+        }
+
+        // Fallback: stream output in real-time without TTY
+        $fullCommand[] = '-T';
+        $fullCommand[] = $service;
+        $fullCommand = array_merge($fullCommand, $command);
+
+        $process = new Process($fullCommand);
+        $process->setTimeout(null);
+
+        return $process->run(function (string $type, string $buffer): void {
+            if ($type === Process::OUT) {
+                fwrite(STDOUT, $buffer);
+            } else {
+                fwrite(STDERR, $buffer);
+            }
+        });
+    }
+
+    /**
      * Shows logs for a service.
      *
      * @param string $service The service name
