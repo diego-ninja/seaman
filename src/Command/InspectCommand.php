@@ -66,7 +66,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             $table->addHeaderLine($line);
         }
 
-        $table->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
+        $table->setHeaders(['SERVICE', 'STATUS', 'URL/PORT', 'INFO']);
 
         $proxy = $config->proxy();
         $dozzleAvailable = $this->isDozzleAvailable($statuses);
@@ -88,11 +88,12 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 $table->addSeparator();
                 $dbStatus = $statuses[$name] ?? null;
                 $dbInfo = $this->getServiceInfo($serviceConfig);
+                $dbUrls = $this->buildDatabaseUrls($serviceConfig);
                 $table->addRow($this->buildServiceRow(
                     $serviceConfig->type,
                     $name,
                     $dbStatus,
-                    "localhost:{$serviceConfig->port}",
+                    $dbUrls,
                     $dbInfo,
                     $dozzleAvailable,
                 ));
@@ -107,13 +108,13 @@ class InspectCommand extends ModeAwareCommand implements Decorable
 
             $table->addSeparator();
             $status = $statuses[$name] ?? null;
-            $url = $this->getServiceUrl($serviceConfig->type, $proxy, $serviceConfig->port);
+            $serviceUrls = $this->buildServiceUrls($serviceConfig, $proxy);
             $serviceInfo = $this->getServiceInfo($serviceConfig);
             $table->addRow($this->buildServiceRow(
                 $serviceConfig->type,
                 $name,
                 $status,
-                $url,
+                $serviceUrls,
                 $serviceInfo,
                 $dozzleAvailable,
             ));
@@ -123,11 +124,12 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         if ($proxy->enabled) {
             $table->addSeparator();
             $traefikStatus = $statuses['traefik'] ?? null;
+            $traefikUrls = $this->buildTraefikUrls($proxy);
             $table->addRow($this->buildServiceRow(
                 Service::Traefik,
                 'traefik',
                 $traefikStatus,
-                "https://traefik.{$proxy->domainPrefix}.local",
+                $traefikUrls,
                 'Dashboard',
                 $dozzleAvailable,
             ));
@@ -270,20 +272,126 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         };
     }
 
-    private function getServiceUrl(Service $type, ProxyConfig $proxy, int $port): string
+    /**
+     * Build URL list for a service with InDocker ports.
+     *
+     * @return list<string>
+     */
+    private function buildServiceUrls(ServiceConfig $service, ProxyConfig $proxy): array
     {
+        $name = $service->name;
+        $type = $service->type;
+        $port = $service->port;
+        $internalPorts = $this->getInternalPorts($type, $port);
+
         if (!$proxy->enabled) {
-            return "localhost:{$port}";
+            $urls = ["localhost:{$port}"];
+            if (!empty($internalPorts)) {
+                $urls[] = 'InDocker:';
+                foreach ($internalPorts as $internalPort) {
+                    $urls[] = "  - {$name}:{$internalPort}";
+                }
+            }
+            return $urls;
         }
 
-        return match ($type) {
+        $externalUrl = match ($type) {
             Service::Mailpit => "https://mailpit.{$proxy->domainPrefix}.local",
             Service::Dozzle => "https://dozzle.{$proxy->domainPrefix}.local",
             Service::MinIO => "https://minio.{$proxy->domainPrefix}.local",
             Service::RabbitMq => "https://rabbitmq.{$proxy->domainPrefix}.local",
-            Service::Mercure => "https://mercure.{$proxy->domainPrefix}.local",
+            Service::OpenSearch => "https://opensearch.{$proxy->domainPrefix}.local",
+            Service::Elasticsearch => "https://elasticsearch.{$proxy->domainPrefix}.local",
             default => "localhost:{$port}",
         };
+
+        $urls = [$externalUrl];
+        if (!empty($internalPorts)) {
+            $urls[] = 'InDocker:';
+            foreach ($internalPorts as $internalPort) {
+                $urls[] = "  - {$name}:{$internalPort}";
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Get internal Docker ports for a service type.
+     *
+     * @return list<int>
+     */
+    private function getInternalPorts(Service $type, int $defaultPort): array
+    {
+        return match ($type) {
+            // Databases
+            Service::MySQL, Service::MariaDB => [3306],
+            Service::PostgreSQL => [5432],
+            Service::MongoDB => [27017],
+            Service::Redis, Service::Valkey => [6379],
+            Service::Memcached => [11211],
+
+            // Message queues
+            Service::RabbitMq => [5672, 15672],
+            Service::Kafka => [9092],
+
+            // Storage
+            Service::MinIO => [9000, 9001],
+
+            // Search
+            Service::Elasticsearch, Service::OpenSearch => [9200],
+
+            // Real-time
+            Service::Mercure => [3000],
+            Service::Soketi => [6001],
+
+            // Utility
+            Service::Mailpit => [8025, 1025],
+            Service::Dozzle => [8080],
+
+            // Traefik
+            Service::Traefik => [80, 443, 8080],
+
+            default => [$defaultPort],
+        };
+    }
+
+    /**
+     * Build URL list for database services.
+     *
+     * @return list<string>
+     */
+    private function buildDatabaseUrls(ServiceConfig $service): array
+    {
+        $name = $service->name;
+        $port = $service->port;
+        $internalPorts = $this->getInternalPorts($service->type, $port);
+
+        $urls = ["localhost:{$port}"];
+        if (!empty($internalPorts)) {
+            $urls[] = 'InDocker:';
+            foreach ($internalPorts as $internalPort) {
+                $urls[] = "  - {$name}:{$internalPort}";
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Build URL list for Traefik.
+     *
+     * @return list<string>
+     */
+    private function buildTraefikUrls(ProxyConfig $proxy): array
+    {
+        return [
+            "https://traefik.{$proxy->domainPrefix}.local",
+            'InDocker:',
+            '  - traefik:80',
+            '  - traefik:443',
+            '  - traefik:8080',
+        ];
     }
 
     /**
