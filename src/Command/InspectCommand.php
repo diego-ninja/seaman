@@ -399,22 +399,49 @@ class InspectCommand extends ModeAwareCommand implements Decorable
      */
     private function getServiceInfo(ServiceConfig $service): string
     {
+        $env = $service->environmentVariables;
+
         return match ($service->type) {
             // Databases with credentials
             Service::MySQL,
-            Service::MariaDB => "v{$service->version} | seaman:secret",
-            Service::PostgreSQL => "v{$service->version} | seaman:secret",
-            Service::MongoDB => "v{$service->version}",
+            Service::MariaDB => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['MYSQL_USER'] ?? 'seaman',
+                $env['MYSQL_PASSWORD'] ?? 'seaman',
+            ),
+            Service::PostgreSQL => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['POSTGRES_USER'] ?? 'seaman',
+                $env['POSTGRES_PASSWORD'] ?? 'seaman',
+            ),
+            Service::MongoDB => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
+                $env['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
+            ),
 
             // Message queues
-            Service::RabbitMq => "v{$service->version} | seaman:secret",
+            Service::RabbitMq => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['RABBITMQ_DEFAULT_USER'] ?? 'seaman',
+                $env['RABBITMQ_DEFAULT_PASS'] ?? 'seaman',
+            ),
             Service::Kafka => "v{$service->version}",
 
             // Cache/storage
             Service::Redis,
             Service::Valkey,
             Service::Memcached => "v{$service->version}",
-            Service::MinIO => "v{$service->version} | seaman:seaman123",
+            Service::MinIO => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['MINIO_ROOT_USER'] ?? 'minioadmin',
+                $env['MINIO_ROOT_PASSWORD'] ?? 'minioadmin',
+            ),
 
             // Search
             Service::Elasticsearch,
@@ -422,11 +449,16 @@ class InspectCommand extends ModeAwareCommand implements Decorable
 
             // Real-time
             Service::Mercure => "v{$service->version}",
-            Service::Soketi => "v{$service->version} | app-key:app-secret",
+            Service::Soketi => sprintf(
+                'v%s | %s:%s',
+                $service->version,
+                $env['SOKETI_DEFAULT_APP_KEY'] ?? 'app-key',
+                $env['SOKETI_DEFAULT_APP_SECRET'] ?? 'app-secret',
+            ),
 
             // Utility
-            Service::Mailpit => "SMTP: localhost:1025",
-            Service::Dozzle => "Log viewer",
+            Service::Mailpit => 'SMTP: localhost:1025',
+            Service::Dozzle => 'Log viewer',
 
             default => "v{$service->version}",
         };
