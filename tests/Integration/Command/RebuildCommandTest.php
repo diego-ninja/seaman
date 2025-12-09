@@ -46,15 +46,18 @@ test('rebuild command requires seaman.yaml', function (): void {
         ->toThrow(\RuntimeException::class, 'seaman.yaml not found');
 });
 
-test('rebuild command requires Dockerfile', function (): void {
+test('rebuild command regenerates Dockerfile from template', function (): void {
     // Setup with seaman.yaml but no Dockerfile
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
     file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+
+    // Create .seaman directory
+    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('rebuild'));
     $commandTester->execute([]);
 
-    // Should fail because Dockerfile doesn't exist
-    expect($commandTester->getStatusCode())->toBe(1);
+    // Dockerfile should be regenerated from template
+    expect(file_exists($this->tempDir . '/.seaman/Dockerfile'))->toBeTrue();
 });

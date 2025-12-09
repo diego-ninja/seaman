@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// ABOUTME: Rebuilds Docker images.
-// ABOUTME: Builds image from .seaman/Dockerfile and restarts services.
+// ABOUTME: Rebuilds Docker images from scratch.
+// ABOUTME: Regenerates Dockerfile from template and builds without cache.
 
 namespace Seaman\Command;
 
@@ -19,7 +19,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'seaman:rebuild',
-    description: 'Rebuild docker images',
+    description: 'Rebuild docker images from scratch (regenerates Dockerfile, no cache)',
     aliases: ['rebuild'],
 )]
 class RebuildCommand extends ModeAwareCommand implements Decorable
@@ -43,9 +43,12 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         // Load configuration to get PHP version
         $config = $this->configManager->load();
 
-        // Build Docker image
+        // Regenerate Dockerfile from template
+        $this->regenerateDockerfile($projectRoot);
+
+        // Build Docker image without cache
         $builder = new DockerImageBuilder($projectRoot, $config->php->version);
-        $buildResult = $builder->build();
+        $buildResult = $builder->build(noCache: true);
 
         if (!$buildResult->isSuccessful()) {
             return Command::FAILURE;
@@ -59,5 +62,23 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
 
         Terminal::output()->writeln($restartResult->errorOutput);
         return Command::FAILURE;
+    }
+
+    private function regenerateDockerfile(string $projectRoot): void
+    {
+        $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
+        $targetDockerfile = $projectRoot . '/.seaman/Dockerfile';
+
+        if (!file_exists($templateDockerfile)) {
+            throw new \RuntimeException('Seaman Dockerfile template not found');
+        }
+
+        $seamanDir = $projectRoot . '/.seaman';
+        if (!is_dir($seamanDir)) {
+            mkdir($seamanDir, 0755, true);
+        }
+
+        copy($templateDockerfile, $targetDockerfile);
+        Terminal::output()->writeln('  Dockerfile regenerated from template');
     }
 }

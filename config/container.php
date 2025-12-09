@@ -54,7 +54,7 @@ use function DI\get;
 return function (ContainerBuilder $builder): void {
     $builder->addDefinitions([
         // Core parameters
-        'projectRoot' => factory(fn(): string => base_path()),
+        'projectRoot' => factory(fn (): string => (string) getcwd()),
 
         // Core services
         ServiceRegistry::class => factory(fn(): ServiceRegistry => ServiceRegistry::create()),
