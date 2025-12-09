@@ -1,6 +1,6 @@
   {{ name }}:
     image: postgres:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - POSTGRES_DB=${DB_NAME:-seaman}
       - POSTGRES_USER=${DB_USER:-seaman}

@@ -32,4 +32,29 @@ final readonly class Configuration
     {
         return !$this->customServices->isEmpty();
     }
+
+    /**
+     * Creates a copy of this configuration with updated fields.
+     */
+    public function with(
+        ?string $projectName = null,
+        ?string $version = null,
+        ?PhpConfig $php = null,
+        ?ServiceCollection $services = null,
+        ?VolumeConfig $volumes = null,
+        ?ProjectType $projectType = null,
+        ?ProxyConfig $proxy = null,
+        ?CustomServiceCollection $customServices = null,
+    ): self {
+        return new self(
+            projectName: $projectName ?? $this->projectName,
+            version: $version ?? $this->version,
+            php: $php ?? $this->php,
+            services: $services ?? $this->services,
+            volumes: $volumes ?? $this->volumes,
+            projectType: $projectType ?? $this->projectType,
+            proxy: $proxy ?? $this->proxy,
+            customServices: $customServices ?? $this->customServices,
+        );
+    }
 }

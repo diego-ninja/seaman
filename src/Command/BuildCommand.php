@@ -23,11 +23,11 @@ use Symfony\Component\Process\Process;
     name: 'seaman:build',
     description: 'Build PHAR executable using Box',
     aliases: ['build'],
-    hidden: true
+    hidden: true,
 )]
 class BuildCommand extends ModeAwareCommand implements Decorable
 {
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }

@@ -1,6 +1,6 @@
   {{ name }}:
     image: memcached:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "${MEMCACHED_PORT}:11211"
 {% if labels is defined and labels|length > 0 %}
@@ -11,3 +11,8 @@
 {% endif %}
     networks:
       - seaman
+    healthcheck:
+      test: ["CMD-SHELL", "echo version | nc -w 1 localhost 11211 | grep -q VERSION"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

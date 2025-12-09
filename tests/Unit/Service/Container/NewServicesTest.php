@@ -52,15 +52,15 @@ test('KafkaService returns default config with correct values', function () {
         ->and($config->name)->toBe('kafka')
         ->and($config->enabled)->toBe(false)
         ->and($config->type)->toBe(Service::Kafka)
-        ->and($config->version)->toBe('3.7')
+        ->and($config->version)->toBe('latest')
         ->and($config->port)->toBe(9092)
         ->and($config->additionalPorts)->toBe([])
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_NODE_ID')
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_PROCESS_ROLES')
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_LISTENERS')
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP')
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_CONTROLLER_QUORUM_VOTERS')
-        ->and($config->environmentVariables)->toHaveKey('KAFKA_CFG_CONTROLLER_LISTENER_NAMES');
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_NODE_ID')
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_PROCESS_ROLES')
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_LISTENERS')
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_LISTENER_SECURITY_PROTOCOL_MAP')
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_CONTROLLER_QUORUM_VOTERS')
+        ->and($config->environmentVariables)->toHaveKey('KAFKA_CONTROLLER_LISTENER_NAMES');
 });
 
 test('KafkaService returns required ports', function () {
@@ -105,7 +105,7 @@ test('KafkaService generates docker compose config', function () {
     $compose = $service->generateComposeConfig($config);
 
     expect($compose)->toHaveKey('image')
-        ->and($compose['image'])->toBe('bitnami/kafka:3.7')
+        ->and($compose['image'])->toBe('apache/kafka:3.7')
         ->and($compose)->toHaveKey('environment')
         ->and($compose['environment'])->toHaveKey('KAFKA_CFG_NODE_ID')
         ->and($compose['environment'])->toHaveKey('KAFKA_CFG_PROCESS_ROLES')

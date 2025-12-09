@@ -8,7 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\Service;
-use Seaman\Service\ServiceDetector;
+use Seaman\Service\Detector\ServiceDetector;
 
 test('detects postgresql by image', function () {
     $detector = new ServiceDetector();

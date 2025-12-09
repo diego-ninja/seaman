@@ -10,13 +10,12 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\table;
 
 #[AsCommand(
     name: 'seaman:status',
@@ -25,7 +24,13 @@ use function Laravel\Prompts\table;
 )]
 class StatusCommand extends ModeAwareCommand implements Decorable
 {
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }
@@ -35,8 +40,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $manager = new DockerManager((string) getcwd());
-        $services = $manager->status();
+        $services = $this->dockerManager->status();
 
         if (empty($services)) {
             Terminal::output()->writeln('  No services are running or defined.');
@@ -68,7 +72,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
             ];
         }
 
-        table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
+        Prompts::table(['Name', 'Image', 'Status', 'Since', 'Ports','Container'], $rows);
 
         return Command::SUCCESS;
     }

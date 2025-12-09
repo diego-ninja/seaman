@@ -8,6 +8,7 @@ parameters:
         - tests
     excludePaths:
         - tests/Fixtures
+        - config/container.php
     reportUnmatchedIgnoredErrors: false
     tmpDir: build/phpstan
     ignoreErrors:

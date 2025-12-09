@@ -9,9 +9,9 @@ namespace Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
-use Seaman\Service\DockerComposeGenerator;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\PhpConfig;
@@ -129,4 +129,41 @@ test('custom services get seaman network added if missing', function (): void {
     // The worker service should have networks: [seaman] added
     expect($yaml)->toContain('worker:')
         ->and($yaml)->toContain('seaman');
+});
+
+test('generates docker-compose without traefik labels when proxy disabled', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        proxy: ProxyConfig::disabled(),
+    );
+
+    $yaml = $this->generator->generate($config);
+
+    expect($yaml)->not->toContain('traefik.enable=true')
+        ->and($yaml)->toContain('ports:');
+});
+
+test('generates docker-compose with traefik labels when proxy enabled', function (): void {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+
+    $config = new Configuration(
+        projectName: 'testproject',
+        version: '1.0',
+        php: $php,
+        services: new ServiceCollection([]),
+        volumes: new VolumeConfig([]),
+        proxy: ProxyConfig::default('testproject'),
+    );
+
+    $yaml = $this->generator->generate($config);
+
+    expect($yaml)->toContain('traefik.enable=true');
 });

@@ -18,14 +18,6 @@ readonly class ElasticsearchService extends AbstractService
         return Service::Elasticsearch;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -47,29 +39,14 @@ readonly class ElasticsearchService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'docker.elastic.co/elasticsearch/elasticsearch:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':9200',
-            ],
-            'volumes' => [
-                'elasticsearch_data:/usr/share/elasticsearch/data',
-            ],
+            'ports' => [$config->port . ':9200'],
+            'volumes' => ['elasticsearch_data:/usr/share/elasticsearch/data'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

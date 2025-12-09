@@ -18,14 +18,6 @@ readonly class RabbitmqService extends AbstractService
         return Service::RabbitMq;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -47,8 +39,6 @@ readonly class RabbitmqService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'rabbitmq:' . $config->version,
             'environment' => $config->environmentVariables,
@@ -56,21 +46,10 @@ readonly class RabbitmqService extends AbstractService
                 $config->port . ':5672',
                 '15672:15672',
             ],
-            'volumes' => [
-                'rabbitmq_data:/var/lib/rabbitmq',
-            ],
+            'volumes' => ['rabbitmq_data:/var/lib/rabbitmq'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**

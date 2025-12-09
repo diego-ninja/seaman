@@ -11,10 +11,9 @@ use Exception;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -22,37 +21,28 @@ use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
-
 #[AsCommand(
     name: 'proxy:configure-dns',
-    description: 'Configure DNS for Traefik local domains (requires init)',
-    aliases: ['configure-dns'],
+    description: 'Configure DNS for Traefik local domains',
+    aliases: ['dns'],
 )]
 class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly ServiceRegistry $registry,
+        private readonly ConfigManager $configManager,
     ) {
         parent::__construct();
     }
 
-    protected function supportsMode(OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return $mode === OperatingMode::Managed;
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $projectRoot = (string) getcwd();
-
-        // Load configuration to get project name
-        $validator = new ConfigurationValidator();
-        $configManager = new ConfigManager($projectRoot, $this->registry, $validator);
-
         try {
-            $config = $configManager->load();
+            $config = $this->configManager->load();
         } catch (Exception $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             Terminal::output()->writeln('  Run \'seaman init\' first to initialize the project.');
@@ -99,8 +89,8 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
         Terminal::output()->writeln('');
 
-        if (!confirm('Apply this DNS configuration?', true)) {
-            info('DNS configuration cancelled.');
+        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+            Prompts::info('DNS configuration cancelled.');
             return;
         }
 

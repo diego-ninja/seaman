@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Seaman\Service;
 
 use Seaman\Contract\CommandExecutor;
+use Seaman\Enum\DnsProvider;
+use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\DnsConfigurationResult;
 
 final readonly class DnsConfigurationHelper
@@ -17,22 +19,97 @@ final readonly class DnsConfigurationHelper
     ) {}
 
     /**
-     * Configure DNS for the project.
+     * Configure DNS for the project (legacy method for backward compatibility).
      */
     public function configure(string $projectName): DnsConfigurationResult
     {
-        // Check for dnsmasq
+        $recommended = $this->getRecommendedProvider($projectName);
+
+        if ($recommended === null) {
+            return $this->getManualInstructions($projectName);
+        }
+
+        return $this->configureProvider($projectName, $recommended->provider);
+    }
+
+    /**
+     * Detect all available DNS providers on this system.
+     *
+     * @return list<DetectedDnsProvider>
+     */
+    public function detectAvailableProviders(string $projectName): array
+    {
+        /** @var list<DetectedDnsProvider> $providers */
+        $providers = [];
+
+        // macOS resolver (only on Darwin)
+        if (PHP_OS_FAMILY === 'Darwin') {
+            $providers[] = new DetectedDnsProvider(
+                provider: DnsProvider::MacOSResolver,
+                configPath: "/etc/resolver/{$projectName}.local",
+                requiresSudo: true,
+            );
+        }
+
+        // dnsmasq
         if ($this->hasDnsmasq()) {
-            return $this->configureDnsmasq($projectName);
+            $providers[] = new DetectedDnsProvider(
+                provider: DnsProvider::Dnsmasq,
+                configPath: $this->getDnsmasqConfigPath($projectName),
+                requiresSudo: true,
+            );
         }
 
-        // Check for systemd-resolved (Linux)
+        // systemd-resolved
         if ($this->hasSystemdResolved()) {
-            return $this->configureSystemdResolved($projectName);
+            $providers[] = new DetectedDnsProvider(
+                provider: DnsProvider::SystemdResolved,
+                configPath: "/etc/systemd/resolved.conf.d/seaman-{$projectName}.conf",
+                requiresSudo: true,
+            );
         }
 
-        // Fallback to manual instructions
-        return $this->getManualInstructions($projectName);
+        // NetworkManager
+        if ($this->hasNetworkManager()) {
+            $providers[] = new DetectedDnsProvider(
+                provider: DnsProvider::NetworkManager,
+                configPath: "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf",
+                requiresSudo: true,
+            );
+        }
+
+        // Sort by priority
+        usort(
+            $providers,
+            fn(DetectedDnsProvider $a, DetectedDnsProvider $b): int
+            => $a->provider->getPriority() <=> $b->provider->getPriority(),
+        );
+
+        return $providers;
+    }
+
+    /**
+     * Get the recommended DNS provider for this system.
+     */
+    public function getRecommendedProvider(string $projectName): ?DetectedDnsProvider
+    {
+        $providers = $this->detectAvailableProviders($projectName);
+
+        return $providers[0] ?? null;
+    }
+
+    /**
+     * Configure DNS using a specific provider.
+     */
+    public function configureProvider(string $projectName, DnsProvider $provider): DnsConfigurationResult
+    {
+        return match ($provider) {
+            DnsProvider::Dnsmasq => $this->configureDnsmasq($projectName),
+            DnsProvider::SystemdResolved => $this->configureSystemdResolved($projectName),
+            DnsProvider::NetworkManager => $this->configureNetworkManager($projectName),
+            DnsProvider::MacOSResolver => $this->configureMacOSResolver($projectName),
+            DnsProvider::Manual => $this->getManualInstructions($projectName),
+        };
     }
 
     /**
@@ -54,6 +131,19 @@ final readonly class DnsConfigurationHelper
     }
 
     /**
+     * Check if NetworkManager is active on the system.
+     */
+    public function hasNetworkManager(): bool
+    {
+        $result = $this->executor->execute(['systemctl', 'is-active', 'NetworkManager']);
+        if (!$result->isSuccessful()) {
+            return false;
+        }
+
+        return is_dir('/etc/NetworkManager');
+    }
+
+    /**
      * Configure DNS using dnsmasq.
      */
     private function configureDnsmasq(string $projectName): DnsConfigurationResult
@@ -61,13 +151,18 @@ final readonly class DnsConfigurationHelper
         $configPath = $this->getDnsmasqConfigPath($projectName);
         $configContent = "address=/.{$projectName}.local/127.0.0.1\n";
 
+        $restartCommand = PHP_OS_FAMILY === 'Darwin'
+            ? 'sudo brew services restart dnsmasq'
+            : 'sudo systemctl restart dnsmasq';
+
         return new DnsConfigurationResult(
             type: 'dnsmasq',
             automatic: true,
             requiresSudo: true,
             configPath: $configPath,
             configContent: $configContent,
-            instructions: []
+            instructions: [],
+            restartCommand: $restartCommand,
         );
     }
 
@@ -87,7 +182,46 @@ final readonly class DnsConfigurationHelper
             requiresSudo: true,
             configPath: $configPath,
             configContent: $configContent,
-            instructions: []
+            instructions: [],
+            restartCommand: 'sudo systemctl restart systemd-resolved',
+        );
+    }
+
+    /**
+     * Configure DNS using NetworkManager with dnsmasq.
+     */
+    private function configureNetworkManager(string $projectName): DnsConfigurationResult
+    {
+        $configPath = "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf";
+        $configContent = "address=/.{$projectName}.local/127.0.0.1\n";
+
+        return new DnsConfigurationResult(
+            type: 'networkmanager',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: $configContent,
+            instructions: [],
+            restartCommand: 'sudo systemctl restart NetworkManager',
+        );
+    }
+
+    /**
+     * Configure DNS using macOS resolver.
+     */
+    private function configureMacOSResolver(string $projectName): DnsConfigurationResult
+    {
+        $configPath = "/etc/resolver/{$projectName}.local";
+        $configContent = "nameserver 127.0.0.1\n";
+
+        return new DnsConfigurationResult(
+            type: 'macos-resolver',
+            automatic: true,
+            requiresSudo: true,
+            configPath: $configPath,
+            configContent: $configContent,
+            instructions: [],
+            restartCommand: null, // macOS resolver doesn't need restart
         );
     }
 
@@ -114,7 +248,8 @@ final readonly class DnsConfigurationHelper
             requiresSudo: false,
             configPath: null,
             configContent: null,
-            instructions: $instructions
+            instructions: $instructions,
+            restartCommand: null,
         );
     }
 
@@ -126,7 +261,7 @@ final readonly class DnsConfigurationHelper
         return match (PHP_OS_FAMILY) {
             'Linux' => "/etc/dnsmasq.d/seaman-{$projectName}.conf",
             'Darwin' => "/usr/local/etc/dnsmasq.d/seaman-{$projectName}.conf",
-            default => throw new \RuntimeException('Unsupported platform: ' . PHP_OS_FAMILY)
+            default => throw new \RuntimeException('Unsupported platform: ' . PHP_OS_FAMILY),
         };
     }
 }

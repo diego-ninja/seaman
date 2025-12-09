@@ -7,7 +7,11 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
+use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\Service\Generator\DevContainerGenerator;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\Process\CertificateManager;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Terminal;
@@ -38,8 +42,10 @@ class ProjectInitializer
         $composeYaml = $composeGenerator->generate($config);
         file_put_contents($projectRoot . '/docker-compose.yml', $composeYaml);
 
-        // Initialize Traefik configuration and certificates
-        $this->initializeTraefik($config, $projectRoot);
+        // Initialize Traefik configuration and certificates only if proxy enabled
+        if ($config->proxy()->enabled) {
+            $this->initializeTraefik($config, $projectRoot);
+        }
 
         // Save configuration
         $validator = new ConfigurationValidator();
@@ -51,15 +57,7 @@ class ProjectInitializer
             'xdebug' => $config->php->xdebug,
         ]);
 
-        // Create in project root for Docker build
-        $rootScriptDir = $projectRoot . '/scripts';
-        if (!is_dir($rootScriptDir)) {
-            mkdir($rootScriptDir, 0755, true);
-        }
-        file_put_contents($rootScriptDir . '/xdebug-toggle.sh', $xdebugScript);
-        chmod($rootScriptDir . '/xdebug-toggle.sh', 0755);
-
-        // Also create in .seaman for volume mount reference
+        // Create in .seaman/scripts for Docker build and volume mount
         $seamanScriptDir = $seamanDir . '/scripts';
         if (!is_dir($seamanScriptDir)) {
             mkdir($seamanScriptDir, 0755, true);
@@ -99,6 +97,14 @@ class ProjectInitializer
         $generator->generate($projectRoot);
 
         Terminal::success('DevContainer configuration created');
+    }
+
+    /**
+     * Initialize Traefik configuration and SSL certificates.
+     */
+    public function initializeTraefikPublic(Configuration $config, string $projectRoot): void
+    {
+        $this->initializeTraefik($config, $projectRoot);
     }
 
     /**

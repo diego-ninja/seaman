@@ -7,16 +7,14 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
-use Seaman\Enum\OperatingMode;
-use Seaman\Service\DockerComposeGenerator;
 use Seaman\Service\DockerManager;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\TemplateRenderer;
-use Seaman\Service\TraefikLabelGenerator;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Command\Command;
-
-use function Laravel\Prompts\confirm;
 
 abstract class AbstractServiceCommand extends ModeAwareCommand
 {
@@ -38,7 +36,7 @@ abstract class AbstractServiceCommand extends ModeAwareCommand
     {
         $projectRoot = (string) getcwd();
 
-        if (confirm(label: 'Restart seaman stack with new services?')) {
+        if (Prompts::confirm(label: 'Restart seaman stack with new services?')) {
             try {
                 $manager = new DockerManager($projectRoot);
 

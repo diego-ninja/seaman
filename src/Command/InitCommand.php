@@ -8,23 +8,22 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
-use Seaman\Enum\Service;
 use Seaman\Service\ComposeImporter;
 use Seaman\Service\ConfigurationFactory;
+use Seaman\Service\Detector\ProjectDetector;
+use Seaman\Service\Detector\ServiceDetector;
+use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\Process\RealCommandExecutor;
-use Seaman\Service\ProjectDetector;
-use Seaman\Service\ServiceDetector;
-use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Service\ProjectInitializer;
-use Seaman\Service\SymfonyDetector;
+use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
@@ -34,14 +33,11 @@ use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
+use Seaman\UI\Prompts;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-
-use function Laravel\Prompts\confirm;
-use function Laravel\Prompts\info;
-use function Laravel\Prompts\select;
 
 #[AsCommand(
     name: 'seaman:init',
@@ -62,7 +58,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Init works in all modes
     }
@@ -86,11 +82,11 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Check if seaman.yaml already exists
         if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
-            if (!confirm(
+            if (!Prompts::confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
                 default: false,
             )) {
-                info('Initialization cancelled.');
+                Prompts::info('Initialization cancelled.');
                 return Command::SUCCESS;
             }
         }
@@ -116,22 +112,25 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
-        // Run initialization wizard to collect all choices
+        // Run initialization wizard to collect all choices (including DNS)
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
         // Build configuration from choices
         $config = $this->configFactory->createFromChoices($choices, $projectType);
 
-        // Show configuration summary
+        // Show configuration summary (now includes DNS)
         $this->summary->display(
             database: $choices->database,
             services: $choices->services,
             phpConfig: $config->php,
             projectType: $projectType,
             devContainer: $choices->generateDevContainer,
+            proxyEnabled: $choices->useProxy,
+            configureDns: $choices->configureDns,
+            dnsProvider: $choices->dnsProvider,
         );
 
-        if (!confirm(label: 'Continue with this configuration?')) {
+        if (!Prompts::confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
         }
@@ -148,10 +147,9 @@ class InitCommand extends ModeAwareCommand implements Decorable
             $this->initializer->generateDevContainer($projectRoot);
         }
 
-        // Offer DNS configuration
-        Terminal::output()->writeln('');
-        if (confirm(label: 'Configure DNS for local development?')) {
-            $this->configureDns($config->projectName);
+        // Apply DNS configuration if selected
+        if ($choices->configureDns && $choices->dnsProvider !== null) {
+            $this->applyDnsConfiguration($config->projectName, $choices->dnsProvider);
         }
 
         Terminal::success('Seaman initialized successfully');
@@ -173,7 +171,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         /** @var string $choice */
-        $choice = select(
+        $choice = Prompts::select(
             label: 'How would you like to proceed?',
             options: [
                 'import' => 'Import existing docker-compose.yml',
@@ -203,7 +201,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         $this->displayImportSummary($result);
 
-        if (!confirm(label: 'Import these services?')) {
+        if (!Prompts::confirm(label: 'Import these services?')) {
             return null;
         }
 
@@ -229,7 +227,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
                     $name,
                     $detected->type->value,
                     $detected->version,
-                    $detected->confidence,
+                    $detected->confidence->value,
                 ));
             }
             Terminal::output()->writeln('');
@@ -290,16 +288,21 @@ class InitCommand extends ModeAwareCommand implements Decorable
             customServices: $importResult->custom,
         );
 
-        // Show summary
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=cyan>Configuration Summary</>');
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln("    Project: {$projectName}");
-        Terminal::output()->writeln('    Managed services: ' . count($serviceConfigs));
-        Terminal::output()->writeln('    Custom services: ' . $importResult->custom->count());
-        Terminal::output()->writeln('');
+        // Ask about DNS configuration before summary
+        [$configureDns, $dnsProvider] = $this->wizard->selectDnsConfiguration($projectName);
 
-        if (!confirm(label: 'Continue with this configuration?')) {
+        summary(
+            title: 'Configuration Summary',
+            icon: '⚙',
+            data: [
+                'Project' => $projectName,
+                'Managed Services' => count($serviceConfigs),
+                'Custom Services' => $importResult->custom->count(),
+                'DNS' => $configureDns ? ($dnsProvider?->getDisplayName() ?? 'Auto-detect') : 'Skip',
+            ],
+        );
+
+        if (!Prompts::confirm(label: 'Continue with this configuration?')) {
             Terminal::success('Initialization cancelled.');
             return Command::SUCCESS;
         }
@@ -307,10 +310,9 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Initialize Docker environment
         $this->initializer->initializeDockerEnvironment($config, $projectRoot);
 
-        // Offer DNS configuration
-        Terminal::output()->writeln('');
-        if (confirm(label: 'Configure DNS for local development?', default: true)) {
-            $this->configureDns($config->projectName);
+        // Apply DNS configuration if selected
+        if ($configureDns && $dnsProvider !== null) {
+            $this->applyDnsConfiguration($config->projectName, $dnsProvider);
         }
 
         Terminal::success('Seaman initialized with imported configuration');
@@ -328,12 +330,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     {
         // Check if Symfony project exists
         if (!$this->projectDetector->isSymfonyProject($projectRoot)) {
-            $shouldBootstrap = confirm(
+            $shouldBootstrap = Prompts::confirm(
                 label: 'No Symfony application detected. Create new project?',
             );
 
             if (!$shouldBootstrap) {
-                info('Please create a Symfony project first, then run init again.');
+                Prompts::info('Please create a Symfony project first, then run init again.');
                 exit(Command::FAILURE);
             }
 
@@ -365,21 +367,30 @@ class InitCommand extends ModeAwareCommand implements Decorable
         }
     }
 
-    private function configureDns(string $projectName): void
+    /**
+     * Apply DNS configuration for the selected provider.
+     */
+    private function applyDnsConfiguration(string $projectName, DnsProvider $provider): void
     {
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=cyan>DNS Configuration</>');
+        Terminal::output()->writeln('  <fg=cyan>Configuring DNS...</>');
         Terminal::output()->writeln('');
 
         $executor = new RealCommandExecutor();
         $helper = new DnsConfigurationHelper($executor);
-        $result = $helper->configure($projectName);
 
-        if ($result->automatic) {
-            $this->handleAutomaticDnsConfiguration($result, $projectName);
-        } else {
+        $result = $helper->configureProvider($projectName, $provider);
+        $this->processDnsResult($result, $projectName);
+    }
+
+    private function processDnsResult(DnsConfigurationResult $result, string $projectName): void
+    {
+        if (!$result->automatic) {
             $this->handleManualDnsConfiguration($result);
+            return;
         }
+
+        $this->handleAutomaticDnsConfiguration($result, $projectName);
     }
 
     private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
@@ -403,15 +414,18 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
         Terminal::output()->writeln('');
 
-        if (!confirm('Apply this DNS configuration?', true)) {
-            info('DNS configuration skipped.');
+        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+            Prompts::info('DNS configuration skipped.');
             return;
         }
 
         // Create directory if needed
         $configDir = dirname($result->configPath);
+        $escapedConfigDir = escapeshellarg($configDir);
         if (!is_dir($configDir)) {
-            $mkdirCmd = $result->requiresSudo ? "sudo mkdir -p {$configDir}" : "mkdir -p {$configDir}";
+            $mkdirCmd = $result->requiresSudo
+                ? "sudo mkdir -p {$escapedConfigDir}"
+                : "mkdir -p {$escapedConfigDir}";
             Terminal::output()->writeln("  Creating directory: {$configDir}");
             exec($mkdirCmd, $output, $exitCode);
 
@@ -423,11 +437,17 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Write configuration
         $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
+        if ($tempFile === false) {
+            Terminal::error('Failed to create temporary file');
+            return;
+        }
         file_put_contents($tempFile, $result->configContent);
 
+        $escapedTempFile = escapeshellarg($tempFile);
+        $escapedConfigPath = escapeshellarg($result->configPath);
         $cpCmd = $result->requiresSudo
-            ? "sudo cp {$tempFile} {$result->configPath}"
-            : "cp {$tempFile} {$result->configPath}";
+            ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
+            : "cp {$escapedTempFile} {$escapedConfigPath}";
 
         exec($cpCmd, $output, $exitCode);
         unlink($tempFile);
@@ -437,20 +457,14 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return;
         }
 
-        // Restart DNS service
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
-        Terminal::output()->writeln('');
 
-        if ($result->type === 'dnsmasq') {
-            Terminal::output()->writeln('  Restarting dnsmasq...');
-            $restartCmd = PHP_OS_FAMILY === 'Darwin'
-                ? 'sudo brew services restart dnsmasq'
-                : 'sudo systemctl restart dnsmasq';
-            exec($restartCmd);
-        } elseif ($result->type === 'systemd-resolved') {
-            Terminal::output()->writeln('  Restarting systemd-resolved...');
-            exec('sudo systemctl restart systemd-resolved');
+        // Restart DNS service if needed
+        if ($result->restartCommand !== null) {
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Restarting DNS service...');
+            exec($result->restartCommand);
         }
 
         Terminal::success('DNS configured successfully!');

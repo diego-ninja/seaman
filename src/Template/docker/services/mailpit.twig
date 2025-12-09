@@ -1,10 +1,10 @@
   {{ name }}:
     image: axllent/mailpit:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "${MAILPIT_PORT}:8025"
       - "${MAILPIT_SMTP_PORT:-1025}:1025"
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"
@@ -16,4 +16,8 @@
       - MP_MAX_MESSAGES=5000
       - MP_SMTP_AUTH_ACCEPT_ANY=1
       - MP_SMTP_AUTH_ALLOW_INSECURE=1
-
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/livez"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

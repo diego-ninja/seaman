@@ -14,9 +14,12 @@ namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Tests\Integration\TestHelper;
+use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
 
 beforeEach(function () {
+    HeadlessMode::reset();
+    HeadlessMode::enable();
     $this->tempDir = TestHelper::createTempDir();
     $originalDir = getcwd();
     if ($originalDir === false) {
@@ -27,26 +30,27 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    HeadlessMode::reset();
     chdir($this->originalDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
 
-test('stop command requires seaman.yaml', function () {
+test('stop command requires docker-compose.yml', function () {
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('stop'));
+
+    expect(fn() => $commandTester->execute([]))
+        ->toThrow(\RuntimeException::class, 'Docker Compose file not found');
+});
+
+test('stop command works in unmanaged mode without seaman.yaml', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
     $application = new Application();
     $commandTester = new CommandTester($application->find('stop'));
 
     $commandTester->execute([]);
 
-    expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('seaman.yaml not found');
-});
-
-test('stop command with specific service', function () {
-    $application = new Application();
-    $commandTester = new CommandTester($application->find('stop'));
-
-    $commandTester->execute(['service' => 'redis']);
-
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    expect($commandTester->getStatusCode())->toBe(0);
 });

@@ -82,3 +82,33 @@ test('formats service list correctly with multiple services', function () {
 
     expect($formatted)->toBe('Redis, Mailpit, Rabbitmq');
 });
+
+test('displays summary with proxy enabled', function () {
+    $summary = new InitializationSummary();
+
+    $database = Service::PostgreSQL;
+    $services = [Service::Redis];
+    $phpConfig = new PhpConfig(
+        PhpVersion::Php84,
+        new XdebugConfig(true, 'seaman', 'host.docker.internal'),
+    );
+    $projectType = ProjectType::WebApplication;
+
+    expect(fn() => $summary->display($database, $services, $phpConfig, $projectType, false, true))
+        ->not->toThrow(\Exception::class);
+});
+
+test('displays summary with proxy disabled', function () {
+    $summary = new InitializationSummary();
+
+    $database = Service::PostgreSQL;
+    $services = [Service::Redis];
+    $phpConfig = new PhpConfig(
+        PhpVersion::Php84,
+        new XdebugConfig(true, 'seaman', 'host.docker.internal'),
+    );
+    $projectType = ProjectType::WebApplication;
+
+    expect(fn() => $summary->display($database, $services, $phpConfig, $projectType, false, false))
+        ->not->toThrow(\Exception::class);
+});

@@ -18,14 +18,6 @@ readonly class MailpitService extends AbstractService
         return Service::Mailpit;
     }
 
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
@@ -44,7 +36,6 @@ readonly class MailpitService extends AbstractService
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
         $composeConfig = [
             'image' => 'axllent/mailpit:' . $config->version,
             'ports' => [
@@ -52,21 +43,10 @@ readonly class MailpitService extends AbstractService
                 '${MAILPIT_SMTP_PORT:-1025}:1025',
             ],
             'networks' => ['seaman'],
-            'environment' => [
-                'MP_MAX_MESSAGES=5000',
-            ],
+            'environment' => ['MP_MAX_MESSAGES=5000'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**
@@ -80,10 +60,10 @@ readonly class MailpitService extends AbstractService
     public function getHealthCheck(): ?HealthCheck
     {
         return new HealthCheck(
-            test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8025/'],
+            test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:8025/livez'],
             interval: '10s',
             timeout: '5s',
-            retries: 3,
+            retries: 5,
         );
     }
 

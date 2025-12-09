@@ -75,10 +75,10 @@ test('mailpit service has correct health check', function () {
     $service = new MailpitService();
     $healthCheck = $service->getHealthCheck();
 
-    expect($healthCheck->test)->toBe(['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://localhost:8025/'])
+    expect($healthCheck->test)->toBe(['CMD', 'wget', '--spider', '-q', 'http://localhost:8025/livez'])
         ->and($healthCheck->interval)->toBe('10s')
         ->and($healthCheck->timeout)->toBe('5s')
-        ->and($healthCheck->retries)->toBe(3);
+        ->and($healthCheck->retries)->toBe(5);
 });
 
 test('mailpit service generates compose config', function () {

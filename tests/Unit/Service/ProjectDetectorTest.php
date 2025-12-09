@@ -9,8 +9,8 @@ namespace Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\ProjectType;
-use Seaman\Service\ProjectDetector;
-use Seaman\Service\SymfonyDetector;
+use Seaman\Service\Detector\ProjectDetector;
+use Seaman\Service\Detector\SymfonyDetector;
 
 final class ProjectDetectorTest extends TestCase
 {
@@ -182,7 +182,7 @@ final class ProjectDetectorTest extends TestCase
     {
         file_put_contents(
             $this->testRoot . '/composer.json',
-            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         );
     }
 

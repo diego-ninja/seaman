@@ -23,12 +23,18 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class RestartCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addArgument('service', InputArgument::OPTIONAL, 'Specific service to restart');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return true; // Works in all modes
     }
@@ -37,8 +43,7 @@ class RestartCommand extends ModeAwareCommand implements Decorable
     {
         /** @var ?string $service */
         $service = $input->getArgument('service');
-        $manager = new DockerManager((string) getcwd());
-        $result = $manager->restart($service);
+        $result = $this->dockerManager->restart($service);
 
         if ($result->isSuccessful()) {
             return Command::SUCCESS;

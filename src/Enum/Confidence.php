@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Seaman\Enum;
 
 enum Confidence: string

@@ -14,6 +14,8 @@ use Seaman\Service\Container\MysqlService;
 use Seaman\Service\Container\PostgresqlService;
 use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
+use Seaman\UI\HeadlessMode;
+use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ServiceCollection;
@@ -28,11 +30,14 @@ use Symfony\Component\Console\Tester\CommandTester;
  * @property ServiceRegistry $registry
  */
 beforeEach(function () {
+    HeadlessMode::reset();
+    HeadlessMode::enable();
     $this->tempDir = sys_get_temp_dir() . '/seaman-test-' . uniqid();
     mkdir($this->tempDir . '/.seaman', 0755, true);
 
     // Create a minimal seaman.yaml
     $yaml = <<<YAML
+project_name: test-project
 version: '1.0'
 php:
   version: '8.4'
@@ -62,6 +67,8 @@ YAML;
 });
 
 afterEach(function () {
+    HeadlessMode::reset();
+    Terminal::resetOutput();
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
     if (is_dir($tempDir)) {
@@ -95,19 +102,27 @@ test('lists all services with status', function () {
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
+    // Create buffer BEFORE executing command
+    $buffer = new \Symfony\Component\Console\Output\BufferedOutput();
+    Terminal::setOutput($buffer);
+
     $command = new ServiceListCommand($configManager, $registry);
     $tester = new CommandTester($command);
-
     $tester->execute([]);
 
     expect($tester->getStatusCode())->toBe(0);
 
-    $output = $tester->getDisplay();
+    // Debug: show both outputs
+    $terminalOutput = $buffer->fetch();
+    $testerOutput = $tester->getDisplay();
+
+    // Output goes to Terminal or to CommandTester depending on environment
+    $output = $terminalOutput ?: $testerOutput;
 
     expect($output)->toContain('MySQL');
     expect($output)->toContain('Redis');
     expect($output)->toContain('enabled');
-    expect($output)->toContain('available');
+    expect($output)->toContain('disabled');
 });
 
 test('shows enabled status for active services', function () {
@@ -116,12 +131,16 @@ test('shows enabled status for active services', function () {
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
+    // Create buffer BEFORE executing command
+    $buffer = new \Symfony\Component\Console\Output\BufferedOutput();
+    Terminal::setOutput($buffer);
+
     $command = new ServiceListCommand($configManager, $registry);
     $tester = new CommandTester($command);
-
     $tester->execute([]);
 
-    $output = $tester->getDisplay();
+    // Output goes to Terminal or to CommandTester depending on environment
+    $output = $buffer->fetch() ?: $tester->getDisplay();
     $lines = explode("\n", $output);
 
     $mysqlLine = null;
@@ -136,18 +155,22 @@ test('shows enabled status for active services', function () {
     expect($mysqlLine)->toContain('enabled');
 });
 
-test('shows available status for inactive services', function () {
+test('shows disabled status for inactive services', function () {
     /** @var ConfigManager $configManager */
     $configManager = $this->configManager;
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
+    // Create buffer BEFORE executing command
+    $buffer = new \Symfony\Component\Console\Output\BufferedOutput();
+    Terminal::setOutput($buffer);
+
     $command = new ServiceListCommand($configManager, $registry);
     $tester = new CommandTester($command);
-
     $tester->execute([]);
 
-    $output = $tester->getDisplay();
+    // Output goes to Terminal or to CommandTester depending on environment
+    $output = $buffer->fetch() ?: $tester->getDisplay();
     $lines = explode("\n", $output);
 
     $postgresLine = null;
@@ -162,9 +185,9 @@ test('shows available status for inactive services', function () {
     }
 
     expect($postgresLine)->not->toBeNull();
-    expect($postgresLine)->toContain('available');
+    expect($postgresLine)->toContain('disabled');
     expect($redisLine)->not->toBeNull();
-    expect($redisLine)->toContain('available');
+    expect($redisLine)->toContain('disabled');
 });
 
 test('displays ports for each service', function () {
@@ -173,12 +196,16 @@ test('displays ports for each service', function () {
     /** @var ServiceRegistry $registry */
     $registry = $this->registry;
 
+    // Create buffer BEFORE executing command
+    $buffer = new \Symfony\Component\Console\Output\BufferedOutput();
+    Terminal::setOutput($buffer);
+
     $command = new ServiceListCommand($configManager, $registry);
     $tester = new CommandTester($command);
-
     $tester->execute([]);
 
-    $output = $tester->getDisplay();
+    // Output goes to Terminal or to CommandTester depending on environment
+    $output = $buffer->fetch() ?: $tester->getDisplay();
 
     expect($output)->toContain('3306');
     expect($output)->toContain('5432');

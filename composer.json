@@ -17,6 +17,7 @@
     "jolicode/jolinotif": "^3",
     "laravel/prompts": "^0.3.8",
     "nunomaduro/termwind": "^2.3",
+    "php-di/php-di": "^7.1",
     "phpoption/phpoption": "^1.9",
     "ramsey/collection": "^2.1",
     "symfony/console": "^7",

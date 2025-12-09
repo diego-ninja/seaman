@@ -9,7 +9,7 @@ namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
-use Seaman\Service\TraefikLabelGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceConfig;
 
@@ -22,13 +22,13 @@ test('generates labels for ProxyOnly service (App)', function () {
         version: PhpVersion::Php84->value,
         port: 80,
         additionalPorts: [],
-        environmentVariables: []
+        environmentVariables: [],
     );
     $proxy = new ProxyConfig(
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     $labels = $generator->generateLabels($service, $proxy);
@@ -49,13 +49,13 @@ test('generates labels for ProxyOnly service (Mailpit)', function () {
         version: 'latest',
         port: 8025,
         additionalPorts: [1025],
-        environmentVariables: []
+        environmentVariables: [],
     );
     $proxy = new ProxyConfig(
         enabled: true,
         domainPrefix: 'testproject',
         certResolver: 'selfsigned',
-        dashboard: true
+        dashboard: true,
     );
 
     $labels = $generator->generateLabels($service, $proxy);
@@ -76,13 +76,13 @@ test('disables Traefik for DirectPort service (PostgreSQL)', function () {
         version: '16',
         port: 5432,
         additionalPorts: [],
-        environmentVariables: []
+        environmentVariables: [],
     );
     $proxy = new ProxyConfig(
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     $labels = $generator->generateLabels($service, $proxy);
@@ -99,13 +99,13 @@ test('disables Traefik for DirectPort service (MySQL)', function () {
         version: '8.0',
         port: 3306,
         additionalPorts: [],
-        environmentVariables: []
+        environmentVariables: [],
     );
     $proxy = new ProxyConfig(
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     $labels = $generator->generateLabels($service, $proxy);
@@ -122,13 +122,13 @@ test('disables Traefik for DirectPort service (Redis)', function () {
         version: '7',
         port: 6379,
         additionalPorts: [],
-        environmentVariables: []
+        environmentVariables: [],
     );
     $proxy = new ProxyConfig(
         enabled: true,
         domainPrefix: 'myproject',
         certResolver: 'mkcert',
-        dashboard: true
+        dashboard: true,
     );
 
     $labels = $generator->generateLabels($service, $proxy);

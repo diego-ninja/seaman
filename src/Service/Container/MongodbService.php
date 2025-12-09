@@ -7,23 +7,16 @@ declare(strict_types=1);
 
 namespace Seaman\Service\Container;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
-readonly class MongodbService extends AbstractService
+readonly class MongodbService extends AbstractService implements DatabaseServiceInterface
 {
     public function getType(): Service
     {
         return Service::MongoDB;
-    }
-
-    /**
-     * @return list<string>
-     */
-    public function getDependencies(): array
-    {
-        return [];
     }
 
     public function getDefaultConfig(): ServiceConfig
@@ -44,34 +37,18 @@ readonly class MongodbService extends AbstractService
     }
 
     /**
-     * @param ServiceConfig $config
      * @return array<string, mixed>
      */
     public function generateComposeConfig(ServiceConfig $config): array
     {
-        $healthCheck = $this->getHealthCheck();
-
         $composeConfig = [
             'image' => 'mongo:' . $config->version,
             'environment' => $config->environmentVariables,
-            'ports' => [
-                $config->port . ':27017',
-            ],
-            'volumes' => [
-                'mongodb_data:/data/db',
-            ],
+            'ports' => [$config->port . ':27017'],
+            'volumes' => ['mongodb_data:/data/db'],
         ];
 
-        if ($healthCheck !== null) {
-            $composeConfig['healthcheck'] = [
-                'test' => $healthCheck->test,
-                'interval' => $healthCheck->interval,
-                'timeout' => $healthCheck->timeout,
-                'retries' => $healthCheck->retries,
-            ];
-        }
-
-        return $composeConfig;
+        return $this->addHealthCheckToConfig($composeConfig);
     }
 
     /**
@@ -102,6 +79,63 @@ readonly class MongodbService extends AbstractService
             'MONGO_USER' => $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
             'MONGO_PASSWORD' => $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
             'MONGO_DB' => $config->environmentVariables['MONGO_INITDB_DATABASE'] ?? 'seaman',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongodump',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
+            '--archive',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongorestore',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
+            '--archive',
+            '--drop',
+        ];
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        $env = $config->environmentVariables;
+
+        return [
+            'mongosh',
+            '--username',
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+            '--password',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+            '--authenticationDatabase',
+            'admin',
         ];
     }
 }

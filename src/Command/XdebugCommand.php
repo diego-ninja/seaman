@@ -24,12 +24,18 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 )]
 class XdebugCommand extends ModeAwareCommand implements Decorable
 {
+    public function __construct(
+        private readonly DockerManager $dockerManager,
+    ) {
+        parent::__construct();
+    }
+
     protected function configure(): void
     {
         $this->addArgument('mode', InputArgument::REQUIRED, 'Mode: on or off');
     }
 
-    protected function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
     {
         return $mode === \Seaman\Enum\OperatingMode::Managed;
     }
@@ -47,8 +53,7 @@ class XdebugCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $manager = new DockerManager((string) getcwd());
-        $result = $manager->executeInService('app', ['xdebug-toggle', strtolower($mode)]);
+        $result = $this->dockerManager->executeInService('app', ['xdebug-toggle', strtolower($mode)]);
 
         if ($result->isSuccessful()) {
             Terminal::success("Xdebug is now <fg=bright-green>{$mode}</>");

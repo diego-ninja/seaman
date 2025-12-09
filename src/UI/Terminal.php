@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Seaman\UI;
 
+use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Formatter\OutputFormatterStyleInterface;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\StreamableInputInterface;
 use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 use function Termwind\terminal;
@@ -15,6 +17,8 @@ use function Termwind\terminal;
 final class Terminal
 {
     private static ?self $instance = null;
+    private static ?bool $supportsAnsi = null;
+    private static ?OutputInterface $currentOutput = null;
 
     /**
      * Get the singleton instance of the Terminal class.
@@ -33,13 +37,32 @@ final class Terminal
     }
 
     /**
+     * Set a custom output interface for the terminal.
+     * This allows commands to inject their own output for testing.
+     *
+     * @param OutputInterface $output The output interface to use.
+     */
+    public static function setOutput(OutputInterface $output): void
+    {
+        self::$currentOutput = $output;
+    }
+
+    /**
+     * Reset the output interface to the default singleton output.
+     */
+    public static function resetOutput(): void
+    {
+        self::$currentOutput = null;
+    }
+
+    /**
      * Get the console output object.
      *
-     * @return ConsoleOutput The console output object.
+     * @return OutputInterface The console output object.
      */
-    public static function output(): ConsoleOutput
+    public static function output(): OutputInterface
     {
-        return self::getInstance()->output;
+        return self::$currentOutput ?? self::getInstance()->output;
     }
 
     /**
@@ -59,12 +82,40 @@ final class Terminal
      */
     public static function clear(int $lines): void
     {
+        if (!self::supportsCursor()) {
+            return;
+        }
         for ($i = 0; $i < $lines; $i++) {
             self::output()->write("\033[1A");
             self::output()->write("\033[2K");
         }
 
         self::output()->write("\033[1G");
+    }
+
+    /**
+     * Check if terminal supports ANSI (colors, etc.)
+     */
+    public static function supportsAnsi(): bool
+    {
+        if (self::$supportsAnsi === null) {
+            self::$supportsAnsi = self::output()->isDecorated();
+        }
+
+        return self::$supportsAnsi;
+    }
+
+    /**
+     * Check if we can manipulate cursor (hide, clear line, etc.)
+     * Requires real TTY, not just ANSI support.
+     */
+    public static function supportsCursor(): bool
+    {
+        if (HeadlessMode::isHeadless()) {
+            return false;
+        }
+
+        return posix_isatty(STDOUT);
     }
 
     /**
@@ -99,27 +150,33 @@ final class Terminal
 
     public static function success(string $message): void
     {
-        self::output()->writeln(
-            sprintf(
-                "%s<fg=bright-green>%s</> %s",
-                str_repeat(' ', 2),
-                '⬡',
-                $message,
-            ),
-        );
+        $symbol = self::supportsAnsi()
+            ? '<fg=bright-green>⬡</>'
+            : '⬡';
 
+        self::output()->writeln(sprintf(
+            "%s%s %s",
+            str_repeat(' ', 2),
+            $symbol,
+            $message,
+        ));
     }
 
     public static function error(string $message): void
     {
-        self::output()->writeln(
-            sprintf(
-                "%s<fg=bright-red;options=blink>%s</> <fg=bright-red>%s</>",
-                str_repeat(' ', 2),
-                '⬡',
-                $message,
-            ),
-        );
+        $symbol = self::supportsAnsi()
+            ? '<fg=bright-red>⬡</>'
+            : '⬡';
+        $text = self::supportsAnsi()
+            ? "<fg=bright-red>{$message}</>"
+            : $message;
+
+        self::output()->writeln(sprintf(
+            "%s%s %s",
+            str_repeat(' ', 2),
+            $symbol,
+            $text,
+        ));
     }
 
     /**
@@ -140,7 +197,10 @@ final class Terminal
      */
     public static function hideCursor(mixed $stream = STDOUT): void
     {
-        fprintf($stream, "\033[?25l"); // hide cursor
+        if (!self::supportsCursor()) {
+            return;
+        }
+        fprintf($stream, "\033[?25l");
         register_shutdown_function(static function (): void {
             self::restoreCursor();
         });

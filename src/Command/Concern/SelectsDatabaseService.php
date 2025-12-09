@@ -8,13 +8,59 @@ declare(strict_types=1);
 namespace Seaman\Command\Concern;
 
 use Seaman\Enum\Service;
+use Seaman\Service\ConfigManager;
+use Seaman\UI\Prompts;
+use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
-
-use function Laravel\Prompts\select;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
 
 trait SelectsDatabaseService
 {
+    abstract protected function getConfigManager(): ConfigManager;
+
+    /**
+     * Loads configuration and selects a validated database service.
+     *
+     * @return ServiceConfig|int Returns ServiceConfig on success, or Command::FAILURE on error
+     */
+    protected function loadAndSelectDatabase(InputInterface $input): ServiceConfig|int
+    {
+        try {
+            $config = $this->getConfigManager()->load();
+        } catch (\RuntimeException $e) {
+            Terminal::error('Failed to load configuration: ' . $e->getMessage());
+            return Command::FAILURE;
+        }
+
+        $serviceName = $input->getOption('service');
+        if (!is_string($serviceName) && $serviceName !== null) {
+            Terminal::error('Invalid service option.');
+            return Command::FAILURE;
+        }
+
+        try {
+            $databaseService = $this->selectDatabaseService($config, $serviceName);
+        } catch (\RuntimeException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
+        }
+
+        if ($databaseService === null) {
+            Terminal::error('No database service found in configuration.');
+            Terminal::output()->writeln('Add a database service with: seaman service:add');
+            return Command::FAILURE;
+        }
+
+        if (!$databaseService->enabled) {
+            Terminal::error("Database service '{$databaseService->name}' is not enabled.");
+            return Command::FAILURE;
+        }
+
+        return $databaseService;
+    }
+
     /**
      * Selects a database service from configuration.
      *
@@ -59,7 +105,7 @@ trait SelectsDatabaseService
             $choices[$db->name] = sprintf('%s (%s)', $db->name, $db->type->value);
         }
 
-        $selected = select(
+        $selected = Prompts::select(
             label: 'Select database service:',
             options: $choices,
         );

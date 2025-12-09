@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service;
 
 use RuntimeException;
+use Seaman\Service\Detector\ServiceDetector;
 use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\RecognizedService;

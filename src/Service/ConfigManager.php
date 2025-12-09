@@ -9,27 +9,36 @@ namespace Seaman\Service;
 
 use Exception;
 use RuntimeException;
-use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
-use Seaman\Enum\Service;
+use Seaman\Service\ConfigParser\CustomServiceParser;
+use Seaman\Service\ConfigParser\PhpConfigParser;
+use Seaman\Service\ConfigParser\ProxyConfigParser;
+use Seaman\Service\ConfigParser\ServiceConfigParser;
+use Seaman\Service\ConfigParser\VolumeConfigParser;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\CustomServiceCollection;
-use Seaman\ValueObject\PhpConfig;
-use Seaman\ValueObject\ProxyConfig;
-use Seaman\ValueObject\ServiceCollection;
-use Seaman\ValueObject\ServiceConfig;
-use Seaman\ValueObject\VolumeConfig;
-use Seaman\ValueObject\XdebugConfig;
+use Seaman\ValueObject\PortAllocation;
 use Symfony\Component\Yaml\Yaml;
 
 readonly class ConfigManager
 {
+    private PhpConfigParser $phpParser;
+    private ServiceConfigParser $serviceParser;
+    private VolumeConfigParser $volumeParser;
+    private ProxyConfigParser $proxyParser;
+    private CustomServiceParser $customServiceParser;
+
     public function __construct(
         private string $projectRoot,
         private ServiceRegistry $serviceRegistry,
         private ConfigurationValidator $validator,
-    ) {}
+    ) {
+        $this->phpParser = new PhpConfigParser();
+        $this->serviceParser = new ServiceConfigParser();
+        $this->volumeParser = new VolumeConfigParser();
+        $this->proxyParser = new ProxyConfigParser();
+        $this->customServiceParser = new CustomServiceParser();
+    }
 
     public function load(): Configuration
     {
@@ -72,132 +81,6 @@ readonly class ConfigManager
             throw new RuntimeException('project_name must be a string');
         }
 
-        $phpData = $data['php'] ?? [];
-        if (!is_array($phpData)) {
-            throw new RuntimeException('Invalid PHP configuration');
-        }
-
-        $xdebugData = $phpData['xdebug'] ?? [];
-        if (!is_array($xdebugData)) {
-            throw new RuntimeException('Invalid xdebug configuration');
-        }
-
-        $xdebugEnabled = $xdebugData['enabled'] ?? false;
-        if (!is_bool($xdebugEnabled)) {
-            throw new RuntimeException('Xdebug enabled must be a boolean');
-        }
-
-        $xdebugIdeKey = $xdebugData['ide_key'] ?? 'PHPSTORM';
-        if (!is_string($xdebugIdeKey)) {
-            throw new RuntimeException('Xdebug IDE key must be a string');
-        }
-
-        $xdebugClientHost = $xdebugData['client_host'] ?? 'host.docker.internal';
-        if (!is_string($xdebugClientHost)) {
-            throw new RuntimeException('Xdebug client host must be a string');
-        }
-
-        $xdebug = new XdebugConfig(
-            enabled: $xdebugEnabled,
-            ideKey: $xdebugIdeKey,
-            clientHost: $xdebugClientHost,
-        );
-
-        $versionString = $phpData['version'] ?? null;
-        $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
-        $phpVersion = $phpVersion ?? PhpVersion::Php84;
-
-        $php = new PhpConfig(
-            version: $phpVersion,
-            xdebug: $xdebug,
-        );
-
-        $servicesData = $data['services'] ?? [];
-        if (!is_array($servicesData)) {
-            throw new RuntimeException('Invalid services configuration');
-        }
-
-        /** @var array<string, ServiceConfig> $services */
-        $services = [];
-        foreach ($servicesData as $name => $serviceData) {
-            if (!is_string($name) || !is_array($serviceData)) {
-                continue;
-            }
-
-            $enabled = $serviceData['enabled'] ?? false;
-            if (!is_bool($enabled)) {
-                $enabled = false;
-            }
-
-            $type = $serviceData['type'] ?? $name;
-            if (!is_string($type)) {
-                $type = $name;
-            }
-
-            $version = $serviceData['version'] ?? 'latest';
-            if (!is_string($version)) {
-                $version = 'latest';
-            }
-
-            $port = $serviceData['port'] ?? 0;
-            if (!is_int($port)) {
-                $port = 0;
-            }
-
-            $additionalPorts = $serviceData['additional_ports'] ?? [];
-            if (!is_array($additionalPorts)) {
-                $additionalPorts = [];
-            }
-            /** @var list<int> $portsList */
-            $portsList = [];
-            foreach ($additionalPorts as $p) {
-                if (is_int($p)) {
-                    $portsList[] = $p;
-                }
-            }
-
-            $environmentVariables = $serviceData['environment'] ?? [];
-            if (!is_array($environmentVariables)) {
-                $environmentVariables = [];
-            }
-            /** @var array<string, string> $envVars */
-            $envVars = array_filter($environmentVariables, function ($value, $key) {
-                return is_string($key) && is_string($value);
-            }, ARRAY_FILTER_USE_BOTH);
-
-            $services[$name] = new ServiceConfig(
-                name: $name,
-                enabled: $enabled,
-                type: Service::from($type),
-                version: $version,
-                port: $port,
-                additionalPorts: $portsList,
-                environmentVariables: $envVars,
-            );
-        }
-
-        $volumesData = $data['volumes'] ?? [];
-        if (!is_array($volumesData)) {
-            throw new RuntimeException('Invalid volumes configuration');
-        }
-
-        $persistData = $volumesData['persist'] ?? [];
-        if (!is_array($persistData)) {
-            throw new RuntimeException('Invalid persist configuration');
-        }
-
-        /** @var list<string> $persistList */
-        $persistList = [];
-        foreach ($persistData as $volume) {
-            if (is_string($volume)) {
-                $persistList[] = $volume;
-            }
-        }
-
-        $volumes = new VolumeConfig(
-            persist: $persistList,
-        );
-
         $version = $data['version'] ?? '1.0';
         if (!is_string($version)) {
             $version = '1.0';
@@ -207,82 +90,16 @@ readonly class ConfigManager
         $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
         $projectType = $projectType ?? ProjectType::Existing;
 
-        // Parse proxy configuration
-        $proxyConfig = $this->parseProxyConfig($data, $projectName);
-
-        // Parse custom services
-        $customServices = $this->parseCustomServices($data);
-
         return new Configuration(
             projectName: $projectName,
             version: $version,
-            php: $php,
-            services: new ServiceCollection($services),
-            volumes: $volumes,
+            php: $this->phpParser->parse($data),
+            services: $this->serviceParser->parse($data),
+            volumes: $this->volumeParser->parse($data),
             projectType: $projectType,
-            proxy: $proxyConfig,
-            customServices: $customServices,
+            proxy: $this->proxyParser->parse($data, $projectName),
+            customServices: $this->customServiceParser->parse($data),
         );
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function parseProxyConfig(array $data, string $projectName): ProxyConfig
-    {
-        $proxyData = $data['proxy'] ?? [];
-        if (!is_array($proxyData)) {
-            return ProxyConfig::default($projectName);
-        }
-
-        $enabled = $proxyData['enabled'] ?? true;
-        if (!is_bool($enabled)) {
-            $enabled = true;
-        }
-
-        $domainPrefix = $proxyData['domain_prefix'] ?? $projectName;
-        if (!is_string($domainPrefix)) {
-            $domainPrefix = $projectName;
-        }
-
-        $certResolver = $proxyData['cert_resolver'] ?? 'selfsigned';
-        if (!is_string($certResolver)) {
-            $certResolver = 'selfsigned';
-        }
-
-        $dashboard = $proxyData['dashboard'] ?? true;
-        if (!is_bool($dashboard)) {
-            $dashboard = true;
-        }
-
-        return new ProxyConfig(
-            enabled: $enabled,
-            domainPrefix: $domainPrefix,
-            certResolver: $certResolver,
-            dashboard: $dashboard,
-        );
-    }
-
-    /**
-     * @param array<string, mixed> $data
-     */
-    private function parseCustomServices(array $data): CustomServiceCollection
-    {
-        $customData = $data['custom_services'] ?? [];
-        if (!is_array($customData)) {
-            return new CustomServiceCollection();
-        }
-
-        /** @var array<string, array<string, mixed>> $validCustomServices */
-        $validCustomServices = [];
-        foreach ($customData as $name => $config) {
-            if (is_string($name) && is_array($config)) {
-                /** @var array<string, mixed> $config */
-                $validCustomServices[$name] = $config;
-            }
-        }
-
-        return new CustomServiceCollection($validCustomServices);
     }
 
     public function save(Configuration $config): void
@@ -330,6 +147,9 @@ readonly class ConfigManager
             'cert_resolver' => $proxy->certResolver,
             'dashboard' => $proxy->dashboard,
         ];
+        if ($proxy->dnsProvider !== null) {
+            $data['proxy']['dns_provider'] = $proxy->dnsProvider->value;
+        }
 
         // Add custom services if present
         if ($config->hasCustomServices()) {
@@ -358,132 +178,6 @@ readonly class ConfigManager
      */
     public function merge(Configuration $base, array $overrides): Configuration
     {
-        // Merge PHP config (keep base xdebug if not overridden)
-        $phpData = $overrides['php'] ?? [];
-        if (!is_array($phpData)) {
-            $phpData = [];
-        }
-
-        $xdebugData = $phpData['xdebug'] ?? [];
-        if (!is_array($xdebugData)) {
-            $xdebugData = [];
-        }
-
-        $xdebugEnabled = $xdebugData['enabled'] ?? $base->php->xdebug->enabled;
-        if (!is_bool($xdebugEnabled)) {
-            $xdebugEnabled = $base->php->xdebug->enabled;
-        }
-
-        $xdebugIdeKey = $xdebugData['ide_key'] ?? $base->php->xdebug->ideKey;
-        if (!is_string($xdebugIdeKey)) {
-            $xdebugIdeKey = $base->php->xdebug->ideKey;
-        }
-
-        $xdebugClientHost = $xdebugData['client_host'] ?? $base->php->xdebug->clientHost;
-        if (!is_string($xdebugClientHost)) {
-            $xdebugClientHost = $base->php->xdebug->clientHost;
-        }
-
-        $xdebug = new XdebugConfig(
-            enabled: $xdebugEnabled,
-            ideKey: $xdebugIdeKey,
-            clientHost: $xdebugClientHost,
-        );
-
-        $versionString = $phpData['version'] ?? null;
-        $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
-        $phpVersion = $phpVersion ?? $base->php->version;
-
-        $php = new PhpConfig(
-            version: $phpVersion,
-            xdebug: $xdebug,
-        );
-
-        // Merge services
-        $mergedServices = $base->services->all();
-        $servicesData = $overrides['services'] ?? [];
-        if (is_array($servicesData)) {
-            foreach ($servicesData as $name => $serviceData) {
-                if (!is_string($name) || !is_array($serviceData)) {
-                    continue;
-                }
-
-                $enabled = $serviceData['enabled'] ?? true;
-                if (!is_bool($enabled)) {
-                    $enabled = true;
-                }
-
-                $type = $serviceData['type'] ?? $name;
-                if (!is_string($type)) {
-                    $type = $name;
-                }
-
-                $version = $serviceData['version'] ?? 'latest';
-                if (!is_string($version)) {
-                    $version = 'latest';
-                }
-
-                $port = $serviceData['port'] ?? 0;
-                if (!is_int($port)) {
-                    $port = 0;
-                }
-
-                $additionalPorts = $serviceData['additional_ports'] ?? [];
-                if (!is_array($additionalPorts)) {
-                    $additionalPorts = [];
-                }
-                /** @var list<int> $portsList */
-                $portsList = [];
-                foreach ($additionalPorts as $p) {
-                    if (is_int($p)) {
-                        $portsList[] = $p;
-                    }
-                }
-
-                $environmentVariables = $serviceData['environment'] ?? [];
-                if (!is_array($environmentVariables)) {
-                    $environmentVariables = [];
-                }
-                /** @var array<string, string> $envVars */
-                $envVars = array_filter($environmentVariables, function ($value, $key) {
-                    return is_string($key) && is_string($value);
-                }, ARRAY_FILTER_USE_BOTH);
-
-                $mergedServices[$name] = new ServiceConfig(
-                    name: $name,
-                    enabled: $enabled,
-                    type: Service::from($type),
-                    version: $version,
-                    port: $port,
-                    additionalPorts: $portsList,
-                    environmentVariables: $envVars,
-                );
-            }
-        }
-
-        $services = new ServiceCollection($mergedServices);
-
-        // Merge volumes
-        $volumesData = $overrides['volumes'] ?? [];
-        if (!is_array($volumesData)) {
-            $volumesData = [];
-        }
-
-        $persistData = $volumesData['persist'] ?? $base->volumes->persist;
-        if (!is_array($persistData)) {
-            $persistData = $base->volumes->persist;
-        }
-
-        /** @var list<string> $persistList */
-        $persistList = [];
-        foreach ($persistData as $volume) {
-            if (is_string($volume)) {
-                $persistList[] = $volume;
-            }
-        }
-
-        $volumes = new VolumeConfig($persistList);
-
         $version = $overrides['version'] ?? $base->version;
         if (!is_string($version)) {
             $version = $base->version;
@@ -501,14 +195,25 @@ readonly class ConfigManager
         return new Configuration(
             projectName: $projectName,
             version: $version,
-            php: $php,
-            services: $services,
-            volumes: $volumes,
+            php: $this->phpParser->merge($overrides, $base->php),
+            services: $this->serviceParser->merge($overrides, $base->services->all()),
+            volumes: $this->volumeParser->merge($overrides, $base->volumes->persist),
             projectType: $projectType,
         );
     }
 
     private function generateEnv(Configuration $config): void
+    {
+        $this->generateEnvWithAllocation($config, new PortAllocation());
+    }
+
+    /**
+     * Generate .env file with port allocations.
+     *
+     * When a port allocation differs from the desired port, the assigned
+     * port will be used in the .env file instead.
+     */
+    public function generateEnvWithAllocation(Configuration $config, PortAllocation $allocation): void
     {
         $lines = [
             '# Application configuration',
@@ -531,6 +236,9 @@ readonly class ConfigManager
                 $service = $this->serviceRegistry->get($serviceConfig->type);
                 $envVars = $service->getEnvVariables($serviceConfig);
 
+                // Apply port allocation overrides
+                $envVars = $this->applyPortAllocation($envVars, $name, $serviceConfig, $allocation);
+
                 $lines[] = '# ' . ucfirst($name) . ' configuration';
                 foreach ($envVars as $key => $value) {
                     $lines[] = $key . '=' . $value;
@@ -547,5 +255,43 @@ readonly class ConfigManager
         if (file_put_contents($envPath, $envContent) === false) {
             throw new RuntimeException('Failed to write .env');
         }
+    }
+
+    /**
+     * Apply port allocation to environment variables.
+     *
+     * @param array<string, string|int> $envVars
+     * @return array<string, string|int>
+     */
+    private function applyPortAllocation(
+        array $envVars,
+        string $serviceName,
+        \Seaman\ValueObject\ServiceConfig $serviceConfig,
+        PortAllocation $allocation,
+    ): array {
+        // Replace main port if allocated differently
+        $mainPort = $serviceConfig->port;
+        if ($mainPort > 0) {
+            $assignedPort = $allocation->getPort($serviceName, $mainPort);
+            foreach ($envVars as $key => $value) {
+                if ($value === $mainPort) {
+                    $envVars[$key] = $assignedPort;
+                }
+            }
+        }
+
+        // Replace additional ports if allocated differently
+        foreach ($serviceConfig->additionalPorts as $desiredPort) {
+            if ($desiredPort > 0) {
+                $assignedPort = $allocation->getPort($serviceName, $desiredPort);
+                foreach ($envVars as $key => $value) {
+                    if ($value === $desiredPort) {
+                        $envVars[$key] = $assignedPort;
+                    }
+                }
+            }
+        }
+
+        return $envVars;
     }
 }

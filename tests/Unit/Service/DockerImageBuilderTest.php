@@ -12,7 +12,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
-use Seaman\Service\DockerImageBuilder;
+use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\ValueObject\ProcessResult;
 
 beforeEach(function (): void {

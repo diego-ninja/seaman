@@ -18,18 +18,13 @@ readonly class TraefikService extends AbstractService
         return Service::Traefik;
     }
 
-    public function getDependencies(): array
-    {
-        return [];
-    }
-
     public function getDefaultConfig(): ServiceConfig
     {
         return new ServiceConfig(
             name: $this->getType()->value,
             enabled: true, // Traefik is always enabled
             type: $this->getType(),
-            version: 'v3.1',
+            version: 'v3.6',
             port: $this->getType()->port(),
             additionalPorts: [80, 8080],
             environmentVariables: [],
@@ -79,7 +74,12 @@ readonly class TraefikService extends AbstractService
 
     public function getHealthCheck(): ?HealthCheck
     {
-        return null; // Traefik doesn't need a health check
+        return new HealthCheck(
+            test: ['CMD', 'traefik', 'healthcheck'],
+            interval: '10s',
+            timeout: '5s',
+            retries: 5,
+        );
     }
 
     /**
@@ -87,6 +87,8 @@ readonly class TraefikService extends AbstractService
      */
     public function getEnvVariables(ServiceConfig $config): array
     {
-        return [];
+        return [
+            'DOCKER_API_VERSION' => '1.44',
+        ];
     }
 }

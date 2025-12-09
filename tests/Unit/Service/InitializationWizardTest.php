@@ -7,8 +7,8 @@ namespace Seaman\Tests\Unit\Service;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
+use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\PhpVersionDetector;
 
 test('get default services returns correct services for WebApplication', function () {
     $detector = new PhpVersionDetector();
@@ -113,4 +113,20 @@ test('get project name returns default when directory is not empty', function ()
     expect($name)->toBe('symfony-app');
 
     exec("rm -rf {$testDir}");
+});
+
+test('shouldUseProxy method exists', function () {
+    $detector = new PhpVersionDetector();
+    $wizard = new InitializationWizard($detector);
+
+    $reflection = new \ReflectionClass($wizard);
+    $method = $reflection->getMethod('shouldUseProxy');
+    $returnType = $method->getReturnType();
+
+    expect($method->isPublic())->toBeTrue();
+    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
+
+    if ($returnType instanceof \ReflectionNamedType) {
+        expect($returnType->getName())->toBe('bool');
+    }
 });

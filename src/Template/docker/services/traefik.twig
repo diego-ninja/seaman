@@ -1,6 +1,6 @@
   {{ name }}:
     image: traefik:{{ service.version }}
-    container_name: seaman-{{ name }}
+    container_name: seaman-{{ project_name }}-{{ name }}
     ports:
       - "80:80"
       - "443:443"
@@ -19,7 +19,7 @@
       - --entrypoints.websecure.address=:443
       - --log.level=INFO
       - --accesslog=true
-{% if labels is defined and labels|length > 0 %}
+{% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
       - "{{ label }}"
@@ -29,4 +29,9 @@
       - seaman
     environment:
       - PROJECT_NAME={{ project_name }}
-
+      - DOCKER_API_VERSION=1.44
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
