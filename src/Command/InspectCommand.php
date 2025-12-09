@@ -102,9 +102,12 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             }
         }
 
-        // Other services
+        // Other services (excluding Traefik, which is handled separately)
         foreach ($config->services->enabled() as $name => $serviceConfig) {
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
+                continue;
+            }
+            if ($serviceConfig->type === Service::Traefik) {
                 continue;
             }
 
