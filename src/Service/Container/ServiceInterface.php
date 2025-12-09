@@ -45,4 +45,14 @@ interface ServiceInterface
      * @return array<string, string|int> Environment variables to generate in .env file
      */
     public function getEnvVariables(ServiceConfig $config): array;
+
+    /**
+     * @return list<int> Internal Docker ports for container-to-container communication
+     */
+    public function getInternalPorts(): array;
+
+    /**
+     * Get display info for inspect command (credentials, version, etc.).
+     */
+    public function getInspectInfo(ServiceConfig $config): string;
 }

@@ -298,6 +298,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): InspectCommand => new InspectCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(ServiceRegistry::class),
             ),
         ),
     ]);

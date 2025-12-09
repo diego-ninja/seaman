@@ -91,4 +91,9 @@ readonly class TraefikService extends AbstractService
             'DOCKER_API_VERSION' => '1.44',
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        return 'Dashboard';
+    }
 }

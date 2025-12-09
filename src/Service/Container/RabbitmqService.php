@@ -82,4 +82,16 @@ readonly class RabbitmqService extends AbstractService
             'RABBITMQ_PASSWORD' => $config->environmentVariables['RABBITMQ_DEFAULT_PASS'] ?? 'seaman',
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['RABBITMQ_DEFAULT_USER'] ?? 'seaman',
+            $env['RABBITMQ_DEFAULT_PASS'] ?? 'seaman',
+        );
+    }
 }

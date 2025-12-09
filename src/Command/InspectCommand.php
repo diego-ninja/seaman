@@ -11,6 +11,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Widget\Table\Table;
 use Seaman\ValueObject\Configuration;
@@ -31,6 +32,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
+        private readonly ServiceRegistry $serviceRegistry,
     ) {
         parent::__construct();
     }
@@ -87,14 +89,14 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
                 $table->addSeparator();
                 $dbStatus = $statuses[$name] ?? null;
-                $dbInfo = $this->getServiceInfo($serviceConfig);
-                $dbUrls = $this->buildDatabaseUrls($serviceConfig);
+                $service = $this->serviceRegistry->get($serviceConfig->type);
+                $dbUrls = $this->buildServiceUrlsFromRegistry($serviceConfig, $proxy);
                 $table->addRow($this->buildServiceRow(
                     $serviceConfig->type,
                     $name,
                     $dbStatus,
                     $dbUrls,
-                    $dbInfo,
+                    $service->getInspectInfo($serviceConfig),
                     $dozzleAvailable,
                 ));
             }
@@ -108,14 +110,14 @@ class InspectCommand extends ModeAwareCommand implements Decorable
 
             $table->addSeparator();
             $status = $statuses[$name] ?? null;
-            $serviceUrls = $this->buildServiceUrls($serviceConfig, $proxy);
-            $serviceInfo = $this->getServiceInfo($serviceConfig);
+            $service = $this->serviceRegistry->get($serviceConfig->type);
+            $serviceUrls = $this->buildServiceUrlsFromRegistry($serviceConfig, $proxy);
             $table->addRow($this->buildServiceRow(
                 $serviceConfig->type,
                 $name,
                 $status,
                 $serviceUrls,
-                $serviceInfo,
+                $service->getInspectInfo($serviceConfig),
                 $dozzleAvailable,
             ));
         }
@@ -124,13 +126,15 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         if ($proxy->enabled) {
             $table->addSeparator();
             $traefikStatus = $statuses['traefik'] ?? null;
-            $traefikUrls = $this->buildTraefikUrls($proxy);
+            $traefikService = $this->serviceRegistry->get(Service::Traefik);
+            $traefikConfig = $traefikService->getDefaultConfig();
+            $traefikUrls = $this->buildTraefikUrls($proxy, $traefikService->getInternalPorts());
             $table->addRow($this->buildServiceRow(
                 Service::Traefik,
                 'traefik',
                 $traefikStatus,
                 $traefikUrls,
-                'Dashboard',
+                $traefikService->getInspectInfo($traefikConfig),
                 $dozzleAvailable,
             ));
         }
@@ -273,16 +277,17 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * Build URL list for a service with InDocker ports.
+     * Build URL list for a service using registry for internal ports.
      *
      * @return list<string>
      */
-    private function buildServiceUrls(ServiceConfig $service, ProxyConfig $proxy): array
+    private function buildServiceUrlsFromRegistry(ServiceConfig $serviceConfig, ProxyConfig $proxy): array
     {
-        $name = $service->name;
-        $type = $service->type;
-        $port = $service->port;
-        $internalPorts = $this->getInternalPorts($type, $port);
+        $name = $serviceConfig->name;
+        $type = $serviceConfig->type;
+        $port = $serviceConfig->port;
+        $service = $this->serviceRegistry->get($type);
+        $internalPorts = $service->getInternalPorts();
 
         if (!$proxy->enabled) {
             $urls = ["localhost:{$port}"];
@@ -317,151 +322,23 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * Get internal Docker ports for a service type.
+     * Build URL list for Traefik.
      *
-     * @return list<int>
-     */
-    private function getInternalPorts(Service $type, int $defaultPort): array
-    {
-        return match ($type) {
-            // Databases
-            Service::MySQL, Service::MariaDB => [3306],
-            Service::PostgreSQL => [5432],
-            Service::MongoDB => [27017],
-            Service::Redis, Service::Valkey => [6379],
-            Service::Memcached => [11211],
-
-            // Message queues
-            Service::RabbitMq => [5672, 15672],
-            Service::Kafka => [9092],
-
-            // Storage
-            Service::MinIO => [9000, 9001],
-
-            // Search
-            Service::Elasticsearch, Service::OpenSearch => [9200],
-
-            // Real-time
-            Service::Mercure => [3000],
-            Service::Soketi => [6001],
-
-            // Utility
-            Service::Mailpit => [8025, 1025],
-            Service::Dozzle => [8080],
-
-            // Traefik
-            Service::Traefik => [80, 443, 8080],
-
-            default => [$defaultPort],
-        };
-    }
-
-    /**
-     * Build URL list for database services.
-     *
+     * @param list<int> $internalPorts
      * @return list<string>
      */
-    private function buildDatabaseUrls(ServiceConfig $service): array
+    private function buildTraefikUrls(ProxyConfig $proxy, array $internalPorts): array
     {
-        $name = $service->name;
-        $port = $service->port;
-        $internalPorts = $this->getInternalPorts($service->type, $port);
+        $urls = ["https://traefik.{$proxy->domainPrefix}.local"];
 
-        $urls = ["localhost:{$port}"];
         if (!empty($internalPorts)) {
             $urls[] = 'InDocker:';
-            foreach ($internalPorts as $internalPort) {
-                $urls[] = "  - {$name}:{$internalPort}";
+            foreach ($internalPorts as $port) {
+                $urls[] = "  - traefik:{$port}";
             }
         }
 
         return $urls;
-    }
-
-    /**
-     * Build URL list for Traefik.
-     *
-     * @return list<string>
-     */
-    private function buildTraefikUrls(ProxyConfig $proxy): array
-    {
-        return [
-            "https://traefik.{$proxy->domainPrefix}.local",
-            'InDocker:',
-            '  - traefik:80',
-            '  - traefik:443',
-            '  - traefik:8080',
-        ];
-    }
-
-    /**
-     * Get relevant info (credentials, version, etc.) for a service.
-     */
-    private function getServiceInfo(ServiceConfig $service): string
-    {
-        $env = $service->environmentVariables;
-
-        return match ($service->type) {
-            // Databases with credentials
-            Service::MySQL,
-            Service::MariaDB => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['MYSQL_USER'] ?? 'seaman',
-                $env['MYSQL_PASSWORD'] ?? 'seaman',
-            ),
-            Service::PostgreSQL => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['POSTGRES_USER'] ?? 'seaman',
-                $env['POSTGRES_PASSWORD'] ?? 'seaman',
-            ),
-            Service::MongoDB => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
-                $env['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
-            ),
-
-            // Message queues
-            Service::RabbitMq => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['RABBITMQ_DEFAULT_USER'] ?? 'seaman',
-                $env['RABBITMQ_DEFAULT_PASS'] ?? 'seaman',
-            ),
-            Service::Kafka => "v{$service->version}",
-
-            // Cache/storage
-            Service::Redis,
-            Service::Valkey,
-            Service::Memcached => "v{$service->version}",
-            Service::MinIO => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['MINIO_ROOT_USER'] ?? 'minioadmin',
-                $env['MINIO_ROOT_PASSWORD'] ?? 'minioadmin',
-            ),
-
-            // Search
-            Service::Elasticsearch,
-            Service::OpenSearch => "v{$service->version}",
-
-            // Real-time
-            Service::Mercure => "v{$service->version}",
-            Service::Soketi => sprintf(
-                'v%s | %s:%s',
-                $service->version,
-                $env['SOKETI_DEFAULT_APP_KEY'] ?? 'app-key',
-                $env['SOKETI_DEFAULT_APP_SECRET'] ?? 'app-secret',
-            ),
-
-            // Utility
-            Service::Mailpit => 'SMTP: localhost:1025',
-            Service::Dozzle => 'Log viewer',
-
-            default => "v{$service->version}",
-        };
     }
 
     /**

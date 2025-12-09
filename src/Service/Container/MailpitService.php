@@ -77,4 +77,11 @@ readonly class MailpitService extends AbstractService
             'MAILPIT_SMTP_PORT' => $config->additionalPorts[0] ?? 1025,
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $smtpPort = $config->additionalPorts[0] ?? 1025;
+
+        return "SMTP: localhost:{$smtpPort}";
+    }
 }
