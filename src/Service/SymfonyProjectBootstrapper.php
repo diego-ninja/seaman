@@ -8,11 +8,108 @@ declare(strict_types=1);
 namespace Seaman\Service;
 
 use Seaman\Enum\ProjectType;
+use Seaman\Service\Detector\SymfonyCliDetector;
+use Seaman\UI\Prompts;
+use Seaman\UI\Terminal;
 use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Symfony\Component\Process\Process;
 
 final readonly class SymfonyProjectBootstrapper
 {
+    public function __construct(
+        private SymfonyCliDetector $cliDetector = new SymfonyCliDetector(),
+    ) {}
+
+    /**
+     * Check if Symfony CLI is available for bootstrapping.
+     */
+    public function isCliAvailable(): bool
+    {
+        return $this->cliDetector->isInstalled();
+    }
+
+    /**
+     * Ensure Symfony CLI is installed, offering to install if missing.
+     *
+     * @return bool True if CLI is available (installed or just installed), false if user declined
+     */
+    public function ensureCliInstalled(): bool
+    {
+        if ($this->cliDetector->isInstalled()) {
+            return true;
+        }
+
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  <fg=yellow>⚠ Symfony CLI is required to create new projects</>');
+        Terminal::output()->writeln('');
+
+        $shouldInstall = Prompts::confirm(
+            label: 'Symfony CLI not found. Would you like to install it now?',
+            default: true,
+        );
+
+        if (!$shouldInstall) {
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  <fg=cyan>Manual installation instructions:</>');
+            foreach ($this->cliDetector->getInstallInstructions() as $instruction) {
+                Terminal::output()->writeln('  ' . $instruction);
+            }
+            Terminal::output()->writeln('');
+            return false;
+        }
+
+        return $this->installCli();
+    }
+
+    /**
+     * Install Symfony CLI.
+     */
+    private function installCli(): bool
+    {
+        $installCommand = $this->cliDetector->getInstallCommand();
+
+        $process = Process::fromShellCommandline($installCommand);
+        $process->setTimeout(120);
+
+        SpinnerFactory::for($process, 'Installing Symfony CLI');
+
+        if (!$process->isSuccessful()) {
+            Terminal::error('Failed to install Symfony CLI');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  <fg=gray>' . $process->getErrorOutput() . '</>');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  <fg=cyan>Try installing manually:</>');
+            foreach ($this->cliDetector->getInstallInstructions() as $instruction) {
+                Terminal::output()->writeln('  ' . $instruction);
+            }
+            return false;
+        }
+
+        // Add to PATH for current session if installed to ~/.symfony5/bin
+        $homeDir = getenv('HOME') ?: '';
+        $symfonyBinPath = $homeDir . '/.symfony5/bin';
+        if (is_dir($symfonyBinPath)) {
+            $currentPath = getenv('PATH') ?: '';
+            putenv("PATH={$symfonyBinPath}:{$currentPath}");
+        }
+
+        // Verify installation
+        if (!$this->cliDetector->isInstalled()) {
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  <fg=yellow>Symfony CLI was installed but may not be in your PATH.</>');
+            Terminal::output()->writeln('  <fg=yellow>Please restart your terminal or add it to your PATH:</>');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln("  <fg=cyan>export PATH=\"\$HOME/.symfony5/bin:\$PATH\"</>");
+            Terminal::output()->writeln('');
+            return false;
+        }
+
+        $version = $this->cliDetector->getVersion();
+        Terminal::success('Symfony CLI installed successfully' . ($version ? " (v{$version})" : ''));
+
+        return true;
+    }
+
     /**
      * Get bootstrap command for single-command project types.
      *

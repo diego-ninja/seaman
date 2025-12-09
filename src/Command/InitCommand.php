@@ -354,6 +354,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     {
         $detection = $this->detector->detect($projectRoot);
         if (!$detection->isSymfonyProject) {
+            // Ensure Symfony CLI is installed before attempting bootstrap
+            if (!$this->bootstrapper->ensureCliInstalled()) {
+                Terminal::error('Cannot create Symfony project without Symfony CLI.');
+                exit(Command::FAILURE);
+            }
+
             $projectName = $this->wizard->getProjectName($projectRoot);
 
             if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {

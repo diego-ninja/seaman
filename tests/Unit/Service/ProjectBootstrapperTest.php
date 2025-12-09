@@ -87,3 +87,11 @@ test('bootstrap creates skeleton project', function (): void {
 
     rmdir($tempDir);
 });
+
+test('isCliAvailable returns boolean', function (): void {
+    $bootstrapper = new SymfonyProjectBootstrapper();
+
+    $result = $bootstrapper->isCliAvailable();
+
+    expect($result)->toBeBool();
+});
