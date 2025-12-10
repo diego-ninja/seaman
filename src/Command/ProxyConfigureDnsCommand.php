@@ -12,7 +12,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
@@ -75,7 +75,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         $executor = new RealCommandExecutor();
-        $helper = new DnsConfigurationHelper($executor);
+        $helper = new DnsManager($executor);
 
         // Handle --auto flag
         $auto = $input->getOption('auto');
@@ -91,7 +91,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
     }
 
     private function handleAutomaticMode(
-        DnsConfigurationHelper $helper,
+        DnsManager $helper,
         string $projectName,
         ?string $providerOption,
         \Seaman\ValueObject\ServiceCollection $services,
@@ -127,7 +127,7 @@ class ProxyConfigureDnsCommand extends ModeAwareCommand implements Decorable
     }
 
     private function handleInteractiveMode(
-        DnsConfigurationHelper $helper,
+        DnsManager $helper,
         string $projectName,
         \Seaman\ValueObject\ServiceCollection $services,
     ): int {

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
-// ABOUTME: Helps configure DNS for local development domains.
-// ABOUTME: Detects platform capabilities and provides setup instructions.
+// ABOUTME: Manages DNS configuration for local development domains.
+// ABOUTME: Detects platform capabilities, configures DNS, and handles cleanup.
 
 namespace Seaman\Service;
 
@@ -15,7 +15,7 @@ use Seaman\ValueObject\DetectedDnsProvider;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ServiceCollection;
 
-final readonly class DnsConfigurationHelper
+final readonly class DnsManager
 {
     private const string HOSTS_MARKER_START = '# BEGIN Seaman -';
     private const string HOSTS_MARKER_END = '# END Seaman -';
@@ -638,124 +638,6 @@ final readonly class DnsConfigurationHelper
             'success' => true,
             'messages' => ['No DNS configuration to clean'],
         ];
-    }
-
-    /**
-     * Execute DNS cleanup by scanning for all possible config files.
-     * Used when the provider is unknown.
-     *
-     * @return array{success: bool, messages: list<string>}
-     */
-    public function executeDnsCleanupAll(string $projectName): array
-    {
-        if ($this->privilegedExecutor === null) {
-            return [
-                'success' => false,
-                'messages' => ['PrivilegedExecutor not configured'],
-            ];
-        }
-
-        $messages = [];
-        $removedAny = false;
-
-        // Get all possible config paths
-        $configPaths = $this->getAllDnsConfigPaths($projectName);
-
-        foreach ($configPaths as $configPath) {
-            if (file_exists($configPath)) {
-                $result = $this->privilegedExecutor->execute(['rm', '-f', $configPath]);
-                if ($result->isSuccessful()) {
-                    $messages[] = "Removed {$configPath}";
-                    $removedAny = true;
-                } else {
-                    $priv = $this->getPrivilegeCommand();
-                    $messages[] = "Failed to remove {$configPath} (requires {$priv})";
-                }
-            }
-        }
-
-        // Also check /etc/hosts for Seaman entries
-        $hostsResult = $this->removeHostsEntries($projectName);
-        if ($hostsResult->type === 'hosts-file-cleanup' && $hostsResult->configContent !== null) {
-            $tempFile = tempnam(sys_get_temp_dir(), 'hosts_');
-            if ($tempFile !== false) {
-                file_put_contents($tempFile, $hostsResult->configContent);
-                $copyResult = $this->privilegedExecutor->execute(['cp', $tempFile, '/etc/hosts']);
-                unlink($tempFile);
-
-                if ($copyResult->isSuccessful()) {
-                    $messages[] = 'Removed DNS entries from /etc/hosts';
-                    $removedAny = true;
-                }
-            }
-        }
-
-        if ($removedAny) {
-            $this->restartDnsServices();
-            $messages[] = 'DNS configuration cleaned up';
-        }
-
-        if (empty($messages)) {
-            $messages[] = 'No DNS configuration files found';
-        }
-
-        return [
-            'success' => true,
-            'messages' => $messages,
-        ];
-    }
-
-    /**
-     * Get all possible DNS config paths for a project.
-     *
-     * @return list<string>
-     */
-    private function getAllDnsConfigPaths(string $projectName): array
-    {
-        $paths = [];
-
-        // dnsmasq paths
-        if (PHP_OS_FAMILY === 'Linux') {
-            $paths[] = "/etc/dnsmasq.d/seaman-{$projectName}.conf";
-        } elseif (PHP_OS_FAMILY === 'Darwin') {
-            $paths[] = "/usr/local/etc/dnsmasq.d/seaman-{$projectName}.conf";
-            $paths[] = "/etc/resolver/{$projectName}.local";
-        }
-
-        // systemd-resolved path
-        $paths[] = "/etc/systemd/resolved.conf.d/seaman-{$projectName}.conf";
-
-        // NetworkManager path
-        $paths[] = "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf";
-
-        return $paths;
-    }
-
-    /**
-     * Restart DNS services after cleanup.
-     */
-    private function restartDnsServices(): void
-    {
-        if ($this->privilegedExecutor === null) {
-            return;
-        }
-
-        // Try to restart dnsmasq
-        $result = $this->executor->execute(['which', 'dnsmasq']);
-        if ($result->isSuccessful()) {
-            if (PHP_OS_FAMILY === 'Darwin') {
-                $this->privilegedExecutor->execute(['brew', 'services', 'restart', 'dnsmasq']);
-            } else {
-                $this->privilegedExecutor->execute(['systemctl', 'restart', 'dnsmasq']);
-            }
-            return;
-        }
-
-        // Try to restart systemd-resolved
-        $result = $this->executor->execute(['systemctl', 'is-active', 'systemd-resolved']);
-        if ($result->isSuccessful()) {
-            $this->privilegedExecutor->execute(['systemctl', 'restart', 'systemd-resolved']);
-        }
     }
 
     /**

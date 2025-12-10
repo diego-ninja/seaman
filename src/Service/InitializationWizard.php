@@ -23,7 +23,7 @@ final readonly class InitializationWizard
 {
     public function __construct(
         private PhpVersionDetector $detector,
-        private ?DnsConfigurationHelper $dnsHelper = null,
+        private ?DnsManager $dnsHelper = null,
     ) {}
 
     /**

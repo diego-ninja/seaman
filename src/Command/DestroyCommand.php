@@ -9,7 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
@@ -28,7 +28,7 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
-        private readonly DnsConfigurationHelper $dnsHelper,
+        private readonly DnsManager $dnsHelper,
     ) {
         parent::__construct();
     }
@@ -70,12 +70,22 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
             return;
         }
 
+        $proxy = $config->proxy();
+        if (!$proxy->enabled || $proxy->dnsProvider === null) {
+            Prompts::info('No DNS configuration found to clean up');
+            return;
+        }
+
         Terminal::output()->writeln('  Cleaning DNS configuration...');
 
-        $result = $this->dnsHelper->executeDnsCleanupAll($config->projectName);
+        $result = $this->dnsHelper->executeDnsCleanup($config->projectName, $proxy->dnsProvider);
 
         foreach ($result['messages'] as $message) {
-            Terminal::output()->writeln("    {$message}");
+            if ($result['success']) {
+                Terminal::output()->writeln("    {$message}");
+            } else {
+                Terminal::error($message);
+            }
         }
     }
 }

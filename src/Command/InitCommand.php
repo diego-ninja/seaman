@@ -16,7 +16,7 @@ use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\ServiceDetector;
 use Seaman\Service\Detector\SymfonyDetector;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\Process\RealCommandExecutor;
@@ -84,7 +84,6 @@ class InitCommand extends ModeAwareCommand implements Decorable
         if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
             if (!Prompts::confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
-                default: false,
             )) {
                 Prompts::info('Initialization cancelled.');
                 return Command::SUCCESS;
@@ -383,7 +382,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         $executor = new RealCommandExecutor();
-        $helper = new DnsConfigurationHelper($executor);
+        $helper = new DnsManager($executor);
 
         $result = $helper->configureProvider($projectName, $provider);
         $this->processDnsResult($result, $projectName);

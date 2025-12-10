@@ -2,14 +2,14 @@
 
 declare(strict_types=1);
 
-// ABOUTME: Tests for DnsConfigurationHelper service.
+// ABOUTME: Tests for DnsManager service.
 // ABOUTME: Validates DNS configuration logic with fake command executor.
 
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Contract\CommandExecutor;
 use Seaman\Enum\DnsProvider;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ProcessResult;
 
@@ -65,7 +65,7 @@ final readonly class FakeDnsCommandExecutor implements CommandExecutor
 test('detects dnsmasq and returns automatic configuration', function () {
     // dnsmasq available and running (port 53 can be used)
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configure('myproject');
 
@@ -84,7 +84,7 @@ test('detects systemd-resolved when dnsmasq not available', function () {
         hasSystemdResolved: true,
         isPort53Occupied: false,
     );
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configure('testproject');
 
@@ -99,7 +99,7 @@ test('detects systemd-resolved when dnsmasq not available', function () {
 test('returns hosts-file configuration when no other providers available', function () {
     // No dnsmasq, no systemd-resolved, no NetworkManager - falls back to /etc/hosts
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: false, hasSystemdResolved: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configure('myproject');
 
@@ -113,35 +113,35 @@ test('returns hosts-file configuration when no other providers available', funct
 
 test('hasDnsmasq returns true when dnsmasq is available', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasDnsmasq())->toBeTrue();
 });
 
 test('hasDnsmasq returns false when dnsmasq is not available', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasDnsmasq())->toBeFalse();
 });
 
 test('hasSystemdResolved returns true when systemd-resolved is active', function () {
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasSystemdResolved())->toBeTrue();
 });
 
 test('hasSystemdResolved returns false when systemd-resolved is not active', function () {
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasSystemdResolved())->toBeFalse();
 });
 
-test('DnsConfigurationHelper is readonly', function () {
+test('DnsManager is readonly', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $reflection = new \ReflectionClass($helper);
     expect($reflection->isReadOnly())->toBeTrue();
@@ -150,7 +150,7 @@ test('DnsConfigurationHelper is readonly', function () {
 test('detectAvailableProviders always includes HostsFile as fallback', function () {
     // No DNS providers available - but /etc/hosts is always available
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -164,7 +164,7 @@ test('detectAvailableProviders always includes HostsFile as fallback', function 
 test('detectAvailableProviders detects dnsmasq when running', function () {
     // dnsmasq installed and running (can use port 53)
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -176,7 +176,7 @@ test('detectAvailableProviders detects dnsmasq when running', function () {
 test('detectAvailableProviders detects dnsmasq when port 53 is free', function () {
     // dnsmasq installed, not running, but port 53 is free
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: false, isPort53Occupied: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -187,7 +187,7 @@ test('detectAvailableProviders detects dnsmasq when port 53 is free', function (
 test('detectAvailableProviders excludes dnsmasq when port 53 is occupied', function () {
     // dnsmasq installed but can't use port 53 (blocked by something else)
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: false, isPort53Occupied: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -199,7 +199,7 @@ test('detectAvailableProviders does not detect NetworkManager without dnsmasq pl
     // NetworkManager is active, but we can't verify dnsmasq plugin without real files
     // The hasNetworkManagerWithDnsmasq() checks for dns=dnsmasq in NetworkManager.conf
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -218,7 +218,7 @@ test('detectAvailableProviders returns providers sorted by priority', function (
         isDnsmasqRunning: true,
         isPort53Occupied: false,
     );
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -234,7 +234,7 @@ test('getRecommendedProvider returns first provider by priority', function () {
         isDnsmasqRunning: true,
         isPort53Occupied: false,
     );
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $recommended = $helper->getRecommendedProvider('testproject');
 
@@ -246,7 +246,7 @@ test('getRecommendedProvider returns first provider by priority', function () {
 test('getRecommendedProvider returns HostsFile when no other providers available', function () {
     // No DNS providers available - HostsFile is always the fallback
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $recommended = $helper->getRecommendedProvider('testproject');
 
@@ -257,7 +257,7 @@ test('getRecommendedProvider returns HostsFile when no other providers available
 
 test('configureProvider returns correct result for dnsmasq', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configureProvider('testproject', DnsProvider::Dnsmasq);
 
@@ -269,7 +269,7 @@ test('configureProvider returns correct result for dnsmasq', function () {
 
 test('configureProvider returns correct result for NetworkManager', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configureProvider('testproject', DnsProvider::NetworkManager);
 
@@ -281,21 +281,21 @@ test('configureProvider returns correct result for NetworkManager', function () 
 
 test('hasNetworkManager returns true when NetworkManager is active', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasNetworkManager())->toBeTrue();
 });
 
 test('hasNetworkManager returns false when NetworkManager is not active', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasNetworkManager())->toBeFalse();
 });
 
 test('configureProvider returns correct result for HostsFile', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configureProvider('testproject', DnsProvider::HostsFile);
 
@@ -310,7 +310,7 @@ test('configureProvider returns correct result for HostsFile', function () {
 
 test('configureProvider returns correct result for Manual', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configureProvider('testproject', DnsProvider::Manual);
 
@@ -324,42 +324,42 @@ test('configureProvider returns correct result for Manual', function () {
 
 test('canUseDnsmasq returns true when dnsmasq is running', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->canUseDnsmasq())->toBeTrue();
 });
 
 test('canUseDnsmasq returns true when port 53 is free', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: false, isPort53Occupied: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->canUseDnsmasq())->toBeTrue();
 });
 
 test('canUseDnsmasq returns false when port 53 is occupied', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true, isDnsmasqRunning: false, isPort53Occupied: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->canUseDnsmasq())->toBeFalse();
 });
 
 test('hasSystemdResolvedStubListener returns true when port 53 is occupied', function () {
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: true, isPort53Occupied: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasSystemdResolvedStubListener())->toBeTrue();
 });
 
 test('hasSystemdResolvedStubListener returns false when port 53 is free', function () {
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: true, isPort53Occupied: false);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasSystemdResolvedStubListener())->toBeFalse();
 });
 
 test('hasSystemdResolvedStubListener returns false when systemd-resolved is not active', function () {
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: false, isPort53Occupied: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     expect($helper->hasSystemdResolvedStubListener())->toBeFalse();
 });
@@ -367,7 +367,7 @@ test('hasSystemdResolvedStubListener returns false when systemd-resolved is not 
 test('detectAvailableProviders excludes systemd-resolved when stub listener is active', function () {
     // systemd-resolved is active but its stub listener blocks port 53
     $executor = new FakeDnsCommandExecutor(hasSystemdResolved: true, isPort53Occupied: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $providers = $helper->detectAvailableProviders('testproject');
 
@@ -381,7 +381,7 @@ test('detectAvailableProviders excludes systemd-resolved when stub listener is a
 
 test('configureHostsFile includes marker comments', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->configureProvider('testproject', DnsProvider::HostsFile);
 
@@ -391,7 +391,7 @@ test('configureHostsFile includes marker comments', function () {
 
 test('configureHostsFile generates entries for services', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     // When no services provided, uses default ProxyOnly services
     $result = $helper->configureProvider('testproject', DnsProvider::HostsFile);
@@ -406,7 +406,7 @@ test('configureHostsFile generates entries for services', function () {
 
 test('configureHostsFile generates entries for enabled services', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     // Create a ServiceCollection with specific services
     $services = new \Seaman\ValueObject\ServiceCollection([
@@ -443,7 +443,7 @@ test('configureHostsFile generates entries for enabled services', function () {
 
 test('cleanupDns returns result for hosts-file cleanup', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     // Since we can't actually read /etc/hosts, the cleanup will return "not found"
     $result = $helper->cleanupDns('testproject', DnsProvider::HostsFile);
@@ -454,7 +454,7 @@ test('cleanupDns returns result for hosts-file cleanup', function () {
 
 test('cleanupDns returns result for dnsmasq cleanup', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->cleanupDns('testproject', DnsProvider::Dnsmasq);
 
@@ -465,7 +465,7 @@ test('cleanupDns returns result for dnsmasq cleanup', function () {
 
 test('cleanupDns returns result for manual provider', function () {
     $executor = new FakeDnsCommandExecutor();
-    $helper = new DnsConfigurationHelper($executor);
+    $helper = new DnsManager($executor);
 
     $result = $helper->cleanupDns('testproject', DnsProvider::Manual);
 

@@ -11,7 +11,7 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
@@ -43,7 +43,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly DockerManager $dockerManager,
         private readonly ConfigManager $configManager,
-        private readonly DnsConfigurationHelper $dnsHelper,
+        private readonly DnsManager $dnsHelper,
     ) {
         parent::__construct();
     }

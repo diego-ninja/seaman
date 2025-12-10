@@ -37,7 +37,7 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\SymfonyDetector;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
@@ -79,8 +79,8 @@ return function (ContainerBuilder $builder): void {
             ),
         ),
 
-        DnsConfigurationHelper::class => factory(
-            fn(ContainerInterface $c): DnsConfigurationHelper => new DnsConfigurationHelper(
+        DnsManager::class => factory(
+            fn(ContainerInterface $c): DnsManager => new DnsManager(
                 $c->get(RealCommandExecutor::class),
                 $c->get(PrivilegedExecutor::class),
             ),
@@ -113,7 +113,7 @@ return function (ContainerBuilder $builder): void {
         InitializationWizard::class => factory(
             fn(ContainerInterface $c): InitializationWizard => new InitializationWizard(
                 $c->get(PhpVersionDetector::class),
-                $c->get(DnsConfigurationHelper::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
@@ -231,7 +231,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): DestroyCommand => new DestroyCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
-                $c->get(DnsConfigurationHelper::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
@@ -239,7 +239,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): CleanCommand => new CleanCommand(
                 $c->get(DockerManager::class),
                 $c->get(ConfigManager::class),
-                $c->get(DnsConfigurationHelper::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
