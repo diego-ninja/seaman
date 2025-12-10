@@ -22,7 +22,16 @@ final readonly class DnsConfigurationHelper
 
     public function __construct(
         private CommandExecutor $executor,
+        private ?PrivilegedExecutor $privilegedExecutor = null,
     ) {}
+
+    /**
+     * Get the privilege escalation command (pkexec or sudo).
+     */
+    private function getPrivilegeCommand(): string
+    {
+        return $this->privilegedExecutor?->getPrivilegeEscalationString() ?? 'sudo';
+    }
 
     /**
      * Configure DNS for the project (legacy method for backward compatibility).
@@ -234,10 +243,11 @@ final readonly class DnsConfigurationHelper
     {
         $configPath = $this->getDnsmasqConfigPath($projectName);
         $configContent = "address=/.{$projectName}.local/127.0.0.1\n";
+        $priv = $this->getPrivilegeCommand();
 
         $restartCommand = PHP_OS_FAMILY === 'Darwin'
-            ? 'sudo brew services restart dnsmasq'
-            : 'sudo systemctl restart dnsmasq';
+            ? "{$priv} brew services restart dnsmasq"
+            : "{$priv} systemctl restart dnsmasq";
 
         return new DnsConfigurationResult(
             type: 'dnsmasq',
@@ -259,6 +269,7 @@ final readonly class DnsConfigurationHelper
         $configContent = "[Resolve]\n";
         $configContent .= "DNS=127.0.0.1\n";
         $configContent .= "Domains=~{$projectName}.local\n";
+        $priv = $this->getPrivilegeCommand();
 
         return new DnsConfigurationResult(
             type: 'systemd-resolved',
@@ -267,7 +278,7 @@ final readonly class DnsConfigurationHelper
             configPath: $configPath,
             configContent: $configContent,
             instructions: [],
-            restartCommand: 'sudo systemctl restart systemd-resolved',
+            restartCommand: "{$priv} systemctl restart systemd-resolved",
         );
     }
 
@@ -278,6 +289,7 @@ final readonly class DnsConfigurationHelper
     {
         $configPath = "/etc/NetworkManager/dnsmasq.d/seaman-{$projectName}.conf";
         $configContent = "address=/.{$projectName}.local/127.0.0.1\n";
+        $priv = $this->getPrivilegeCommand();
 
         return new DnsConfigurationResult(
             type: 'networkmanager',
@@ -286,7 +298,7 @@ final readonly class DnsConfigurationHelper
             configPath: $configPath,
             configContent: $configContent,
             instructions: [],
-            restartCommand: 'sudo systemctl restart NetworkManager',
+            restartCommand: "{$priv} systemctl restart NetworkManager",
         );
     }
 
@@ -556,9 +568,10 @@ final readonly class DnsConfigurationHelper
             );
         }
 
+        $priv = $this->getPrivilegeCommand();
         $restartCommand = PHP_OS_FAMILY === 'Darwin'
-            ? 'sudo brew services restart dnsmasq'
-            : 'sudo systemctl restart dnsmasq';
+            ? "{$priv} brew services restart dnsmasq"
+            : "{$priv} systemctl restart dnsmasq";
 
         return new DnsConfigurationResult(
             type: 'dnsmasq-cleanup',
@@ -590,6 +603,8 @@ final readonly class DnsConfigurationHelper
             );
         }
 
+        $priv = $this->getPrivilegeCommand();
+
         return new DnsConfigurationResult(
             type: 'systemd-resolved-cleanup',
             automatic: true,
@@ -597,7 +612,7 @@ final readonly class DnsConfigurationHelper
             configPath: $configPath,
             configContent: null,
             instructions: [],
-            restartCommand: 'sudo systemctl restart systemd-resolved',
+            restartCommand: "{$priv} systemctl restart systemd-resolved",
         );
     }
 
@@ -620,6 +635,8 @@ final readonly class DnsConfigurationHelper
             );
         }
 
+        $priv = $this->getPrivilegeCommand();
+
         return new DnsConfigurationResult(
             type: 'networkmanager-cleanup',
             automatic: true,
@@ -627,7 +644,7 @@ final readonly class DnsConfigurationHelper
             configPath: $configPath,
             configContent: null,
             instructions: [],
-            restartCommand: 'sudo systemctl restart NetworkManager',
+            restartCommand: "{$priv} systemctl restart NetworkManager",
         );
     }
 

@@ -13,9 +13,10 @@ use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\DockerManager;
-use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\Service\PrivilegedExecutor;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
+use Seaman\UI\Widget\Box\Box;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -29,13 +30,13 @@ use Symfony\Component\Console\Output\OutputInterface;
 class CleanCommand extends ModeAwareCommand implements Decorable
 {
     /** @var list<string> */
-    private const FILES_TO_REMOVE = [
+    private const array FILES_TO_REMOVE = [
         'docker-compose.yml',
         'seaman.yaml',
     ];
 
     /** @var list<string> */
-    private const DIRECTORIES_TO_REMOVE = [
+    private const array DIRECTORIES_TO_REMOVE = [
         '.seaman',
         '.devcontainer',
     ];
@@ -43,6 +44,8 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly DockerManager $dockerManager,
         private readonly ConfigManager $configManager,
+        private readonly DnsConfigurationHelper $dnsHelper,
+        private readonly PrivilegedExecutor $privilegedExecutor,
     ) {
         parent::__construct();
     }
@@ -144,49 +147,48 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         bool $hasSeamanEnvSection,
         ?array $dnsInfo = null,
     ): void {
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=yellow>The following will be removed:</>');
-        Terminal::output()->writeln('');
+        $removeLines = [];
 
         foreach ($files as $file) {
-            Terminal::output()->writeln('    • ' . basename($file));
+            $removeLines[] = sprintf(' 🔹 Remove %s file', basename($file));
         }
 
         foreach ($directories as $dir) {
-            Terminal::output()->writeln('    • ' . basename($dir) . '/');
+            $removeLines[] = sprintf(' 🔹 Remove %s directory', basename($dir));
         }
 
         if ($dnsInfo !== null) {
-            Terminal::output()->writeln('    • DNS entries (' . $dnsInfo['provider']->getDisplayName() . ')');
-        }
-
-        Terminal::output()->writeln('');
-
-        if ($backupFile !== null) {
-            Terminal::output()->writeln('  <fg=cyan>The following will be restored:</>');
-            Terminal::output()->writeln('');
-            Terminal::output()->writeln('    • docker-compose.yml (from ' . basename($backupFile) . ')');
-            Terminal::output()->writeln('');
+            $removeLines[] = sprintf(' 🔹 Disable DNS entries from %s', $dnsInfo['provider']->getDisplayName());
         }
 
         if ($hasSeamanEnvSection) {
-            Terminal::output()->writeln('  <fg=cyan>Seaman variables will be removed from .env</>');
-            Terminal::output()->writeln('');
+            $removeLines[] = ' 🔹Clean environment variables from .env';
         }
+
+        if ($backupFile !== null) {
+            $removeLines[] = '';
+            $removeLines[] = sprintf(' 🔹 Restore docker-compose.yml from <fg=gray>%s</>', basename($backupFile));
+        }
+
+        $message = Terminal::render(implode("\n", $removeLines)) ?? implode("\n", $removeLines);
+
+        new Box(
+            title: 'Cleanup Summary',
+            message: "\nThe following actions will be performed: \n\n" . $message . "\n",
+            color: 'cyan',
+        )->display();
     }
 
     private function stopContainers(): void
     {
-        Terminal::output()->writeln('  Stopping containers...');
-
         try {
             $result = $this->dockerManager->destroy();
             if ($result->isSuccessful()) {
-                Terminal::output()->writeln('  <fg=green>✓</> Containers stopped and removed');
+                Terminal::success('Containers stopped and removed');
             }
         } catch (\RuntimeException) {
             // Docker compose file might be invalid or containers not running
-            Terminal::output()->writeln('  <fg=gray>No containers to stop</>');
+            Terminal::info('No containers to stop');
         }
     }
 
@@ -241,7 +243,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $pattern = $projectRoot . '/docker-compose.yml.backup-*';
         $backups = glob($pattern);
 
-        if ($backups === false || empty($backups)) {
+        if (empty($backups)) {
             return null;
         }
 
@@ -279,7 +281,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         // Restore from backup
         if (copy($backupFile, $targetPath)) {
-            Terminal::output()->writeln('  <fg=green>✓</> Restored docker-compose.yml from backup');
+            Terminal::success('Restored docker-compose.yml from backup');
         } else {
             Terminal::error('Failed to restore docker-compose.yml from backup');
             return;
@@ -293,7 +295,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
             foreach ($backups as $backup) {
                 unlink($backup);
             }
-            Terminal::output()->writeln('  <fg=green>✓</> Removed backup files');
+            Terminal::success('Removed backup files');
         }
     }
 
@@ -344,7 +346,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         // If file is empty after cleaning, remove it entirely
         if (trim($cleanedContent) === '') {
             unlink($envPath);
-            Terminal::output()->writeln('  <fg=green>✓</> Removed empty .env file');
+            Terminal::success('Removed empty .env file');
             return;
         }
 
@@ -352,7 +354,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $cleanedContent .= "\n";
 
         if (file_put_contents($envPath, $cleanedContent) !== false) {
-            Terminal::output()->writeln('  <fg=green>✓</> Cleaned Seaman variables from .env');
+            Terminal::success('Cleaned Seaman variables from .env');
         } else {
             Terminal::error('Failed to clean .env file');
         }
@@ -389,9 +391,8 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     {
         Terminal::output()->writeln('  Cleaning DNS configuration...');
 
-        $executor = new RealCommandExecutor();
-        $dnsHelper = new DnsConfigurationHelper($executor);
-        $result = $dnsHelper->cleanupDns($projectName, $provider);
+        $result = $this->dnsHelper->cleanupDns($projectName, $provider);
+        $priv = $this->privilegedExecutor->getPrivilegeEscalationString();
 
         if (!$result->automatic) {
             foreach ($result->instructions as $instruction) {
@@ -410,34 +411,40 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
             file_put_contents($tempFile, $result->configContent);
 
-            $copyResult = $executor->execute(['sudo', 'cp', $tempFile, '/etc/hosts']);
+            $copyResult = $this->privilegedExecutor->execute(['cp', $tempFile, '/etc/hosts']);
             unlink($tempFile);
 
             if ($copyResult->isSuccessful()) {
-                Terminal::output()->writeln('  <fg=green>✓</> Removed DNS entries from /etc/hosts');
+                Terminal::success('Removed DNS entries from /etc/hosts');
             } else {
-                Terminal::error('Failed to update /etc/hosts (requires sudo)');
+                Terminal::error("Failed to update /etc/hosts (requires {$priv})");
             }
             return;
         }
 
         // Handle file removal for other providers
         if ($result->configPath !== null && file_exists($result->configPath)) {
-            $removeResult = $executor->execute(['sudo', 'rm', '-f', $result->configPath]);
+            $removeResult = $this->privilegedExecutor->execute(['rm', '-f', $result->configPath]);
 
             if ($removeResult->isSuccessful()) {
-                Terminal::output()->writeln("  <fg=green>✓</> Removed {$result->configPath}");
+                Terminal::success("Removed {$result->configPath}");
 
                 // Restart service if needed
                 if ($result->restartCommand !== null) {
                     $parts = explode(' ', $result->restartCommand);
-                    $restartResult = $executor->execute($parts);
+                    // restartCommand already includes privilege escalation prefix from DnsConfigurationHelper
+                    // but we use PrivilegedExecutor for consistency
+                    // Skip the first element if it's sudo/pkexec since we'll use our executor
+                    if (in_array($parts[0], ['sudo', 'pkexec'], true)) {
+                        array_shift($parts);
+                    }
+                    $restartResult = $this->privilegedExecutor->execute($parts);
                     if ($restartResult->isSuccessful()) {
-                        Terminal::output()->writeln('  <fg=green>✓</> Restarted DNS service');
+                        Terminal::success('Restarted DNS service');
                     }
                 }
             } else {
-                Terminal::error("Failed to remove {$result->configPath} (requires sudo)");
+                Terminal::error("Failed to remove {$result->configPath} (requires {$priv})");
             }
         }
     }

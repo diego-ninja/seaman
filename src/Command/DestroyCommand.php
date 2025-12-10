@@ -7,9 +7,11 @@ declare(strict_types=1);
 
 namespace Seaman\Command;
 
+use Seaman\Contract\CommandExecutor;
 use Seaman\Contract\Decorable;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\Service\PrivilegedExecutor;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -27,6 +29,8 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
+        private readonly PrivilegedExecutor $privilegedExecutor,
+        private readonly CommandExecutor $executor,
     ) {
         parent::__construct();
     }
@@ -71,17 +75,17 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
         // Try to detect and remove DNS configuration files
         $configPaths = $this->getDnsConfigurationPaths($config->projectName);
         $removedAny = false;
+        $priv = $this->privilegedExecutor->getPrivilegeEscalationString();
 
         foreach ($configPaths as $configPath) {
             if (file_exists($configPath)) {
                 Terminal::output()->writeln("  Removing: {$configPath}");
-                $rmCmd = "sudo rm {$configPath}";
-                exec($rmCmd, $output, $exitCode);
+                $result = $this->privilegedExecutor->execute(['rm', $configPath]);
 
-                if ($exitCode === 0) {
+                if ($result->isSuccessful()) {
                     $removedAny = true;
                 } else {
-                    Terminal::error("Failed to remove {$configPath}");
+                    Terminal::error("Failed to remove {$configPath} (requires {$priv})");
                 }
             }
         }
@@ -118,21 +122,22 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
     private function restartDnsServices(): void
     {
         // Try to restart dnsmasq
-        exec('which dnsmasq', $output, $exitCode);
-        if ($exitCode === 0) {
+        $result = $this->executor->execute(['which', 'dnsmasq']);
+        if ($result->isSuccessful()) {
             Terminal::output()->writeln('  Restarting dnsmasq...');
-            $restartCmd = PHP_OS_FAMILY === 'Darwin'
-                ? 'sudo brew services restart dnsmasq'
-                : 'sudo systemctl restart dnsmasq';
-            exec($restartCmd);
+            if (PHP_OS_FAMILY === 'Darwin') {
+                $this->privilegedExecutor->execute(['brew', 'services', 'restart', 'dnsmasq']);
+            } else {
+                $this->privilegedExecutor->execute(['systemctl', 'restart', 'dnsmasq']);
+            }
             return;
         }
 
         // Try to restart systemd-resolved
-        exec('systemctl is-active systemd-resolved', $output, $exitCode);
-        if ($exitCode === 0) {
+        $result = $this->executor->execute(['systemctl', 'is-active', 'systemd-resolved']);
+        if ($result->isSuccessful()) {
             Terminal::output()->writeln('  Restarting systemd-resolved...');
-            exec('sudo systemctl restart systemd-resolved');
+            $this->privilegedExecutor->execute(['systemctl', 'restart', 'systemd-resolved']);
         }
     }
 }

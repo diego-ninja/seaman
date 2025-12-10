@@ -43,6 +43,7 @@ use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PortAllocator;
 use Seaman\Service\PortChecker;
+use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
@@ -72,9 +73,16 @@ return function (ContainerBuilder $builder): void {
         InitializationSummary::class => create(InitializationSummary::class),
         RealCommandExecutor::class => create(RealCommandExecutor::class),
 
+        PrivilegedExecutor::class => factory(
+            fn(ContainerInterface $c): PrivilegedExecutor => new PrivilegedExecutor(
+                $c->get(RealCommandExecutor::class),
+            ),
+        ),
+
         DnsConfigurationHelper::class => factory(
             fn(ContainerInterface $c): DnsConfigurationHelper => new DnsConfigurationHelper(
                 $c->get(RealCommandExecutor::class),
+                $c->get(PrivilegedExecutor::class),
             ),
         ),
 
@@ -223,6 +231,8 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): DestroyCommand => new DestroyCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(PrivilegedExecutor::class),
+                $c->get(RealCommandExecutor::class),
             ),
         ),
 
@@ -230,6 +240,8 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): CleanCommand => new CleanCommand(
                 $c->get(DockerManager::class),
                 $c->get(ConfigManager::class),
+                $c->get(DnsConfigurationHelper::class),
+                $c->get(PrivilegedExecutor::class),
             ),
         ),
 
