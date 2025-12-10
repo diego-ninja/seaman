@@ -119,4 +119,16 @@ readonly class PostgresqlService extends AbstractService implements DatabaseServ
     {
         return $this->getRestoreCommand($config);
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['POSTGRES_USER'] ?? 'seaman',
+            $env['POSTGRES_PASSWORD'] ?? 'seaman',
+        );
+    }
 }

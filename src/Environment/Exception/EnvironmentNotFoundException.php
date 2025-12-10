@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Exception thrown when .env file is not found.
+// ABOUTME: Provides factory method for consistent error messages.
+
 namespace Seaman\Environment\Exception;
 
 use RuntimeException;

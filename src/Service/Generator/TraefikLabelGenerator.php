@@ -28,6 +28,11 @@ final readonly class TraefikLabelGenerator
             return ['traefik.enable=false'];
         }
 
+        // Traefik dashboard is configured via file provider, not labels
+        if ($service->type === Service::Traefik) {
+            return ['traefik.enable=false'];
+        }
+
         // ProxyOnly services get full Traefik configuration
         $serviceName = $service->name;
         $domain = $proxy->getDomain($serviceName);

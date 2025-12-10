@@ -86,4 +86,16 @@ readonly class MinioService extends AbstractService
             'MINIO_ROOT_PASSWORD' => $config->environmentVariables['MINIO_ROOT_PASSWORD'] ?? 'minioadmin',
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['MINIO_ROOT_USER'] ?? 'minioadmin',
+            $env['MINIO_ROOT_PASSWORD'] ?? 'minioadmin',
+        );
+    }
 }

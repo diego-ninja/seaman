@@ -71,4 +71,9 @@ readonly class DozzleService extends AbstractService
             'DOZZLE_PORT' => $config->port,
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        return 'Log viewer';
+    }
 }

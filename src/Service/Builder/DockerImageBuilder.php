@@ -22,10 +22,11 @@ readonly class DockerImageBuilder
     /**
      * Builds Docker image and tags it as seaman/seaman:latest.
      *
+     * @param bool $noCache When true, builds without using Docker cache
      * @return ProcessResult The result of the build operation
      * @throws \Exception
      */
-    public function build(): ProcessResult
+    public function build(bool $noCache = false): ProcessResult
     {
         $wwwgroup = (string) posix_getgid();
         $image = sprintf('seaman/seaman-php%s:latest', $this->phpVersion->value);
@@ -41,8 +42,13 @@ readonly class DockerImageBuilder
             "WWWGROUP={$wwwgroup}",
             '--build-arg',
             "PHP_VERSION={$this->phpVersion->value}",
-            '.',
         ];
+
+        if ($noCache) {
+            $command[] = '--no-cache';
+        }
+
+        $command[] = '.';
 
         $process = new Process($command, $this->projectRoot, timeout: 300.0);
         SpinnerFactory::for(

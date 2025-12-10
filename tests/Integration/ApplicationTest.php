@@ -23,7 +23,7 @@ test('Application has correct name', function (): void {
 test('Application has correct version', function (): void {
     $application = new Application();
 
-    expect($application->getVersion())->toBe('1.0.0-beta');
+    expect($application->getVersion())->toBe('1.0.0');
 });
 
 test('bin/seaman is executable and runs', function (): void {

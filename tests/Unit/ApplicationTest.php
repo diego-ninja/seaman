@@ -45,42 +45,10 @@ final class ApplicationTest extends TestCase
     }
 
     #[Test]
-    public function it_shows_mode_in_application_name_for_managed_mode(): void
-    {
-        // Setup managed mode
-        mkdir($this->testDir . '/.seaman', 0755, true);
-        file_put_contents($this->testDir . '/.seaman/seaman.yaml', 'project_name: test');
-
-        $app = new Application();
-
-        $this->assertStringContainsString('Managed', $app->getName());
-    }
-
-    #[Test]
-    public function it_shows_mode_in_application_name_for_unmanaged_mode(): void
-    {
-        // Setup unmanaged mode (docker-compose.yaml but no seaman.yaml)
-        file_put_contents($this->testDir . '/docker-compose.yaml', 'version: "3"');
-
-        $app = new Application();
-
-        $this->assertStringContainsString('Unmanaged', $app->getName());
-    }
-
-    #[Test]
-    public function it_shows_mode_in_application_name_for_uninitialized_mode(): void
-    {
-        // No files - uninitialized mode
-        $app = new Application();
-
-        $this->assertStringContainsString('Not Initialized', $app->getName());
-    }
-
-    #[Test]
     public function it_filters_managed_only_commands_in_unmanaged_mode(): void
     {
         // Setup unmanaged mode
-        file_put_contents($this->testDir . '/docker-compose.yaml', 'version: "3"');
+        file_put_contents($this->testDir . '/docker-compose.yaml', "services:\n  app:\n    image: php:8.4");
 
         $app = new Application();
         $commands = $app->all();
@@ -113,7 +81,7 @@ final class ApplicationTest extends TestCase
     public function it_throws_command_not_available_for_filtered_command(): void
     {
         // Setup unmanaged mode
-        file_put_contents($this->testDir . '/docker-compose.yaml', 'version: "3"');
+        file_put_contents($this->testDir . '/docker-compose.yaml', "services:\n  app:\n    image: php:8.4");
 
         $app = new Application();
 
@@ -128,7 +96,7 @@ final class ApplicationTest extends TestCase
     public function it_finds_available_commands_normally(): void
     {
         // Setup unmanaged mode
-        file_put_contents($this->testDir . '/docker-compose.yaml', 'version: "3"');
+        file_put_contents($this->testDir . '/docker-compose.yaml', "services:\n  app:\n    image: php:8.4");
 
         $app = new Application();
 

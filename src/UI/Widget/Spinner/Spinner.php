@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Animated terminal spinner for long-running operations.
+// ABOUTME: Supports multiple animation styles and handles signal interruption.
+
 namespace Seaman\UI\Widget\Spinner;
 
 use Exception;
@@ -143,7 +146,7 @@ class Spinner
         }
 
         if ($result !== false) {
-            Terminal::output()->writeln(sprintf("  ⬡ %s", $this->message));
+            Terminal::output()->writeln(sprintf("  ✓ %s", $this->message));
         } else {
             Terminal::output()->writeln(sprintf("  ✗ %s", $this->message));
         }
@@ -192,7 +195,7 @@ class Spinner
             sprintf(
                 "%s<fg=bright-green>%s</> %s",
                 $this->addPadding(),
-                '⬡',
+                '✓',
                 $this->message,
             ),
         );
@@ -205,7 +208,7 @@ class Spinner
             sprintf(
                 "%s<fg=bright-red;options=blink>%s</> %s",
                 $this->addPadding(),
-                '⬡',
+                '✗',
                 $this->message,
             ),
         );

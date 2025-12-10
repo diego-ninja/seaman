@@ -222,3 +222,142 @@ test('merge preserves existing configuration', function () {
 
     expect($merged->php->version)->toBe(PhpVersion::Php84);
 });
+
+test('generates .env with seaman managed section markers', function () {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $envContent = file_get_contents($tempDir . '/.env');
+
+    expect($envContent)->toContain('# ---- SEAMAN MANAGED ----')
+        ->and($envContent)->toContain('# ---- END SEAMAN MANAGED ----');
+});
+
+test('preserves user variables when regenerating .env', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+
+    // Create existing .env with user variables
+    $existingEnv = <<<'ENV'
+APP_NAME=MyApp
+APP_DEBUG=true
+MY_CUSTOM_VAR=custom_value
+ENV;
+    file_put_contents($tempDir . '/.env', $existingEnv);
+
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+
+    $envContent = file_get_contents($tempDir . '/.env');
+
+    // User variables should be preserved
+    expect($envContent)->toContain('APP_NAME=MyApp')
+        ->and($envContent)->toContain('APP_DEBUG=true')
+        ->and($envContent)->toContain('MY_CUSTOM_VAR=custom_value')
+        // Seaman variables should also be present
+        ->and($envContent)->toContain('PHP_VERSION=8.4')
+        ->and($envContent)->toContain('XDEBUG_MODE=off');
+});
+
+test('preserves APP_PORT from existing .env', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+
+    // Create existing .env with custom APP_PORT
+    $existingEnv = "APP_PORT=9000\n";
+    file_put_contents($tempDir . '/.env', $existingEnv);
+
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+
+    $envContent = file_get_contents($tempDir . '/.env');
+
+    // APP_PORT should be preserved from existing .env
+    expect($envContent)->toContain('APP_PORT=9000');
+});
+
+test('does not duplicate variables from seaman section on regenerate', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+
+    // Create existing .env with Seaman managed section
+    $existingEnv = <<<'ENV'
+MY_VAR=value
+
+# ---- SEAMAN MANAGED ----
+APP_PORT=8000
+PHP_VERSION=8.3
+# ---- END SEAMAN MANAGED ----
+ENV;
+    file_put_contents($tempDir . '/.env', $existingEnv);
+
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+
+    $envContent = file_get_contents($tempDir . '/.env');
+
+    // MY_VAR should be preserved
+    expect($envContent)->toContain('MY_VAR=value')
+        // PHP_VERSION should be updated to new value
+        ->and($envContent)->toContain('PHP_VERSION=8.4')
+        // Old PHP_VERSION should not be present
+        ->and($envContent)->not->toContain('PHP_VERSION=8.3');
+});

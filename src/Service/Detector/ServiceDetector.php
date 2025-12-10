@@ -52,18 +52,30 @@ final readonly class ServiceDetector
         $version = $this->extractVersion($image);
 
         return match (true) {
+            // Databases
             str_contains($image, 'postgres') => new DetectedService(Service::PostgreSQL, $version, Confidence::High),
             str_contains($image, 'mysql') => new DetectedService(Service::MySQL, $version, Confidence::High),
             str_contains($image, 'mariadb') => new DetectedService(Service::MariaDB, $version, Confidence::High),
             str_contains($image, 'mongo') => new DetectedService(Service::MongoDB, $version, Confidence::High),
+            // Cache
             str_contains($image, 'redis') => new DetectedService(Service::Redis, $version, Confidence::High),
+            str_contains($image, 'valkey') => new DetectedService(Service::Valkey, $version, Confidence::High),
             str_contains($image, 'memcached') => new DetectedService(Service::Memcached, $version, Confidence::High),
+            // Queues
             str_contains($image, 'rabbitmq') => new DetectedService(Service::RabbitMq, $version, Confidence::High),
-            str_contains($image, 'mailpit') || str_contains($image, 'axllent/mailpit') => new DetectedService(Service::Mailpit, $version, Confidence::High),
+            str_contains($image, 'kafka') => new DetectedService(Service::Kafka, $version, Confidence::High),
+            // Search
+            str_contains($image, 'opensearch') => new DetectedService(Service::OpenSearch, $version, Confidence::High),
             str_contains($image, 'elasticsearch') => new DetectedService(Service::Elasticsearch, $version, Confidence::High),
+            // Dev tools
+            str_contains($image, 'mailpit') || str_contains($image, 'axllent/mailpit') => new DetectedService(Service::Mailpit, $version, Confidence::High),
             str_contains($image, 'minio') => new DetectedService(Service::MinIO, $version, Confidence::High),
             str_contains($image, 'dozzle') => new DetectedService(Service::Dozzle, $version, Confidence::High),
-            str_contains($image, 'kafka') => new DetectedService(Service::Kafka, $version, Confidence::High),
+            // Real-time
+            str_contains($image, 'dunglas/mercure') || str_contains($image, 'mercure') => new DetectedService(Service::Mercure, $version, Confidence::High),
+            str_contains($image, 'soketi') || str_contains($image, 'quay.io/soketi') => new DetectedService(Service::Soketi, $version, Confidence::High),
+            // Proxy
+            str_contains($image, 'traefik') => new DetectedService(Service::Traefik, $version, Confidence::High),
             default => null,
         };
     }
@@ -76,16 +88,30 @@ final readonly class ServiceDetector
         $name = strtolower($serviceName);
 
         return match (true) {
-            in_array($name, ['postgres', 'postgresql', 'pgsql'], true) => new DetectedService(Service::PostgreSQL, 'latest', Confidence::Medium),
-            in_array($name, ['mysql', 'mariadb'], true) => new DetectedService(Service::MySQL, 'latest', Confidence::Medium),
+            // Databases
+            in_array($name, ['postgres', 'postgresql', 'pgsql', 'db', 'database'], true) => new DetectedService(Service::PostgreSQL, 'latest', Confidence::Medium),
+            in_array($name, ['mysql'], true) => new DetectedService(Service::MySQL, 'latest', Confidence::Medium),
+            in_array($name, ['mariadb'], true) => new DetectedService(Service::MariaDB, 'latest', Confidence::Medium),
             in_array($name, ['mongo', 'mongodb'], true) => new DetectedService(Service::MongoDB, 'latest', Confidence::Medium),
+            // Cache
             in_array($name, ['redis', 'cache'], true) => new DetectedService(Service::Redis, 'latest', Confidence::Medium),
+            in_array($name, ['valkey'], true) => new DetectedService(Service::Valkey, 'latest', Confidence::Medium),
             in_array($name, ['memcached'], true) => new DetectedService(Service::Memcached, 'latest', Confidence::Medium),
+            // Queues
             in_array($name, ['rabbitmq', 'rabbit', 'queue'], true) => new DetectedService(Service::RabbitMq, 'latest', Confidence::Medium),
-            in_array($name, ['mailpit', 'mail', 'mailhog'], true) => new DetectedService(Service::Mailpit, 'latest', Confidence::Medium),
-            in_array($name, ['elasticsearch', 'elastic', 'search'], true) => new DetectedService(Service::Elasticsearch, 'latest', Confidence::Medium),
-            in_array($name, ['minio', 's3'], true) => new DetectedService(Service::MinIO, 'latest', Confidence::Medium),
             in_array($name, ['kafka'], true) => new DetectedService(Service::Kafka, 'latest', Confidence::Medium),
+            // Search
+            in_array($name, ['opensearch'], true) => new DetectedService(Service::OpenSearch, 'latest', Confidence::Medium),
+            in_array($name, ['elasticsearch', 'elastic', 'search'], true) => new DetectedService(Service::Elasticsearch, 'latest', Confidence::Medium),
+            // Dev tools
+            in_array($name, ['mailpit', 'mail', 'mailhog'], true) => new DetectedService(Service::Mailpit, 'latest', Confidence::Medium),
+            in_array($name, ['minio', 's3', 'storage'], true) => new DetectedService(Service::MinIO, 'latest', Confidence::Medium),
+            in_array($name, ['dozzle', 'logs'], true) => new DetectedService(Service::Dozzle, 'latest', Confidence::Medium),
+            // Real-time
+            in_array($name, ['mercure'], true) => new DetectedService(Service::Mercure, 'latest', Confidence::Medium),
+            in_array($name, ['soketi', 'websocket', 'pusher'], true) => new DetectedService(Service::Soketi, 'latest', Confidence::Medium),
+            // Proxy
+            in_array($name, ['traefik', 'proxy', 'reverse-proxy'], true) => new DetectedService(Service::Traefik, 'latest', Confidence::Medium),
             default => null,
         };
     }
@@ -108,16 +134,25 @@ final readonly class ServiceDetector
         $ports = $this->extractPorts($portsArray);
 
         return match (true) {
+            // Databases
             in_array(5432, $ports, true) => new DetectedService(Service::PostgreSQL, 'latest', Confidence::Medium),
             in_array(3306, $ports, true) => new DetectedService(Service::MySQL, 'latest', Confidence::Medium),
             in_array(27017, $ports, true) => new DetectedService(Service::MongoDB, 'latest', Confidence::Medium),
+            // Cache
             in_array(6379, $ports, true) => new DetectedService(Service::Redis, 'latest', Confidence::Medium),
             in_array(11211, $ports, true) => new DetectedService(Service::Memcached, 'latest', Confidence::Medium),
+            // Queues
             in_array(5672, $ports, true) || in_array(15672, $ports, true) => new DetectedService(Service::RabbitMq, 'latest', Confidence::Medium),
-            in_array(8025, $ports, true) || in_array(1025, $ports, true) => new DetectedService(Service::Mailpit, 'latest', Confidence::Medium),
-            in_array(9200, $ports, true) => new DetectedService(Service::Elasticsearch, 'latest', Confidence::Medium),
-            in_array(9000, $ports, true) || in_array(9001, $ports, true) => new DetectedService(Service::MinIO, 'latest', Confidence::Medium),
             in_array(9092, $ports, true) => new DetectedService(Service::Kafka, 'latest', Confidence::Medium),
+            // Search - note: 9200 is used by both Elasticsearch and OpenSearch
+            in_array(9200, $ports, true) => new DetectedService(Service::Elasticsearch, 'latest', Confidence::Medium),
+            // Dev tools
+            in_array(8025, $ports, true) || in_array(1025, $ports, true) => new DetectedService(Service::Mailpit, 'latest', Confidence::Medium),
+            in_array(9000, $ports, true) || in_array(9001, $ports, true) => new DetectedService(Service::MinIO, 'latest', Confidence::Medium),
+            in_array(9080, $ports, true) => new DetectedService(Service::Dozzle, 'latest', Confidence::Medium),
+            // Real-time
+            in_array(3000, $ports, true) => new DetectedService(Service::Mercure, 'latest', Confidence::Medium),
+            in_array(6001, $ports, true) => new DetectedService(Service::Soketi, 'latest', Confidence::Medium),
             default => null,
         };
     }

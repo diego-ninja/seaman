@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Event listener that adds header decoration to command output.
+// ABOUTME: Renders command name and description before execution.
+
 namespace Seaman\Listener;
 
 use Seaman\Attribute\AsEventListener;

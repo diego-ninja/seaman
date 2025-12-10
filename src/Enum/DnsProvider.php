@@ -13,6 +13,7 @@ enum DnsProvider: string
     case SystemdResolved = 'systemd-resolved';
     case NetworkManager = 'networkmanager';
     case MacOSResolver = 'macos-resolver';
+    case HostsFile = 'hosts-file';
     case Manual = 'manual';
 
     public function getDisplayName(): string
@@ -22,6 +23,7 @@ enum DnsProvider: string
             self::SystemdResolved => 'systemd-resolved',
             self::NetworkManager => 'NetworkManager',
             self::MacOSResolver => 'macOS Resolver',
+            self::HostsFile => '/etc/hosts',
             self::Manual => 'Manual',
         };
     }
@@ -33,7 +35,8 @@ enum DnsProvider: string
             self::SystemdResolved => 'Systemd network name resolution manager',
             self::NetworkManager => 'NetworkManager with dnsmasq plugin',
             self::MacOSResolver => 'macOS native resolver for custom domains',
-            self::Manual => 'Configure /etc/hosts manually',
+            self::HostsFile => 'Simple /etc/hosts entries (no wildcard support)',
+            self::Manual => 'Show manual configuration instructions',
         };
     }
 
@@ -45,8 +48,9 @@ enum DnsProvider: string
         return match ($this) {
             self::MacOSResolver => 1,
             self::Dnsmasq => 2,
-            self::SystemdResolved => 3,
-            self::NetworkManager => 4,
+            self::NetworkManager => 3,
+            self::SystemdResolved => 4,
+            self::HostsFile => 5,
             self::Manual => 99,
         };
     }

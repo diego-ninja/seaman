@@ -31,12 +31,13 @@ beforeEach(function (): void {
 afterEach(function (): void {
     HeadlessMode::reset();
     chdir($this->originalDir);
+    TestHelper::cleanupDocker($this->tempDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
 test('rebuild command requires seaman.yaml', function (): void {
     // Create docker-compose.yml but no seaman.yaml
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('rebuild'));
@@ -46,15 +47,18 @@ test('rebuild command requires seaman.yaml', function (): void {
         ->toThrow(\RuntimeException::class, 'seaman.yaml not found');
 });
 
-test('rebuild command requires Dockerfile', function (): void {
+test('rebuild command regenerates Dockerfile from template', function (): void {
     // Setup with seaman.yaml but no Dockerfile
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
+
+    // Create .seaman directory
+    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('rebuild'));
     $commandTester->execute([]);
 
-    // Should fail because Dockerfile doesn't exist
-    expect($commandTester->getStatusCode())->toBe(1);
+    // Dockerfile should be regenerated from template
+    expect(file_exists($this->tempDir . '/.seaman/Dockerfile'))->toBeTrue();
 });

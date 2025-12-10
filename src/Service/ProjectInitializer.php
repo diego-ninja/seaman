@@ -126,16 +126,18 @@ class ProjectInitializer
         }
 
         // Copy Traefik static configuration
-        $traefikTemplate = __DIR__ . '/../../resources/templates/traefik/traefik.yml';
+        $traefikTemplate = PathResolver::seamanPath('resources/templates/traefik/traefik.yml');
         if (file_exists($traefikTemplate)) {
             copy($traefikTemplate, $traefikDir . '/traefik.yml');
         }
 
-        // Copy Traefik dynamic certificate configuration
-        $certsTemplate = __DIR__ . '/../../resources/templates/traefik/dynamic/certs.yml';
-        if (file_exists($certsTemplate)) {
-            copy($certsTemplate, $dynamicDir . '/certs.yml');
-        }
+        // Generate Traefik dynamic configuration with dashboard router
+        $templateDir = __DIR__ . '/../Template';
+        $renderer = new TemplateRenderer($templateDir);
+        $certsContent = $renderer->render('traefik/certs.yml.twig', [
+            'project_name' => $config->projectName,
+        ]);
+        file_put_contents($dynamicDir . '/certs.yml', $certsContent);
 
         // Generate SSL certificates
         $executor = new RealCommandExecutor();

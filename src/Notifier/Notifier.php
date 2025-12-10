@@ -2,17 +2,15 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Desktop notification service using system notification APIs.
+// ABOUTME: Wraps joli-notif for cross-platform notification support.
+
 namespace Seaman\Notifier;
 
 use Joli\JoliNotif\DefaultNotifier;
 use Joli\JoliNotif\Exception\InvalidNotificationException;
 use Joli\JoliNotif\Notification;
 
-/**
- * Class Notifier
- *
- * Provides a simple interface for sending notifications.
- */
 final class Notifier
 {
     private static ?self $instance = null;

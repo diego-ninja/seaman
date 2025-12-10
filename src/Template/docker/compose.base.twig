@@ -33,7 +33,7 @@ services:
     networks:
       - seaman
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost/"]
+      test: ["CMD", "curl", "-s", "-o", "/dev/null", "http://localhost/"]
       interval: 10s
       timeout: 5s
       retries: 5

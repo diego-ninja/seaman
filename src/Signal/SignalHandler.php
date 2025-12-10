@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: POSIX signal handler for graceful process termination.
+// ABOUTME: Manages signal listeners and cleanup on SIGINT/SIGTERM.
+
 namespace Seaman\Signal;
 
 use Innmind\Signals\Handler;

@@ -64,5 +64,5 @@ WORKDIR /var/www/html
 COPY .seaman/scripts/xdebug-toggle.sh /usr/local/bin/xdebug-toggle
 RUN chmod +x /usr/local/bin/xdebug-toggle || true
 
-EXPOSE 8000
-CMD ["symfony", "server:start", "--port=8000"]
+EXPOSE 80
+CMD ["symfony", "server:start", "--port=80", "--allow-all-ip"]

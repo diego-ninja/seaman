@@ -65,7 +65,7 @@ class ProxyEnableCommand extends ModeAwareCommand
 
         $this->configManager->save($newConfig);
 
-        Terminal::success('Proxy enabled successfully.');
+        Terminal::success('Proxy enabled successfully');
         Terminal::output()->writeln('');
         Terminal::output()->writeln("  Run 'seaman restart' to apply changes.");
         Terminal::output()->writeln('');

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Environment variable loader and accessor.
+// ABOUTME: Wraps dotenv with support for PHAR execution and type casting.
+
 namespace Seaman\Environment;
 
 use Dotenv\Repository\Adapter\PutenvAdapter;

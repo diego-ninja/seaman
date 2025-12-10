@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Factory for creating spinner animations with processes or callables.
+// ABOUTME: Provides convenient static methods for progress indication.
+
 namespace Seaman\UI\Widget\Spinner;
 
 use Exception;

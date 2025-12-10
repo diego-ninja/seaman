@@ -61,12 +61,10 @@ final readonly class ListenerDiscovery
 
             $phpFiles = new RegexIterator($iterator, '/\.php$/');
 
+            /** @var \SplFileInfo $file */
             foreach ($phpFiles as $file) {
                 if ($file->isFile()) {
-                    $pathName = $file->getPathname();
-                    if (is_string($pathName)) {
-                        $files[] = $pathName;
-                    }
+                    $files[] = $file->getPathname();
                 }
             }
         } catch (\Exception) {

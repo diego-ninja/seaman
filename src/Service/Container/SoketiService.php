@@ -89,4 +89,16 @@ readonly class SoketiService extends AbstractService
             'PUSHER_SCHEME' => 'http',
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['SOKETI_DEFAULT_APP_KEY'] ?? 'app-key',
+            $env['SOKETI_DEFAULT_APP_SECRET'] ?? 'app-secret',
+        );
+    }
 }

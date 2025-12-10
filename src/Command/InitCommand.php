@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\DnsProvider;
+use Seaman\Enum\OperatingMode;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Service\ComposeImporter;
@@ -16,15 +17,13 @@ use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\ServiceDetector;
 use Seaman\Service\Detector\SymfonyDetector;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ProxyConfig;
@@ -54,11 +53,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
         private readonly InitializationSummary      $summary,
         private readonly InitializationWizard       $wizard,
         private readonly ProjectInitializer         $initializer,
+        private readonly DnsManager                 $dnsManager,
     ) {
         parent::__construct();
     }
 
-    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return true; // Init works in all modes
     }
@@ -84,14 +84,13 @@ class InitCommand extends ModeAwareCommand implements Decorable
         if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
             if (!Prompts::confirm(
                 label: 'Seaman already initialized. Overwrite configuration?',
-                default: false,
             )) {
                 Prompts::info('Initialization cancelled.');
                 return Command::SUCCESS;
             }
         }
 
-        // Check for existing docker-compose.yml - offer import
+        // Check for the existing docker-compose.yml-offer import
         if ($this->projectDetector->hasDockerCompose($projectRoot) && !$this->projectDetector->hasSeamanConfig($projectRoot)) {
             $importResult = $this->handleExistingDockerCompose($projectRoot);
 
@@ -112,7 +111,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
-        // Run initialization wizard to collect all choices (including DNS)
+        // Run the initialization wizard to collect all choices (including DNS)
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
         // Build configuration from choices
@@ -153,6 +152,10 @@ class InitCommand extends ModeAwareCommand implements Decorable
         }
 
         Terminal::success('Seaman initialized successfully');
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  Your symfony application will be accessible at:');
+        Terminal::output()->writeln("  • https://app.{$config->projectName}.local");
+
         Terminal::output()->writeln([
             '',
             '  Run \'seaman start\' to start your containers',
@@ -354,6 +357,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     {
         $detection = $this->detector->detect($projectRoot);
         if (!$detection->isSymfonyProject) {
+            // Ensure Symfony CLI is installed before attempting bootstrap
+            if (!$this->bootstrapper->ensureCliInstalled()) {
+                Terminal::error('Cannot create Symfony project without Symfony CLI.');
+                exit(Command::FAILURE);
+            }
+
             $projectName = $this->wizard->getProjectName($projectRoot);
 
             if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
@@ -361,7 +370,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
                 exit(Command::FAILURE);
             }
 
-            // Change to new project directory
+            // Change to a new project directory
             $projectRoot = dirname($projectRoot) . '/' . $projectName;
             chdir($projectRoot);
         }
@@ -376,113 +385,66 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=cyan>Configuring DNS...</>');
         Terminal::output()->writeln('');
 
-        $executor = new RealCommandExecutor();
-        $helper = new DnsConfigurationHelper($executor);
+        // Get configuration preview
+        $preview = $this->dnsManager->configureProvider($projectName, $provider);
 
-        $result = $helper->configureProvider($projectName, $provider);
-        $this->processDnsResult($result, $projectName);
-    }
-
-    private function processDnsResult(DnsConfigurationResult $result, string $projectName): void
-    {
-        if (!$result->automatic) {
-            $this->handleManualDnsConfiguration($result);
-            return;
-        }
-
-        $this->handleAutomaticDnsConfiguration($result, $projectName);
-    }
-
-    private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
-    {
-        if ($result->configPath === null || $result->configContent === null) {
-            Terminal::error('Invalid automatic configuration: missing path or content');
-            return;
-        }
-
-        Terminal::output()->writeln("  Detected: <fg=green>{$result->type}</>");
-        Terminal::output()->writeln('');
-
-        if ($result->requiresSudo) {
-            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires sudo access</>');
+        // Handle manual configuration
+        if (!$preview->automatic) {
+            Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
             Terminal::output()->writeln('');
-        }
-
-        Terminal::output()->writeln("  Configuration file: <fg=cyan>{$result->configPath}</>");
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  Content:');
-        Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
-        Terminal::output()->writeln('');
-
-        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
-            Prompts::info('DNS configuration skipped.');
+            foreach ($preview->instructions as $instruction) {
+                Terminal::output()->writeln('  ' . $instruction);
+            }
+            Terminal::output()->writeln('');
             return;
         }
 
-        // Create directory if needed
-        $configDir = dirname($result->configPath);
-        $escapedConfigDir = escapeshellarg($configDir);
-        if (!is_dir($configDir)) {
-            $mkdirCmd = $result->requiresSudo
-                ? "sudo mkdir -p {$escapedConfigDir}"
-                : "mkdir -p {$escapedConfigDir}";
-            Terminal::output()->writeln("  Creating directory: {$configDir}");
-            exec($mkdirCmd, $output, $exitCode);
+        // Handle case where all entries already exist
+        if ($preview->configContent === null && $preview->instructions !== []) {
+            foreach ($preview->instructions as $instruction) {
+                Terminal::output()->writeln("  {$instruction}");
+            }
+            Terminal::output()->writeln('');
+            Terminal::success('DNS already configured');
+            return;
+        }
 
-            if ($exitCode !== 0) {
-                Terminal::error('Failed to create configuration directory');
+        // Show preview for automatic configuration
+        if ($preview->configPath !== null && $preview->configContent !== null) {
+            Terminal::output()->writeln("  Detected: <fg=green>{$preview->type}</>");
+            Terminal::output()->writeln('');
+
+            if ($preview->requiresSudo) {
+                Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires elevated privileges</>');
+                Terminal::output()->writeln('');
+            }
+
+            Terminal::output()->writeln("  Configuration file: <fg=cyan>{$preview->configPath}</>");
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Content:');
+            Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($preview->configContent)) . '</>');
+            Terminal::output()->writeln('');
+
+            if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+                Prompts::info('DNS configuration skipped.');
                 return;
             }
         }
 
-        // Write configuration
-        $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
-        if ($tempFile === false) {
-            Terminal::error('Failed to create temporary file');
-            return;
-        }
-        file_put_contents($tempFile, $result->configContent);
-
-        $escapedTempFile = escapeshellarg($tempFile);
-        $escapedConfigPath = escapeshellarg($result->configPath);
-        $cpCmd = $result->requiresSudo
-            ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
-            : "cp {$escapedTempFile} {$escapedConfigPath}";
-
-        exec($cpCmd, $output, $exitCode);
-        unlink($tempFile);
-
-        if ($exitCode !== 0) {
-            Terminal::error('Failed to write DNS configuration');
-            return;
-        }
+        // Apply configuration
+        $result = $this->dnsManager->applyDnsConfiguration($projectName, $provider);
 
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
-
-        // Restart DNS service if needed
-        if ($result->restartCommand !== null) {
+        if ($result['success']) {
+            foreach ($result['messages'] as $message) {
+                Terminal::output()->writeln("  {$message}");
+            }
             Terminal::output()->writeln('');
-            Terminal::output()->writeln('  Restarting DNS service...');
-            exec($result->restartCommand);
+            Terminal::success('DNS configured successfully!');
+        } else {
+            foreach ($result['messages'] as $message) {
+                Terminal::error($message);
+            }
         }
-
-        Terminal::success('DNS configured successfully!');
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  Your services will be accessible at:');
-        Terminal::output()->writeln("  • https://app.{$projectName}.local");
-        Terminal::output()->writeln("  • https://traefik.{$projectName}.local");
-    }
-
-    private function handleManualDnsConfiguration(DnsConfigurationResult $result): void
-    {
-        Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
-        Terminal::output()->writeln('');
-
-        foreach ($result->instructions as $instruction) {
-            Terminal::output()->writeln('  ' . $instruction);
-        }
-
-        Terminal::output()->writeln('');
     }
 }

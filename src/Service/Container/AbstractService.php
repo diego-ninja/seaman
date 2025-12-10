@@ -9,6 +9,7 @@ namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
 abstract readonly class AbstractService implements ServiceInterface
 {
@@ -75,5 +76,18 @@ abstract readonly class AbstractService implements ServiceInterface
         }
 
         return $composeConfig;
+    }
+
+    /**
+     * @return list<int>
+     */
+    public function getInternalPorts(): array
+    {
+        return $this->getRequiredPorts();
+    }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        return "v{$config->version}";
     }
 }

@@ -23,7 +23,7 @@ final readonly class InitializationWizard
 {
     public function __construct(
         private PhpVersionDetector $detector,
-        private ?DnsConfigurationHelper $dnsHelper = null,
+        private ?DnsManager $dnsHelper = null,
     ) {}
 
     /**
@@ -189,45 +189,47 @@ final readonly class InitializationWizard
      */
     public function selectDnsConfiguration(string $projectName): array
     {
-        $configureDns = Prompts::confirm(
-            label: 'Configure DNS for local development?',
-            default: true,
-            hint: "Enables *.{$projectName}.local domains",
-        );
-
-        if (!$configureDns) {
-            return [false, null];
-        }
-
-        // Detect available providers
+        // Detect available providers first
         $providers = $this->detectDnsProviders($projectName);
 
         if (empty($providers)) {
-            return [true, DnsProvider::Manual];
+            // No automatic methods available
+            $configureDns = Prompts::confirm(
+                label: 'Configure DNS for local development?',
+                default: true,
+                hint: "Enables *.{$projectName}.local domains (manual configuration only)",
+            );
+            return [$configureDns, $configureDns ? DnsProvider::Manual : null];
         }
 
         $recommended = $providers[0];
 
-        // Build options
-        $options = [];
+        // Build options with Auto as default
+        $options = [
+            'auto' => sprintf(
+                'Auto (%s) - Seaman will configure DNS automatically',
+                $recommended->provider->getDisplayName(),
+            ),
+        ];
         foreach ($providers as $detected) {
             $label = $detected->provider->getDisplayName();
-            if ($detected === $recommended) {
-                $label .= ' (recommended)';
-            }
-            $options[$detected->provider->value] = $label . ' - ' . $detected->provider->getDescription();
+            $options[$detected->provider->value] = "{$label} - {$detected->provider->getDescription()}";
         }
-        $options['manual'] = 'Manual - Configure /etc/hosts yourself';
+        $options['skip'] = 'Skip - Do not configure DNS (you can run \'seaman dns\' later)';
 
         /** @var string $choice */
         $choice = Prompts::select(
-            label: 'Select DNS provider',
+            label: sprintf('Configure DNS for *.%s.local domains?', $projectName),
             options: $options,
-            default: $recommended->provider->value,
+            default: 'auto',
         );
 
-        if ($choice === 'manual') {
-            return [true, DnsProvider::Manual];
+        if ($choice === 'skip') {
+            return [false, null];
+        }
+
+        if ($choice === 'auto') {
+            return [true, $recommended->provider];
         }
 
         return [true, DnsProvider::from($choice)];

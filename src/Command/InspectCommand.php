@@ -11,10 +11,12 @@ use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Widget\Table\Table;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ProxyConfig;
+use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -30,6 +32,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
+        private readonly ServiceRegistry $serviceRegistry,
     ) {
         parent::__construct();
     }
@@ -54,7 +57,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     /**
      * Build the inspect table with fluent API.
      *
-     * @param array<string, array{state: string, health: string, ports: string}> $statuses
+     * @param array<string, array{state: string, health: string, ports: string, containerId: string}> $statuses
      */
     private function buildTable(Configuration $config, array $statuses, string $projectRoot): Table
     {
@@ -65,9 +68,10 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             $table->addHeaderLine($line);
         }
 
-        $table->setHeaders(['SERVICE', 'STATUS', 'URL', 'INFO']);
+        $table->setHeaders(['SERVICE', 'STATUS', 'URL/PORT', 'INFO']);
 
         $proxy = $config->proxy();
+        $dozzleAvailable = $this->isDozzleAvailable($statuses);
 
         // App service
         $appStatus = $statuses['app'] ?? null;
@@ -77,6 +81,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             $appStatus,
             $this->buildAppUrls($proxy),
             "PHP {$config->php->version->value}",
+            $dozzleAvailable,
         ));
 
         // Database service
@@ -84,32 +89,39 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
                 $table->addSeparator();
                 $dbStatus = $statuses[$name] ?? null;
-                $dbInfo = "{$serviceConfig->type->name} {$serviceConfig->version}";
+                $service = $this->serviceRegistry->get($serviceConfig->type);
+                $dbUrls = $this->buildServiceUrlsFromRegistry($serviceConfig, $proxy);
                 $table->addRow($this->buildServiceRow(
                     $serviceConfig->type,
                     $name,
                     $dbStatus,
-                    "localhost:{$serviceConfig->port}",
-                    $dbInfo,
+                    $dbUrls,
+                    $service->getInspectInfo($serviceConfig),
+                    $dozzleAvailable,
                 ));
             }
         }
 
-        // Other services
+        // Other services (excluding Traefik, which is handled separately)
         foreach ($config->services->enabled() as $name => $serviceConfig) {
             if (in_array($serviceConfig->type->value, Service::databases(), true)) {
+                continue;
+            }
+            if ($serviceConfig->type === Service::Traefik) {
                 continue;
             }
 
             $table->addSeparator();
             $status = $statuses[$name] ?? null;
-            $url = $this->getServiceUrl($serviceConfig->type, $proxy, $serviceConfig->port);
+            $service = $this->serviceRegistry->get($serviceConfig->type);
+            $serviceUrls = $this->buildServiceUrlsFromRegistry($serviceConfig, $proxy);
             $table->addRow($this->buildServiceRow(
                 $serviceConfig->type,
                 $name,
                 $status,
-                $url,
-                '',
+                $serviceUrls,
+                $service->getInspectInfo($serviceConfig),
+                $dozzleAvailable,
             ));
         }
 
@@ -117,12 +129,16 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         if ($proxy->enabled) {
             $table->addSeparator();
             $traefikStatus = $statuses['traefik'] ?? null;
+            $traefikService = $this->serviceRegistry->get(Service::Traefik);
+            $traefikConfig = $traefikService->getDefaultConfig();
+            $traefikUrls = $this->buildTraefikUrls($proxy, $traefikService->getInternalPorts());
             $table->addRow($this->buildServiceRow(
                 Service::Traefik,
                 'traefik',
                 $traefikStatus,
-                "https://traefik.{$proxy->domainPrefix}.local",
-                'Dashboard',
+                $traefikUrls,
+                $traefikService->getInspectInfo($traefikConfig),
+                $dozzleAvailable,
             ));
         }
 
@@ -131,8 +147,19 @@ class InspectCommand extends ModeAwareCommand implements Decorable
             foreach ($config->customServices->names() as $name) {
                 $table->addSeparator();
                 $status = $statuses[$name] ?? null;
+                $customServiceName = "⚙️  {$name}";
+
+                // Add dozzle link for custom services too
+                if ($dozzleAvailable && $status !== null && $status['containerId'] !== '') {
+                    $customServiceName = sprintf(
+                        '⚙️  <href=http://localhost:9080/container/%s>%s</>',
+                        $status['containerId'],
+                        $name,
+                    );
+                }
+
                 $table->addRow([
-                    "⚙️  {$name}",
+                    $customServiceName,
                     $this->formatStatus($status),
                     '',
                     'custom',
@@ -201,7 +228,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @param array{state: string, health: string, ports: string}|null $status
+     * @param array{state: string, health: string, ports: string, containerId: string}|null $status
      * @param string|list<string> $url
      * @return array{string, string, string|list<string>, string}
      */
@@ -211,9 +238,22 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         ?array $status,
         string|array $url,
         string $info,
+        bool $dozzleAvailable = false,
     ): array {
+        $serviceName = sprintf('%s %s', $type->icon(), $name);
+
+        // Add dozzle link if available and service is running
+        if ($dozzleAvailable && $status !== null && $status['containerId'] !== '') {
+            $serviceName = sprintf(
+                '%s <href=http://localhost:9080/container/%s>%s</>',
+                $type->icon(),
+                $status['containerId'],
+                $name,
+            );
+        }
+
         return [
-            sprintf('%s %s', $type->icon(), $name),
+            $serviceName,
             $this->formatStatus($status),
             $url,
             $info,
@@ -221,42 +261,102 @@ class InspectCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * @param array{state: string, health: string, ports: string}|null $status
+     * @param array{state: string, health: string, ports: string, containerId: string}|null $status
      */
     private function formatStatus(?array $status): string
     {
         if ($status === null) {
-            return '<fg=gray>not running</>';
+            return '<fg=gray>⚙</> not running';
         }
 
         return match (strtolower($status['state'])) {
             'running' => $status['health'] !== ''
-                ? sprintf('<fg=green>running</> (<fg=green>%s</>)', $status['health'])
-                : '<fg=green>running</>',
-            'exited' => '<fg=red>stopped</>',
-            'restarting' => '<fg=yellow>restarting</>',
-            default => "<fg=gray>{$status['state']}</>",
-        };
-    }
-
-    private function getServiceUrl(Service $type, ProxyConfig $proxy, int $port): string
-    {
-        if (!$proxy->enabled) {
-            return "localhost:{$port}";
-        }
-
-        return match ($type) {
-            Service::Mailpit => "https://mailpit.{$proxy->domainPrefix}.local",
-            Service::Dozzle => "https://dozzle.{$proxy->domainPrefix}.local",
-            Service::MinIO => "https://minio.{$proxy->domainPrefix}.local",
-            Service::RabbitMq => "https://rabbitmq.{$proxy->domainPrefix}.local",
-            Service::Mercure => "https://mercure.{$proxy->domainPrefix}.local",
-            default => "localhost:{$port}",
+                ? sprintf('<fg=green>⚙</> running (<fg=green>%s</>)', $status['health'])
+                : '<fg=yellow>⚙</> running (<fg=yellow>unknown</>)',
+            'exited' => '<fg=red>⚙</> stopped',
+            'restarting' => '<fg=yellow>⚙</> restarting',
+            default => "<fg=gray>⚙</> {$status['state']}",
         };
     }
 
     /**
-     * @return array<string, array{state: string, health: string, ports: string}>
+     * Build URL list for a service using registry for internal ports.
+     *
+     * @return list<string>
+     */
+    private function buildServiceUrlsFromRegistry(ServiceConfig $serviceConfig, ProxyConfig $proxy): array
+    {
+        $name = $serviceConfig->name;
+        $type = $serviceConfig->type;
+        $port = $serviceConfig->port;
+        $service = $this->serviceRegistry->get($type);
+        $internalPorts = $service->getInternalPorts();
+
+        if (!$proxy->enabled) {
+            $urls = ["localhost:{$port}"];
+            if (!empty($internalPorts)) {
+                $urls[] = 'InDocker:';
+                foreach ($internalPorts as $internalPort) {
+                    $urls[] = "  - {$name}:{$internalPort}";
+                }
+            }
+            return $urls;
+        }
+
+        $externalUrl = match ($type) {
+            Service::Mailpit => "https://mailpit.{$proxy->domainPrefix}.local",
+            Service::Dozzle => "https://dozzle.{$proxy->domainPrefix}.local",
+            Service::MinIO => "https://minio.{$proxy->domainPrefix}.local",
+            Service::RabbitMq => "https://rabbitmq.{$proxy->domainPrefix}.local",
+            Service::OpenSearch => "https://opensearch.{$proxy->domainPrefix}.local",
+            Service::Elasticsearch => "https://elasticsearch.{$proxy->domainPrefix}.local",
+            default => "localhost:{$port}",
+        };
+
+        $urls = [$externalUrl];
+        if (!empty($internalPorts)) {
+            $urls[] = 'InDocker:';
+            foreach ($internalPorts as $internalPort) {
+                $urls[] = "  - {$name}:{$internalPort}";
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Build URL list for Traefik.
+     *
+     * @param list<int> $internalPorts
+     * @return list<string>
+     */
+    private function buildTraefikUrls(ProxyConfig $proxy, array $internalPorts): array
+    {
+        $urls = ["https://traefik.{$proxy->domainPrefix}.local"];
+
+        if (!empty($internalPorts)) {
+            $urls[] = 'InDocker:';
+            foreach ($internalPorts as $port) {
+                $urls[] = "  - traefik:{$port}";
+            }
+        }
+
+        return $urls;
+    }
+
+    /**
+     * Check if dozzle is running and available.
+     *
+     * @param array<string, array{state: string, health: string, ports: string, containerId: string}> $statuses
+     */
+    private function isDozzleAvailable(array $statuses): bool
+    {
+        $dozzleStatus = $statuses['dozzle'] ?? null;
+        return $dozzleStatus !== null && strtolower($dozzleStatus['state']) === 'running';
+    }
+
+    /**
+     * @return array<string, array{state: string, health: string, ports: string, containerId: string}>
      */
     private function getServiceStatuses(): array
     {
@@ -287,6 +387,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 'state' => $service['State'] ?? 'unknown',
                 'health' => $service['Health'] ?? '',
                 'ports' => implode(', ', $ports),
+                'containerId' => $service['ID'] ?? '',
             ];
         }
 

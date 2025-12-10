@@ -61,6 +61,17 @@ test('mock service implements interface correctly', function () {
         {
             return 'test';
         }
+
+        /** @return list<int> */
+        public function getInternalPorts(): array
+        {
+            return [9999];
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
     };
 
     expect($service->getName())->toBe('test')

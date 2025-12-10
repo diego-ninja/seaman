@@ -32,6 +32,7 @@ beforeEach(function () {
 afterEach(function () {
     HeadlessMode::reset();
     chdir($this->originalDir);
+    TestHelper::cleanupDocker($this->tempDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
@@ -58,5 +59,5 @@ test('destroy command cancels when user declines', function () {
     $commandTester->execute([]);
 
     expect($commandTester->getStatusCode())->toBe(0);
-    expect($commandTester->getDisplay())->toContain('Cancelled');
+    expect($commandTester->getDisplay())->toContain('Operation cancelled');
 });

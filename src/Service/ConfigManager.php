@@ -210,22 +210,48 @@ readonly class ConfigManager
     /**
      * Generate .env file with port allocations.
      *
+     * Performs smart merging: preserves existing user variables while
+     * updating Seaman-managed variables (those in the SEAMAN MANAGED section).
+     *
      * When a port allocation differs from the desired port, the assigned
      * port will be used in the .env file instead.
      */
     public function generateEnvWithAllocation(Configuration $config, PortAllocation $allocation): void
     {
-        $lines = [
-            '# Application configuration',
-            'APP_PORT=8000',
-            '',
-            '# PHP configuration',
-            'PHP_VERSION=' . $config->php->version->value,
-            '',
-            '# Xdebug configuration',
-            'XDEBUG_MODE=' . ($config->php->xdebug->enabled ? 'debug' : 'off'),
-            '',
-        ];
+        $envPath = $this->projectRoot . '/.env';
+
+        // Parse existing .env file to preserve user variables
+        $existingVars = $this->parseExistingEnv($envPath);
+
+        // Generate Seaman-managed variables
+        $seamanVars = $this->generateSeamanEnvVars($config, $allocation);
+
+        // Build final content: user variables first, then Seaman section
+        $lines = [];
+
+        // Add user variables (those not managed by Seaman)
+        $userVars = array_diff_key($existingVars, $seamanVars);
+        foreach ($userVars as $key => $value) {
+            $lines[] = $key . '=' . $value;
+        }
+
+        if (!empty($userVars)) {
+            $lines[] = '';
+        }
+
+        // Add Seaman managed section
+        $lines[] = '# ---- SEAMAN MANAGED ----';
+        $lines[] = '# Variables below are managed by Seaman. Manual changes may be overwritten.';
+        $lines[] = '';
+        $lines[] = '# Application configuration';
+        $lines[] = 'APP_PORT=' . ($existingVars['APP_PORT'] ?? '8000');
+        $lines[] = '';
+        $lines[] = '# PHP configuration';
+        $lines[] = 'PHP_VERSION=' . $config->php->version->value;
+        $lines[] = '';
+        $lines[] = '# Xdebug configuration';
+        $lines[] = 'XDEBUG_MODE=' . ($config->php->xdebug->enabled ? 'debug' : 'off');
+        $lines[] = '';
 
         foreach ($config->services->all() as $name => $serviceConfig) {
             if (!$serviceConfig->enabled) {
@@ -249,12 +275,101 @@ readonly class ConfigManager
             }
         }
 
+        $lines[] = '# ---- END SEAMAN MANAGED ----';
+
         $envContent = implode("\n", $lines);
-        $envPath = $this->projectRoot . '/.env';
 
         if (file_put_contents($envPath, $envContent) === false) {
             throw new RuntimeException('Failed to write .env');
         }
+    }
+
+    /**
+     * Parse existing .env file and return variables as associative array.
+     *
+     * @return array<string, string>
+     */
+    private function parseExistingEnv(string $envPath): array
+    {
+        if (!file_exists($envPath)) {
+            return [];
+        }
+
+        $content = file_get_contents($envPath);
+        if ($content === false) {
+            return [];
+        }
+
+        $vars = [];
+        $inSeamanSection = false;
+
+        foreach (explode("\n", $content) as $line) {
+            $line = trim($line);
+
+            // Track Seaman managed section
+            if (str_contains($line, '---- SEAMAN MANAGED ----')) {
+                $inSeamanSection = true;
+                continue;
+            }
+            if (str_contains($line, '---- END SEAMAN MANAGED ----')) {
+                $inSeamanSection = false;
+                continue;
+            }
+
+            // Skip comments and empty lines
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+
+            // Parse KEY=value
+            $equalsPos = strpos($line, '=');
+            if ($equalsPos === false) {
+                continue;
+            }
+
+            $key = substr($line, 0, $equalsPos);
+            $value = substr($line, $equalsPos + 1);
+
+            // Only keep variables outside Seaman section
+            if (!$inSeamanSection) {
+                $vars[$key] = $value;
+            }
+        }
+
+        return $vars;
+    }
+
+    /**
+     * Generate the set of Seaman-managed environment variable keys.
+     *
+     * @return array<string, bool>
+     */
+    private function generateSeamanEnvVars(Configuration $config, PortAllocation $allocation): array
+    {
+        $keys = [
+            'APP_PORT' => true,
+            'PHP_VERSION' => true,
+            'XDEBUG_MODE' => true,
+        ];
+
+        foreach ($config->services->all() as $name => $serviceConfig) {
+            if (!$serviceConfig->enabled) {
+                continue;
+            }
+
+            try {
+                $service = $this->serviceRegistry->get($serviceConfig->type);
+                $envVars = $service->getEnvVariables($serviceConfig);
+
+                foreach ($envVars as $key => $value) {
+                    $keys[$key] = true;
+                }
+            } catch (\ValueError|\InvalidArgumentException $e) {
+                continue;
+            }
+        }
+
+        return $keys;
     }
 
     /**

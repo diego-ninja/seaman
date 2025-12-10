@@ -123,4 +123,16 @@ readonly class MysqlService extends AbstractService implements DatabaseServiceIn
     {
         return $this->getRestoreCommand($config);
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['MYSQL_USER'] ?? 'seaman',
+            $env['MYSQL_PASSWORD'] ?? 'seaman',
+        );
+    }
 }

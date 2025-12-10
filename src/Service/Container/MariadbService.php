@@ -123,4 +123,16 @@ readonly class MariadbService extends AbstractService implements DatabaseService
     {
         return $this->getRestoreCommand($config);
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['MARIADB_USER'] ?? 'seaman',
+            $env['MARIADB_PASSWORD'] ?? 'seaman',
+        );
+    }
 }

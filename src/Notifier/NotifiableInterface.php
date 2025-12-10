@@ -2,13 +2,11 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Interface for commands that support desktop notifications.
+// ABOUTME: Defines methods for success and error notification messages.
+
 namespace Seaman\Notifier;
 
-/**
- * Interface NotifiableInterface
- *
- * Defines an interface for objects that can provide success and error messages for notifications.
- */
 interface NotifiableInterface
 {
     /**

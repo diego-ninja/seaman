@@ -37,12 +37,13 @@ use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\SymfonyDetector;
-use Seaman\Service\DnsConfigurationHelper;
+use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PortAllocator;
 use Seaman\Service\PortChecker;
+use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
@@ -54,7 +55,7 @@ use function DI\get;
 return function (ContainerBuilder $builder): void {
     $builder->addDefinitions([
         // Core parameters
-        'projectRoot' => factory(fn(): string => base_path()),
+        'projectRoot' => factory(fn (): string => (string) getcwd()),
 
         // Core services
         ServiceRegistry::class => factory(fn(): ServiceRegistry => ServiceRegistry::create()),
@@ -72,9 +73,16 @@ return function (ContainerBuilder $builder): void {
         InitializationSummary::class => create(InitializationSummary::class),
         RealCommandExecutor::class => create(RealCommandExecutor::class),
 
-        DnsConfigurationHelper::class => factory(
-            fn(ContainerInterface $c): DnsConfigurationHelper => new DnsConfigurationHelper(
+        PrivilegedExecutor::class => factory(
+            fn(ContainerInterface $c): PrivilegedExecutor => new PrivilegedExecutor(
                 $c->get(RealCommandExecutor::class),
+            ),
+        ),
+
+        DnsManager::class => factory(
+            fn(ContainerInterface $c): DnsManager => new DnsManager(
+                $c->get(RealCommandExecutor::class),
+                $c->get(PrivilegedExecutor::class),
             ),
         ),
 
@@ -105,7 +113,7 @@ return function (ContainerBuilder $builder): void {
         InitializationWizard::class => factory(
             fn(ContainerInterface $c): InitializationWizard => new InitializationWizard(
                 $c->get(PhpVersionDetector::class),
-                $c->get(DnsConfigurationHelper::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
@@ -177,6 +185,7 @@ return function (ContainerBuilder $builder): void {
                 $c->get(InitializationSummary::class),
                 $c->get(InitializationWizard::class),
                 $c->get(ProjectInitializer::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
@@ -223,12 +232,15 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): DestroyCommand => new DestroyCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
         CleanCommand::class => factory(
             fn(ContainerInterface $c): CleanCommand => new CleanCommand(
                 $c->get(DockerManager::class),
+                $c->get(ConfigManager::class),
+                $c->get(DnsManager::class),
             ),
         ),
 
@@ -297,6 +309,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): InspectCommand => new InspectCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(ServiceRegistry::class),
             ),
         ),
     ]);

@@ -39,6 +39,16 @@ readonly class DockerComposeGenerator
             ];
         }
 
+        // Inject Traefik service when proxy is enabled
+        if ($proxyEnabled) {
+            $traefikService = $this->createTraefikServiceConfig();
+            $traefikLabels = $this->labelGenerator->generateLabels($traefikService, $proxy);
+            $servicesWithLabels['traefik'] = [
+                'config' => $traefikService,
+                'labels' => $traefikLabels,
+            ];
+        }
+
         // Generate Traefik labels for app service (only if proxy enabled)
         $appService = $this->createAppServiceConfig($config);
         $appLabels = $proxyEnabled
@@ -78,6 +88,22 @@ readonly class DockerComposeGenerator
             version: $config->php->version->value,
             port: 80,
             additionalPorts: [],
+            environmentVariables: [],
+        );
+    }
+
+    /**
+     * Create a ServiceConfig for the Traefik service.
+     */
+    private function createTraefikServiceConfig(): ServiceConfig
+    {
+        return new ServiceConfig(
+            name: 'traefik',
+            enabled: true,
+            type: Service::Traefik,
+            version: 'v3.6',
+            port: 80,
+            additionalPorts: [443, 8080],
             environmentVariables: [],
         );
     }

@@ -138,4 +138,16 @@ readonly class MongodbService extends AbstractService implements DatabaseService
             'admin',
         ];
     }
+
+    public function getInspectInfo(ServiceConfig $config): string
+    {
+        $env = $config->environmentVariables;
+
+        return sprintf(
+            'v%s | %s:%s',
+            $config->version,
+            $env['MONGO_INITDB_ROOT_USERNAME'] ?? 'seaman',
+            $env['MONGO_INITDB_ROOT_PASSWORD'] ?? 'seaman',
+        );
+    }
 }

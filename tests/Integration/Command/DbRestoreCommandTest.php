@@ -32,6 +32,7 @@ beforeEach(function () {
 afterEach(function () {
     HeadlessMode::reset();
     chdir($this->originalDir);
+    TestHelper::cleanupDocker($this->tempDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
@@ -81,5 +82,5 @@ test('db:restore command requires confirmation', function () {
     $commandTester->setInputs(['no']);
     $commandTester->execute(['file' => $tempFile]);
 
-    expect($commandTester->getDisplay())->toContain('cancelled');
+    expect($commandTester->getDisplay())->toContain('Operation cancelled');
 });
