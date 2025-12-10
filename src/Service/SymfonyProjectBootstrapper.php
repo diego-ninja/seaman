@@ -85,7 +85,7 @@ final readonly class SymfonyProjectBootstrapper
             return false;
         }
 
-        // Add to PATH for current session if installed to ~/.symfony5/bin
+        // Add to PATH for the current session if installed to ~/.symfony5/bin
         $homeDir = getenv('HOME') ?: '';
         $symfonyBinPath = $homeDir . '/.symfony5/bin';
         if (is_dir($symfonyBinPath)) {

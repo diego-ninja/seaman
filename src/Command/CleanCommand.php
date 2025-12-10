@@ -23,7 +23,7 @@ use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
     name: 'seaman:clean',
-    description: 'Remove all Seaman-generated files from the project',
+    description: 'Remove all seaman-generated files from the project',
     aliases: ['clean'],
 )]
 class CleanCommand extends ModeAwareCommand implements Decorable
@@ -160,7 +160,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         }
 
         if ($hasSeamanEnvSection) {
-            $removeLines[] = ' 🔹Clean environment variables from .env';
+            $removeLines[] = ' 🔹 Clean environment variables from .env';
         }
 
         if ($backupFile !== null) {
@@ -387,13 +387,11 @@ class CleanCommand extends ModeAwareCommand implements Decorable
      */
     private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): void
     {
-        Terminal::output()->writeln('  Cleaning DNS configuration...');
-
         $result = $this->dnsHelper->executeDnsCleanup($projectName, $provider);
 
         foreach ($result['messages'] as $message) {
             if ($result['success']) {
-                Terminal::output()->writeln("    {$message}");
+                Terminal::success($message);
             } else {
                 Terminal::error($message);
             }

@@ -148,11 +148,16 @@ final class Terminal
         return terminal()->width();
     }
 
+    public static function info(string $message): void
+    {
+        self::output()->writeln(sprintf('  <fg=gray>%s</>', $message));
+    }
+
     public static function success(string $message): void
     {
         $symbol = self::supportsAnsi()
-            ? '<fg=bright-green>⬡</>'
-            : '⬡';
+            ? '<fg=bright-green>✓</>'
+            : '✓';
 
         self::output()->writeln(sprintf(
             "%s%s %s",
@@ -165,8 +170,8 @@ final class Terminal
     public static function error(string $message): void
     {
         $symbol = self::supportsAnsi()
-            ? '<fg=bright-red>⬡</>'
-            : '⬡';
+            ? '<fg=bright-red>✗</>'
+            : '✗';
         $text = self::supportsAnsi()
             ? "<fg=bright-red>{$message}</>"
             : $message;

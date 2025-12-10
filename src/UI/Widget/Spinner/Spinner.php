@@ -143,7 +143,7 @@ class Spinner
         }
 
         if ($result !== false) {
-            Terminal::output()->writeln(sprintf("  ⬡ %s", $this->message));
+            Terminal::output()->writeln(sprintf("  ✓ %s", $this->message));
         } else {
             Terminal::output()->writeln(sprintf("  ✗ %s", $this->message));
         }
@@ -192,7 +192,7 @@ class Spinner
             sprintf(
                 "%s<fg=bright-green>%s</> %s",
                 $this->addPadding(),
-                '⬡',
+                '✓',
                 $this->message,
             ),
         );
@@ -205,7 +205,7 @@ class Spinner
             sprintf(
                 "%s<fg=bright-red;options=blink>%s</> %s",
                 $this->addPadding(),
-                '⬡',
+                '✗',
                 $this->message,
             ),
         );

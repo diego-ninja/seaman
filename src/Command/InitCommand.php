@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\DnsProvider;
+use Seaman\Enum\OperatingMode;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
 use Seaman\Service\ComposeImporter;
@@ -57,7 +58,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         parent::__construct();
     }
 
-    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
         return true; // Init works in all modes
     }
@@ -89,7 +90,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
             }
         }
 
-        // Check for existing docker-compose.yml - offer import
+        // Check for the existing docker-compose.yml-offer import
         if ($this->projectDetector->hasDockerCompose($projectRoot) && !$this->projectDetector->hasSeamanConfig($projectRoot)) {
             $importResult = $this->handleExistingDockerCompose($projectRoot);
 
@@ -110,7 +111,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // Bootstrap Symfony project if needed
         $projectType = $this->enableSymfonyProject($projectRoot);
 
-        // Run initialization wizard to collect all choices (including DNS)
+        // Run the initialization wizard to collect all choices (including DNS)
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
         // Build configuration from choices
@@ -151,6 +152,10 @@ class InitCommand extends ModeAwareCommand implements Decorable
         }
 
         Terminal::success('Seaman initialized successfully');
+        Terminal::output()->writeln('');
+        Terminal::output()->writeln('  Your symfony application will be accessible at:');
+        Terminal::output()->writeln("  • https://app.{$config->projectName}.local");
+
         Terminal::output()->writeln([
             '',
             '  Run \'seaman start\' to start your containers',
@@ -365,7 +370,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
                 exit(Command::FAILURE);
             }
 
-            // Change to new project directory
+            // Change to a new project directory
             $projectRoot = dirname($projectRoot) . '/' . $projectName;
             chdir($projectRoot);
         }
@@ -401,9 +406,6 @@ class InitCommand extends ModeAwareCommand implements Decorable
             }
             Terminal::output()->writeln('');
             Terminal::success('DNS already configured');
-            Terminal::output()->writeln('');
-            Terminal::output()->writeln('  Your symfony application will be accessible at:');
-            Terminal::output()->writeln("  • https://app.{$projectName}.local");
             return;
         }
 
@@ -439,9 +441,6 @@ class InitCommand extends ModeAwareCommand implements Decorable
             }
             Terminal::output()->writeln('');
             Terminal::success('DNS configured successfully!');
-            Terminal::output()->writeln('');
-            Terminal::output()->writeln('  Your symfony application will be accessible at:');
-            Terminal::output()->writeln("  • https://app.{$projectName}.local");
         } else {
             foreach ($result['messages'] as $message) {
                 Terminal::error($message);
