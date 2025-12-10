@@ -39,7 +39,7 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         if (!Prompts::confirm('This will remove all containers, networks, and volumes. Are you sure?')) {
-            Terminal::success('Cancelled');
+            Terminal::success('Operation cancelled');
             return Command::SUCCESS;
         }
 

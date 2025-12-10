@@ -58,5 +58,5 @@ test('destroy command cancels when user declines', function () {
     $commandTester->execute([]);
 
     expect($commandTester->getStatusCode())->toBe(0);
-    expect($commandTester->getDisplay())->toContain('Cancelled');
+    expect($commandTester->getDisplay())->toContain('Operation cancelled');
 });

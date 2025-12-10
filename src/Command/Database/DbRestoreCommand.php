@@ -94,7 +94,7 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
             label: "This will overwrite the '{$databaseServiceConfig->name}' database. Continue?",
             default: false,
         )) {
-            Prompts::info('Restore cancelled.');
+            Terminal::success('Operation cancelled');
             return Command::SUCCESS;
         }
 
@@ -124,7 +124,7 @@ class DbRestoreCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        Terminal::success('Database restored successfully.');
+        Terminal::success('Database restored successfully');
 
         return Command::SUCCESS;
     }

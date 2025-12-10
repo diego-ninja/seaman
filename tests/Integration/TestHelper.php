@@ -64,8 +64,6 @@ class TestHelper
     public static function createMinimalDockerCompose(string $targetDir): void
     {
         $composeContent = <<<'YAML'
-version: '3.8'
-
 services:
   app:
     image: php:8.4-cli

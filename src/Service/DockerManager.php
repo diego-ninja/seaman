@@ -220,6 +220,7 @@ readonly class DockerManager
      * @param LogOptions $options Log viewing options
      * @return ProcessResult The result containing the logs
      * @throws \RuntimeException When docker-compose.yml does not exist
+     * @throws \Exception
      */
     public function logs(string $service, LogOptions $options): ProcessResult
     {

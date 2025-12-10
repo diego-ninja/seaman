@@ -47,7 +47,7 @@ test('composer command requires docker-compose.yml', function () {
 
 test('composer command works in unmanaged mode without seaman.yaml', function () {
     // Create docker-compose.yml without seaman.yaml
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('composer'));

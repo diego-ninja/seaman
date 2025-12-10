@@ -131,6 +131,16 @@ test('can register a service', function () {
         {
             return 'test';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
     };
 
     $registry->register($service);
@@ -212,6 +222,16 @@ test('returns all registered services', function () {
         {
             return '⚙️';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -277,6 +297,17 @@ test('returns all registered services', function () {
         {
             return 'test';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
+
     };
 
     $registry->register($service1);
@@ -360,6 +391,17 @@ test('returns only enabled services', function () {
         {
             return '🐬';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
+
     };
 
     $redisService = new class implements ServiceInterface {
@@ -424,6 +466,16 @@ test('returns only enabled services', function () {
         public function getIcon(): string
         {
             return '🧵';
+        }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
         }
     };
 
@@ -506,6 +558,16 @@ test('returns only available services', function () {
         {
             return '🐬';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
     };
 
     $redisService = new class implements ServiceInterface {
@@ -570,6 +632,16 @@ test('returns only available services', function () {
         public function getIcon(): string
         {
             return '🧵';
+        }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
         }
     };
 
@@ -649,6 +721,16 @@ test('replaces service with same name on re-registration', function () {
         {
             return '⚙️';
         }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -713,6 +795,16 @@ test('replaces service with same name on re-registration', function () {
         public function getIcon(): string
         {
             return '⚙️';
+        }
+
+        public function getInternalPorts(): array
+        {
+            return $this->getRequiredPorts();
+        }
+
+        public function getInspectInfo(ServiceConfig $config): string
+        {
+            return 'info';
         }
     };
 

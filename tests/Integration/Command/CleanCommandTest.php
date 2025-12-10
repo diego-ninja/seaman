@@ -47,7 +47,7 @@ test('clean command cancels when user declines confirmation', function () {
     $commandTester->execute([]);
 
     expect($commandTester->getStatusCode())->toBe(0);
-    expect($commandTester->getDisplay())->toContain('Cancelled');
+    expect($commandTester->getDisplay())->toContain('Operation cancelled');
 
     // Files should still exist
     expect(file_exists($this->tempDir . '/docker-compose.yml'))->toBeTrue();

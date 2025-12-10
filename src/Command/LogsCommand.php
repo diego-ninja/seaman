@@ -9,14 +9,14 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Service\DockerManager;
+use Seaman\UI\Terminal;
 use Seaman\ValueObject\LogOptions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'seaman:logs',
@@ -47,8 +47,6 @@ class LogsCommand extends ModeAwareCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-
         /** @var string $service */
         $service = $input->getArgument('service');
         /** @var ?string $tail */
@@ -65,11 +63,11 @@ class LogsCommand extends ModeAwareCommand implements Decorable
         try {
             $result = $this->dockerManager->logs($service, $options);
         } catch (\RuntimeException $e) {
-            $io->error($e->getMessage());
+            Terminal::error($e->getMessage());
             return Command::FAILURE;
         }
 
-        $io->write($result->output);
+        Terminal::output()->write($result->output);
 
         return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
     }

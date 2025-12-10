@@ -61,7 +61,7 @@ class StartCommand extends ModeAwareCommand implements Decorable
         try {
             $result = $this->dockerManager->start($service);
         } catch (\Exception $e) {
-            Terminal::output()->writeln($e->getMessage());
+            Terminal::error($e->getMessage());
             return Command::FAILURE;
         }
 
@@ -69,7 +69,7 @@ class StartCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        Terminal::output()->writeln($result->errorOutput);
+        Terminal::error($result->errorOutput);
         return Command::FAILURE;
     }
 

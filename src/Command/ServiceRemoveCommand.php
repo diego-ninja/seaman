@@ -67,7 +67,7 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         }
 
         if (!Prompts::confirm(label: 'Are you sure you want to remove these services?', default: false)) {
-            Terminal::success('Operation cancelled.');
+            Terminal::success('Operation cancelled');
             return Command::SUCCESS;
         }
 

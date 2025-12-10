@@ -45,7 +45,7 @@ test('proxy:disable is not available in uninitialized mode', function () {
 
 test('proxy:disable is not available in unmanaged mode', function () {
     // Only docker-compose.yml, no seaman.yaml = unmanaged mode
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
 
@@ -55,7 +55,7 @@ test('proxy:disable is not available in unmanaged mode', function () {
 
 test('proxy:disable is available in managed mode', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $command = $application->find('proxy:disable');
@@ -65,7 +65,7 @@ test('proxy:disable is available in managed mode', function () {
 
 test('proxy:disable shows already disabled message when proxy is disabled', function () {
     TestHelper::copyFixture('proxy-disabled-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('proxy:disable'));
@@ -79,7 +79,7 @@ test('proxy:disable shows already disabled message when proxy is disabled', func
 
 test('proxy:disable disables proxy successfully', function () {
     TestHelper::copyFixture('proxy-enabled-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('proxy:disable'));

@@ -46,7 +46,7 @@ test('inspect command is not available in uninitialized mode', function () {
 
 test('inspect command is available with seaman.yaml (managed mode)', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $command = $application->find('inspect');
@@ -56,7 +56,7 @@ test('inspect command is available with seaman.yaml (managed mode)', function ()
 
 test('inspect command executes successfully', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('inspect'));
@@ -69,7 +69,7 @@ test('inspect command executes successfully', function () {
 
 test('inspect command has describe alias', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $command = $application->find('describe');
@@ -80,7 +80,7 @@ test('inspect command has describe alias', function () {
 test('inspect command works in unmanaged mode with docker-compose only', function () {
     // Only docker-compose.yaml, no seaman.yaml = unmanaged mode
     // ModeDetector looks for docker-compose.yaml (not .yml)
-    file_put_contents($this->tempDir . '/docker-compose.yaml', 'version: "3"');
+    file_put_contents($this->tempDir . '/docker-compose.yaml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
 

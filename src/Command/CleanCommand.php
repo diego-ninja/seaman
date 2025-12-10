@@ -70,7 +70,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $this->displayFilesToRemove($filesToRemove, $directoriesToRemove, $backupFile, $hasSeamanEnvSection, $dnsInfo);
 
         if (!Prompts::confirm('This will remove all Seaman files. Are you sure?')) {
-            Terminal::success('Cancelled');
+            Terminal::success('Operation cancelled');
             return Command::SUCCESS;
         }
 
