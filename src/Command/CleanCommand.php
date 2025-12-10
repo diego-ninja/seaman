@@ -13,7 +13,6 @@ use Seaman\Enum\OperatingMode;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsConfigurationHelper;
 use Seaman\Service\DockerManager;
-use Seaman\Service\PrivilegedExecutor;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Seaman\UI\Widget\Box\Box;
@@ -45,7 +44,6 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         private readonly DockerManager $dockerManager,
         private readonly ConfigManager $configManager,
         private readonly DnsConfigurationHelper $dnsHelper,
-        private readonly PrivilegedExecutor $privilegedExecutor,
     ) {
         parent::__construct();
     }
@@ -391,60 +389,13 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     {
         Terminal::output()->writeln('  Cleaning DNS configuration...');
 
-        $result = $this->dnsHelper->cleanupDns($projectName, $provider);
-        $priv = $this->privilegedExecutor->getPrivilegeEscalationString();
+        $result = $this->dnsHelper->executeDnsCleanup($projectName, $provider);
 
-        if (!$result->automatic) {
-            foreach ($result->instructions as $instruction) {
-                Terminal::output()->writeln("    {$instruction}");
-            }
-            return;
-        }
-
-        // Handle hosts file cleanup (requires writing new content)
-        if ($result->type === 'hosts-file-cleanup' && $result->configContent !== null) {
-            $tempFile = tempnam(sys_get_temp_dir(), 'hosts_');
-            if ($tempFile === false) {
-                Terminal::error('Failed to create temp file for hosts cleanup');
-                return;
-            }
-
-            file_put_contents($tempFile, $result->configContent);
-
-            $copyResult = $this->privilegedExecutor->execute(['cp', $tempFile, '/etc/hosts']);
-            unlink($tempFile);
-
-            if ($copyResult->isSuccessful()) {
-                Terminal::success('Removed DNS entries from /etc/hosts');
+        foreach ($result['messages'] as $message) {
+            if ($result['success']) {
+                Terminal::output()->writeln("    {$message}");
             } else {
-                Terminal::error("Failed to update /etc/hosts (requires {$priv})");
-            }
-            return;
-        }
-
-        // Handle file removal for other providers
-        if ($result->configPath !== null && file_exists($result->configPath)) {
-            $removeResult = $this->privilegedExecutor->execute(['rm', '-f', $result->configPath]);
-
-            if ($removeResult->isSuccessful()) {
-                Terminal::success("Removed {$result->configPath}");
-
-                // Restart service if needed
-                if ($result->restartCommand !== null) {
-                    $parts = explode(' ', $result->restartCommand);
-                    // restartCommand already includes privilege escalation prefix from DnsConfigurationHelper
-                    // but we use PrivilegedExecutor for consistency
-                    // Skip the first element if it's sudo/pkexec since we'll use our executor
-                    if (in_array($parts[0], ['sudo', 'pkexec'], true)) {
-                        array_shift($parts);
-                    }
-                    $restartResult = $this->privilegedExecutor->execute($parts);
-                    if ($restartResult->isSuccessful()) {
-                        Terminal::success('Restarted DNS service');
-                    }
-                }
-            } else {
-                Terminal::error("Failed to remove {$result->configPath} (requires {$priv})");
+                Terminal::error($message);
             }
         }
     }

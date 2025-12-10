@@ -231,8 +231,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): DestroyCommand => new DestroyCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
-                $c->get(PrivilegedExecutor::class),
-                $c->get(RealCommandExecutor::class),
+                $c->get(DnsConfigurationHelper::class),
             ),
         ),
 
@@ -241,7 +240,6 @@ return function (ContainerBuilder $builder): void {
                 $c->get(DockerManager::class),
                 $c->get(ConfigManager::class),
                 $c->get(DnsConfigurationHelper::class),
-                $c->get(PrivilegedExecutor::class),
             ),
         ),
 
