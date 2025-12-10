@@ -38,6 +38,38 @@ class TestHelper
     }
 
     /**
+     * Cleans up Docker resources created by tests in a directory.
+     *
+     * @param string $dir The directory containing docker-compose.yml
+     */
+    public static function cleanupDocker(string $dir): void
+    {
+        // Extract project name from directory (matches Docker Compose naming)
+        $projectName = basename($dir);
+
+        // Remove containers for this project
+        exec("docker ps -a --filter 'name={$projectName}' -q | xargs -r docker rm -f 2>/dev/null");
+
+        // Remove networks for this project
+        exec("docker network ls --filter 'name={$projectName}' -q | xargs -r docker network rm 2>/dev/null");
+
+        // Remove volumes for this project
+        exec("docker volume ls --filter 'name={$projectName}' -q | xargs -r docker volume rm 2>/dev/null");
+    }
+
+    /**
+     * Cleans up all orphaned test containers and networks.
+     */
+    public static function cleanupOrphanedNetworks(): void
+    {
+        // First remove containers matching seaman-test-* pattern
+        exec("docker ps -a --filter 'name=seaman-test-' -q | xargs -r docker rm -f 2>/dev/null");
+
+        // Then remove networks matching seaman-test-* pattern
+        exec("docker network ls --filter 'name=seaman-test-' -q | xargs -r docker network rm 2>/dev/null");
+    }
+
+    /**
      * Copies a fixture configuration file to a temporary directory.
      *
      * @param string $fixtureName The name of the fixture file (without path)

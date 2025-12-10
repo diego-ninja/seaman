@@ -31,6 +31,7 @@ beforeEach(function (): void {
 afterEach(function (): void {
     HeadlessMode::reset();
     chdir($this->originalDir);
+    TestHelper::cleanupDocker($this->tempDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 
