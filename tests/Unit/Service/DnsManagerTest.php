@@ -473,3 +473,24 @@ test('cleanupDns returns result for manual provider', function () {
         ->and($result->automatic)->toBeFalse()
         ->and($result->instructions)->not->toBeEmpty();
 });
+
+test('applyDnsConfiguration returns error when PrivilegedExecutor not configured', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $helper = new DnsManager($executor);
+
+    $result = $helper->applyDnsConfiguration('testproject', DnsProvider::Dnsmasq);
+
+    expect($result['success'])->toBeFalse()
+        ->and($result['messages'])->toContain('PrivilegedExecutor not configured');
+});
+
+test('applyDnsConfiguration returns instructions for manual provider', function () {
+    $executor = new FakeDnsCommandExecutor();
+    $privExecutor = new \Seaman\Service\PrivilegedExecutor($executor);
+    $helper = new DnsManager($executor, $privExecutor);
+
+    $result = $helper->applyDnsConfiguration('testproject', DnsProvider::Manual);
+
+    expect($result['success'])->toBeTrue()
+        ->and($result['messages'])->not->toBeEmpty();
+});

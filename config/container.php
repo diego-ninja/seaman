@@ -186,7 +186,6 @@ return function (ContainerBuilder $builder): void {
                 $c->get(InitializationWizard::class),
                 $c->get(ProjectInitializer::class),
                 $c->get(DnsManager::class),
-                $c->get(PrivilegedExecutor::class),
             ),
         ),
 

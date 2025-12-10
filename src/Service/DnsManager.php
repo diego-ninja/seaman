@@ -550,6 +550,121 @@ final readonly class DnsManager
     }
 
     /**
+     * Apply DNS configuration for a project.
+     *
+     * @return array{success: bool, messages: list<string>}
+     */
+    public function applyDnsConfiguration(string $projectName, DnsProvider $provider): array
+    {
+        if ($this->privilegedExecutor === null) {
+            return [
+                'success' => false,
+                'messages' => ['PrivilegedExecutor not configured'],
+            ];
+        }
+
+        $result = $this->configureProvider($projectName, $provider);
+
+        if (!$result->automatic) {
+            return [
+                'success' => true,
+                'messages' => $result->instructions,
+            ];
+        }
+
+        // Handle case where no new entries are needed (all already exist)
+        if ($result->configContent === null && $result->instructions !== []) {
+            return [
+                'success' => true,
+                'messages' => $result->instructions,
+            ];
+        }
+
+        if ($result->configPath === null || $result->configContent === null) {
+            return [
+                'success' => false,
+                'messages' => ['Invalid configuration: missing path or content'],
+            ];
+        }
+
+        $messages = [];
+
+        // Create directory if needed
+        $configDir = dirname($result->configPath);
+        if (!is_dir($configDir)) {
+            $mkdirResult = $result->requiresSudo
+                ? $this->privilegedExecutor->execute(['mkdir', '-p', $configDir])
+                : $this->executor->execute(['mkdir', '-p', $configDir]);
+
+            if (!$mkdirResult->isSuccessful()) {
+                return [
+                    'success' => false,
+                    'messages' => ["Failed to create directory: {$configDir}"],
+                ];
+            }
+            $messages[] = "Created directory: {$configDir}";
+        }
+
+        // Write configuration
+        $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
+        if ($tempFile === false) {
+            return [
+                'success' => false,
+                'messages' => ['Failed to create temporary file'],
+            ];
+        }
+        file_put_contents($tempFile, $result->configContent);
+
+        // For /etc/hosts, append instead of overwrite
+        if ($result->type === 'hosts-file') {
+            $priv = $this->getPrivilegeCommand();
+            $escapedTempFile = escapeshellarg($tempFile);
+            $escapedConfigPath = escapeshellarg($result->configPath);
+            exec("cat {$escapedTempFile} | {$priv} tee -a {$escapedConfigPath} > /dev/null", $output, $exitCode);
+            unlink($tempFile);
+
+            if ($exitCode !== 0) {
+                return [
+                    'success' => false,
+                    'messages' => ['Failed to append to ' . $result->configPath],
+                ];
+            }
+        } else {
+            $copyResult = $result->requiresSudo
+                ? $this->privilegedExecutor->execute(['cp', $tempFile, $result->configPath])
+                : $this->executor->execute(['cp', $tempFile, $result->configPath]);
+            unlink($tempFile);
+
+            if (!$copyResult->isSuccessful()) {
+                return [
+                    'success' => false,
+                    'messages' => ['Failed to write ' . $result->configPath],
+                ];
+            }
+        }
+
+        $messages[] = "Wrote DNS configuration to {$result->configPath}";
+
+        // Restart DNS service if needed
+        if ($result->restartCommand !== null) {
+            $parts = explode(' ', $result->restartCommand);
+            // Skip privilege prefix since we use PrivilegedExecutor
+            if (in_array($parts[0], ['sudo', 'pkexec'], true)) {
+                array_shift($parts);
+            }
+            $restartResult = $this->privilegedExecutor->execute($parts);
+            if ($restartResult->isSuccessful()) {
+                $messages[] = 'Restarted DNS service';
+            }
+        }
+
+        return [
+            'success' => true,
+            'messages' => $messages,
+        ];
+    }
+
+    /**
      * Execute DNS cleanup for a project with a known provider.
      *
      * @return array{success: bool, messages: list<string>}

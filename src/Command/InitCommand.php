@@ -19,12 +19,10 @@ use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\Terminal;
 use Seaman\ValueObject\Configuration;
-use Seaman\ValueObject\DnsConfigurationResult;
 use Seaman\ValueObject\ImportResult;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\ProxyConfig;
@@ -55,7 +53,6 @@ class InitCommand extends ModeAwareCommand implements Decorable
         private readonly InitializationWizard       $wizard,
         private readonly ProjectInitializer         $initializer,
         private readonly DnsManager                 $dnsManager,
-        private readonly PrivilegedExecutor         $privilegedExecutor,
     ) {
         parent::__construct();
     }
@@ -383,121 +380,72 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=cyan>Configuring DNS...</>');
         Terminal::output()->writeln('');
 
-        $result = $this->dnsManager->configureProvider($projectName, $provider);
-        $this->processDnsResult($result, $projectName);
-    }
+        // Get configuration preview
+        $preview = $this->dnsManager->configureProvider($projectName, $provider);
 
-    private function processDnsResult(DnsConfigurationResult $result, string $projectName): void
-    {
-        if (!$result->automatic) {
-            $this->handleManualDnsConfiguration($result);
-            return;
-        }
-
-        $this->handleAutomaticDnsConfiguration($result, $projectName);
-    }
-
-    private function handleAutomaticDnsConfiguration(DnsConfigurationResult $result, string $projectName): void
-    {
-        if ($result->configPath === null || $result->configContent === null) {
-            Terminal::error('Invalid automatic configuration: missing path or content');
-            return;
-        }
-
-        Terminal::output()->writeln("  Detected: <fg=green>{$result->type}</>");
-        Terminal::output()->writeln('');
-
-        if ($result->requiresSudo) {
-            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires elevated privileges</>');
+        // Handle manual configuration
+        if (!$preview->automatic) {
+            Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
             Terminal::output()->writeln('');
-        }
-
-        Terminal::output()->writeln("  Configuration file: <fg=cyan>{$result->configPath}</>");
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  Content:');
-        Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($result->configContent)) . '</>');
-        Terminal::output()->writeln('');
-
-        if (!Prompts::confirm('Apply this DNS configuration?', true)) {
-            Prompts::info('DNS configuration skipped.');
+            foreach ($preview->instructions as $instruction) {
+                Terminal::output()->writeln('  ' . $instruction);
+            }
+            Terminal::output()->writeln('');
             return;
         }
 
-        $privEsc = $this->privilegedExecutor->getPrivilegeEscalationString();
+        // Handle case where all entries already exist
+        if ($preview->configContent === null && $preview->instructions !== []) {
+            foreach ($preview->instructions as $instruction) {
+                Terminal::output()->writeln("  {$instruction}");
+            }
+            Terminal::output()->writeln('');
+            Terminal::success('DNS already configured');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Your symfony application will be accessible at:');
+            Terminal::output()->writeln("  • https://app.{$projectName}.local");
+            return;
+        }
 
-        // Create directory if needed
-        $configDir = dirname($result->configPath);
-        $escapedConfigDir = escapeshellarg($configDir);
-        if (!is_dir($configDir)) {
-            $mkdirCmd = $result->requiresSudo
-                ? "{$privEsc} mkdir -p {$escapedConfigDir}"
-                : "mkdir -p {$escapedConfigDir}";
-            Terminal::output()->writeln("  Creating directory: {$configDir}");
-            exec($mkdirCmd, $output, $exitCode);
+        // Show preview for automatic configuration
+        if ($preview->configPath !== null && $preview->configContent !== null) {
+            Terminal::output()->writeln("  Detected: <fg=green>{$preview->type}</>");
+            Terminal::output()->writeln('');
 
-            if ($exitCode !== 0) {
-                Terminal::error('Failed to create configuration directory');
+            if ($preview->requiresSudo) {
+                Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires elevated privileges</>');
+                Terminal::output()->writeln('');
+            }
+
+            Terminal::output()->writeln("  Configuration file: <fg=cyan>{$preview->configPath}</>");
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Content:');
+            Terminal::output()->writeln('  <fg=gray>' . str_replace("\n", "\n  ", trim($preview->configContent)) . '</>');
+            Terminal::output()->writeln('');
+
+            if (!Prompts::confirm('Apply this DNS configuration?', true)) {
+                Prompts::info('DNS configuration skipped.');
                 return;
             }
         }
 
-        // Write configuration
-        $tempFile = tempnam(sys_get_temp_dir(), 'seaman-dns-');
-        if ($tempFile === false) {
-            Terminal::error('Failed to create temporary file');
-            return;
-        }
-        file_put_contents($tempFile, $result->configContent);
-
-        $escapedTempFile = escapeshellarg($tempFile);
-        $escapedConfigPath = escapeshellarg($result->configPath);
-
-        // For /etc/hosts, append instead of overwrite
-        if ($result->type === 'hosts-file') {
-            $appendCmd = $result->requiresSudo
-                ? "cat {$escapedTempFile} | {$privEsc} tee -a {$escapedConfigPath} > /dev/null"
-                : "cat {$escapedTempFile} >> {$escapedConfigPath}";
-            exec($appendCmd, $output, $exitCode);
-        } else {
-            $cpCmd = $result->requiresSudo
-                ? "{$privEsc} cp {$escapedTempFile} {$escapedConfigPath}"
-                : "cp {$escapedTempFile} {$escapedConfigPath}";
-            exec($cpCmd, $output, $exitCode);
-        }
-
-        unlink($tempFile);
-
-        if ($exitCode !== 0) {
-            Terminal::error('Failed to write DNS configuration');
-            return;
-        }
+        // Apply configuration
+        $result = $this->dnsManager->applyDnsConfiguration($projectName, $provider);
 
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=green>✓</> DNS configuration written');
-
-        // Restart DNS service if needed
-        if ($result->restartCommand !== null) {
+        if ($result['success']) {
+            foreach ($result['messages'] as $message) {
+                Terminal::output()->writeln("  {$message}");
+            }
             Terminal::output()->writeln('');
-            Terminal::output()->writeln('  Restarting DNS service...');
-            exec($result->restartCommand);
+            Terminal::success('DNS configured successfully!');
+            Terminal::output()->writeln('');
+            Terminal::output()->writeln('  Your symfony application will be accessible at:');
+            Terminal::output()->writeln("  • https://app.{$projectName}.local");
+        } else {
+            foreach ($result['messages'] as $message) {
+                Terminal::error($message);
+            }
         }
-
-        Terminal::success('DNS configured successfully!');
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  Your services will be accessible at:');
-        Terminal::output()->writeln("  • https://app.{$projectName}.local");
-        Terminal::output()->writeln("  • https://traefik.{$projectName}.local");
-    }
-
-    private function handleManualDnsConfiguration(DnsConfigurationResult $result): void
-    {
-        Terminal::output()->writeln('  <fg=yellow>Manual DNS Configuration Required</>');
-        Terminal::output()->writeln('');
-
-        foreach ($result->instructions as $instruction) {
-            Terminal::output()->writeln('  ' . $instruction);
-        }
-
-        Terminal::output()->writeln('');
     }
 }
