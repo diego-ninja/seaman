@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Enum representing supported PHP versions for Docker images.
+// ABOUTME: Used for PHP version selection during project initialization.
+
 namespace Seaman\Enum;
 
 enum PhpVersion: string

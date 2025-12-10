@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Central terminal output management and styling utilities.
+// ABOUTME: Provides methods for formatted output, colors, and ANSI support detection.
+
 namespace Seaman\UI;
 
 use Seaman\UI\HeadlessMode;

@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Base command class for all Seaman commands.
+// ABOUTME: Handles terminal output setup and desktop notifications.
+
 namespace Seaman\Command;
 
 use Seaman\Notifier\NotifiableInterface;

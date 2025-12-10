@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Enum representing application runtime environments.
+// ABOUTME: Values: local, staging, production, testing.
+
 namespace Seaman\Enum;
 
 enum Environment: string

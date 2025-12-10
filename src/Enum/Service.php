@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Enum representing all available Docker services.
+// ABOUTME: Includes databases, caches, queues, and utility services.
+
 namespace Seaman\Enum;
 
 enum Service: string

@@ -5,44 +5,10 @@ parameters:
     level: 10
     paths:
         - src
-        - tests
         - helpers
     scanFiles:
         - helpers/functions.php
     excludePaths:
-        - tests/Fixtures
         - config/container.php
     reportUnmatchedIgnoredErrors: false
     tmpDir: build/phpstan
-    ignoreErrors:
-        - '#Call to an undefined method Pest\\PendingCalls\\TestCall.*::(throws|with)\(\)#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$tempDir#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$testDir#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$originalDir#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$manager#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$renderer#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$registry#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$config#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$generator#'
-        - '#Access to an undefined property PHPUnit\\Framework\\TestCase::\$projectRoot#'
-        - '#Part \$this->projectRoot \(mixed\) of encapsed string cannot be cast to string#'
-        - '#Part \$this->testDir \(mixed\) of encapsed string cannot be cast to string#'
-        - '#Parameter \#1 \$projectRoot of class Seaman\\Service\\DockerImageBuilder constructor expects string, mixed given#'
-        - '#Parameter \#1 \$registry of class Seaman\\Service\\ProjectInitializer constructor expects .*, mixed given#'
-        - '#Parameter \#2 \$projectRoot of method Seaman\\Service\\ProjectInitializer::initializeDockerEnvironment\(\) expects string, mixed given#'
-        - '#Parameter \#1 \$projectRoot of class Seaman\\Service\\ConfigManager constructor expects string, mixed given#'
-        - '#Parameter \#2 \$serviceRegistry of class Seaman\\Service\\ConfigManager constructor expects .*, mixed given#'
-        - '#Parameter \#1 \$directory of function chdir expects string, mixed given#'
-        - '#Parameter \#1 \$dir of static method Seaman\\Tests\\Integration\\TestHelper::removeTempDir\(\) expects string, mixed given#'
-        - '#Parameter \#2 \$targetDir of static method Seaman\\Tests\\Integration\\TestHelper::copyFixture\(\) expects string, mixed given#'
-        - '#Parameter \#1 \$filename of function is_dir expects string, mixed given#'
-        - '#Parameter \#1 \$filename of function unlink expects string, mixed given#'
-        - '#Parameter \#1 \$directory of function rmdir expects string, mixed given#'
-        - '#Parameter \#2 \$array of function array_map expects array#'
-        - '#Binary operation "\." between mixed and#'
-        - '#Cannot call method .* on mixed#'
-        - '#Cannot access property \$test on Seaman\\ValueObject\\HealthCheck\|null#'
-        - '#Cannot access property \$interval on Seaman\\ValueObject\\HealthCheck\|null#'
-        - '#Cannot access property \$timeout on Seaman\\ValueObject\\HealthCheck\|null#'
-        - '#Cannot access property \$retries on Seaman\\ValueObject\\HealthCheck\|null#'
-        - '#Method .*@anonymous.*::getHealthCheck\(\) never returns null so it can be removed from the return type#'

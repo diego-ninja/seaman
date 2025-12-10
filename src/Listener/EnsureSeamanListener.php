@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Event listener that validates Seaman environment before command execution.
+// ABOUTME: Ensures Terminal output is properly initialized.
+
 namespace Seaman\Listener;
 
 use Seaman\Attribute\AsEventListener;

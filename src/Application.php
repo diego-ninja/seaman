@@ -49,7 +49,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class Application extends BaseApplication
 {
-    private const string VERSION = '1.0.0-beta';
+    private const string VERSION = '1.0.0';
 
     public EventDispatcher $eventDispatcher {
         get {

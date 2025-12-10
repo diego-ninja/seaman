@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Base exception class for all Seaman-specific errors.
+// ABOUTME: Provides factory methods for consistent exception handling.
+
 namespace Seaman\Exception;
 
 use Exception;

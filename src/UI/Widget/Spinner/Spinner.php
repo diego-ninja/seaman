@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+// ABOUTME: Animated terminal spinner for long-running operations.
+// ABOUTME: Supports multiple animation styles and handles signal interruption.
+
 namespace Seaman\UI\Widget\Spinner;
 
 use Exception;
