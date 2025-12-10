@@ -19,7 +19,7 @@ use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
-use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\Terminal;
@@ -54,6 +54,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
         private readonly InitializationSummary      $summary,
         private readonly InitializationWizard       $wizard,
         private readonly ProjectInitializer         $initializer,
+        private readonly DnsManager                 $dnsManager,
+        private readonly PrivilegedExecutor         $privilegedExecutor,
     ) {
         parent::__construct();
     }
@@ -381,10 +383,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('  <fg=cyan>Configuring DNS...</>');
         Terminal::output()->writeln('');
 
-        $executor = new RealCommandExecutor();
-        $helper = new DnsManager($executor);
-
-        $result = $helper->configureProvider($projectName, $provider);
+        $result = $this->dnsManager->configureProvider($projectName, $provider);
         $this->processDnsResult($result, $projectName);
     }
 
@@ -409,7 +408,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
         Terminal::output()->writeln('');
 
         if ($result->requiresSudo) {
-            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires sudo access</>');
+            Terminal::output()->writeln('  <fg=yellow>⚠ This configuration requires elevated privileges</>');
             Terminal::output()->writeln('');
         }
 
@@ -424,12 +423,14 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return;
         }
 
+        $privEsc = $this->privilegedExecutor->getPrivilegeEscalationString();
+
         // Create directory if needed
         $configDir = dirname($result->configPath);
         $escapedConfigDir = escapeshellarg($configDir);
         if (!is_dir($configDir)) {
             $mkdirCmd = $result->requiresSudo
-                ? "sudo mkdir -p {$escapedConfigDir}"
+                ? "{$privEsc} mkdir -p {$escapedConfigDir}"
                 : "mkdir -p {$escapedConfigDir}";
             Terminal::output()->writeln("  Creating directory: {$configDir}");
             exec($mkdirCmd, $output, $exitCode);
@@ -454,12 +455,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
         // For /etc/hosts, append instead of overwrite
         if ($result->type === 'hosts-file') {
             $appendCmd = $result->requiresSudo
-                ? "cat {$escapedTempFile} | sudo tee -a {$escapedConfigPath} > /dev/null"
+                ? "cat {$escapedTempFile} | {$privEsc} tee -a {$escapedConfigPath} > /dev/null"
                 : "cat {$escapedTempFile} >> {$escapedConfigPath}";
             exec($appendCmd, $output, $exitCode);
         } else {
             $cpCmd = $result->requiresSudo
-                ? "sudo cp {$escapedTempFile} {$escapedConfigPath}"
+                ? "{$privEsc} cp {$escapedTempFile} {$escapedConfigPath}"
                 : "cp {$escapedTempFile} {$escapedConfigPath}";
             exec($cpCmd, $output, $exitCode);
         }
