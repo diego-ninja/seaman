@@ -60,6 +60,20 @@ test('detects PHP version from composer.json with tilde constraint', function ()
     expect($version)->toBe(PhpVersion::Php84);
 });
 
+test('detects PHP 8.5 version from composer.json', function () {
+    $composerJson = [
+        'require' => [
+            'php' => '^8.5',
+        ],
+    ];
+    file_put_contents($this->testDir . '/composer.json', json_encode($composerJson));
+
+    $detector = new PhpVersionDetector();
+    $version = $detector->detectFromComposer($this->testDir);
+
+    expect($version)->toBe(PhpVersion::Php85);
+});
+
 test('returns null when composer.json does not exist', function () {
     $detector = new PhpVersionDetector();
     $version = $detector->detectFromComposer($this->testDir);
