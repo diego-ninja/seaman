@@ -249,7 +249,7 @@ final class MyPlugin implements PluginInterface
                 'memory_limit' => '2G',
             ],
             healthCheck: new HealthCheck(
-                command: 'clickhouse-client --query="SELECT 1"',
+                test: ['CMD', 'clickhouse-client', '--query=SELECT 1'],
                 interval: '10s',
                 timeout: '5s',
                 retries: 3,
@@ -606,7 +606,7 @@ final class ClickHousePlugin implements PluginInterface
                 'memory_limit' => $this->config->get('memory_limit'),
             ],
             healthCheck: new HealthCheck(
-                command: 'clickhouse-client --query="SELECT 1"',
+                test: ['CMD', 'clickhouse-client', '--query=SELECT 1'],
                 interval: '10s',
                 timeout: '5s',
                 retries: 3,
