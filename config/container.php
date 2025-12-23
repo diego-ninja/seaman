@@ -49,6 +49,8 @@ use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Plugin\PluginRegistry;
 use Seaman\Plugin\PluginLifecycleDispatcher;
+use Seaman\Plugin\PluginTemplateLoader;
+use Seaman\Plugin\Extractor\TemplateExtractor;
 use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
@@ -363,6 +365,13 @@ return function (ContainerBuilder $builder): void {
         PluginLifecycleDispatcher::class => factory(
             fn(ContainerInterface $c): PluginLifecycleDispatcher => new PluginLifecycleDispatcher(
                 $c->get(PluginRegistry::class),
+            ),
+        ),
+
+        PluginTemplateLoader::class => factory(
+            fn(ContainerInterface $c): PluginTemplateLoader => new PluginTemplateLoader(
+                $c->get(PluginRegistry::class),
+                new TemplateExtractor(),
             ),
         ),
 
