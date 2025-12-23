@@ -55,6 +55,33 @@ final class PluginRegistry
     }
 
     /**
+     * @param array<string, array<string, mixed>> $pluginConfig
+     */
+    public static function discover(
+        string $projectRoot,
+        string $localPluginsDir,
+        array $pluginConfig,
+    ): self {
+        $registry = new self();
+
+        // Load Composer plugins first
+        $composerLoader = new Loader\ComposerPluginLoader($projectRoot);
+        foreach ($composerLoader->load() as $plugin) {
+            $config = $pluginConfig[$plugin->getName()] ?? [];
+            $registry->register($plugin, $config, 'composer');
+        }
+
+        // Load local plugins (can override Composer)
+        $localLoader = new Loader\LocalPluginLoader($localPluginsDir);
+        foreach ($localLoader->load() as $plugin) {
+            $config = $pluginConfig[$plugin->getName()] ?? [];
+            $registry->register($plugin, $config, 'local');
+        }
+
+        return $registry;
+    }
+
+    /**
      * @param array<string, mixed> $config
      * @return array<string, mixed>
      */
