@@ -1,4 +1,5 @@
 {
+    "check-requirements": false,
     "output": "dist/seaman.phar",
     "directories": [
         "src",
