@@ -47,6 +47,10 @@ use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Command\Plugin\PluginListCommand;
+use Seaman\Command\Plugin\PluginInfoCommand;
+use Seaman\Command\Plugin\PluginCreateCommand;
 
 use function DI\create;
 use function DI\factory;
@@ -310,6 +314,33 @@ return function (ContainerBuilder $builder): void {
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
                 $c->get(ServiceRegistry::class),
+            ),
+        ),
+
+        // Plugin system
+        PluginRegistry::class => factory(
+            fn(ContainerInterface $c): PluginRegistry => PluginRegistry::discover(
+                projectRoot: $c->get('projectRoot'),
+                localPluginsDir: $c->get('projectRoot') . '/.seaman/plugins',
+                pluginConfig: [],
+            ),
+        ),
+
+        PluginListCommand::class => factory(
+            fn(ContainerInterface $c): PluginListCommand => new PluginListCommand(
+                $c->get(PluginRegistry::class),
+            ),
+        ),
+
+        PluginInfoCommand::class => factory(
+            fn(ContainerInterface $c): PluginInfoCommand => new PluginInfoCommand(
+                $c->get(PluginRegistry::class),
+            ),
+        ),
+
+        PluginCreateCommand::class => factory(
+            fn(ContainerInterface $c): PluginCreateCommand => new PluginCreateCommand(
+                $c->get('projectRoot'),
             ),
         ),
     ]);

@@ -36,11 +36,16 @@ use Seaman\Command\StartCommand;
 use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
+use Seaman\Command\Plugin\PluginListCommand;
+use Seaman\Command\Plugin\PluginInfoCommand;
+use Seaman\Command\Plugin\PluginCreateCommand;
 use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
 use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Exception\CommandNotAvailableException;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\Extractor\CommandExtractor;
 use Seaman\Service\Detector\ModeDetector;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Application as BaseApplication;
@@ -132,11 +137,26 @@ class Application extends BaseApplication
             $container->get(ProxyEnableCommand::class),
             $container->get(ProxyDisableCommand::class),
             $container->get(InspectCommand::class),
+            $container->get(PluginListCommand::class),
+            $container->get(PluginInfoCommand::class),
+            $container->get(PluginCreateCommand::class),
         ];
 
         // Only register build command when not running from PHAR
         if (!\Phar::running()) {
             $commands[] = new BuildCommand();
+        }
+
+        // Register commands from plugins
+        /** @var PluginRegistry $pluginRegistry */
+        $pluginRegistry = $container->get(PluginRegistry::class);
+        $commandExtractor = new CommandExtractor();
+
+        foreach ($pluginRegistry->all() as $loaded) {
+            $pluginCommands = $commandExtractor->extract($loaded->instance);
+            foreach ($pluginCommands as $command) {
+                $commands[] = $command;
+            }
         }
 
         return $commands;
