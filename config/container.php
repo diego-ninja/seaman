@@ -63,7 +63,14 @@ return function (ContainerBuilder $builder): void {
         'projectRoot' => factory(fn (): string => (string) getcwd()),
 
         // Core services
-        ServiceRegistry::class => factory(fn(): ServiceRegistry => ServiceRegistry::create()),
+        ServiceRegistry::class => factory(
+            function (ContainerInterface $c): ServiceRegistry {
+                $registry = ServiceRegistry::create();
+                $registry->registerPluginServices($c->get(PluginRegistry::class));
+
+                return $registry;
+            },
+        ),
         ConfigurationValidator::class => create(ConfigurationValidator::class),
         SymfonyDetector::class => create(SymfonyDetector::class),
         PhpVersionDetector::class => create(PhpVersionDetector::class),

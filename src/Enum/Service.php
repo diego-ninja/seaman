@@ -31,6 +31,7 @@ enum Service: string
     case Soketi = 'soketi';
     case Dozzle = 'dozzle';
 
+    case Custom = 'custom';
     case None = 'none';
 
     /**
@@ -58,6 +59,7 @@ enum Service: string
             self::Kafka => 'Apache Kafka distributed event streaming platform',
             self::Mercure => 'Mercure real-time updates hub for Symfony',
             self::Soketi => 'Soketi WebSocket server (Pusher compatible)',
+            self::Custom => 'Custom plugin-provided service',
             self::None => throw new \Exception('To be implemented'),
         };
     }
@@ -68,7 +70,7 @@ enum Service: string
             self::App => 8000,
             self::Traefik => 443,
             self::MySQL, self::MariaDB => 3306,
-            self::SQLite, self::None => 0,
+            self::SQLite, self::Custom, self::None => 0,
             self::PostgreSQL => 5432,
             self::MongoDB => 27017,
             self::Redis, self::Valkey => 6379,

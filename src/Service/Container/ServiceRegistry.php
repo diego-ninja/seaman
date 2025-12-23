@@ -8,6 +8,9 @@ declare(strict_types=1);
 namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Extractor\ServiceExtractor;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\PluginServiceAdapter;
 use Seaman\ValueObject\Configuration;
 
 class ServiceRegistry
@@ -30,6 +33,20 @@ class ServiceRegistry
     public function register(ServiceInterface $service): void
     {
         $this->services[$service->getName()] = $service;
+    }
+
+    public function registerPluginServices(PluginRegistry $pluginRegistry): void
+    {
+        $extractor = new ServiceExtractor();
+
+        foreach ($pluginRegistry->all() as $loadedPlugin) {
+            $serviceDefinitions = $extractor->extract($loadedPlugin->instance);
+
+            foreach ($serviceDefinitions as $definition) {
+                $adapter = new PluginServiceAdapter($definition);
+                $this->register($adapter);
+            }
+        }
     }
 
     public function get(Service $name): ServiceInterface

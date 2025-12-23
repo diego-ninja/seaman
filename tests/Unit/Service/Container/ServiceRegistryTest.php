@@ -815,3 +815,84 @@ test('replaces service with same name on re-registration', function () {
         ->and($registry->get(Service::None))->toBe($service2)
         ->and($registry->get(Service::None)->getDisplayName())->toBe('Test V2');
 });
+
+test('registerPluginServices registers all plugin services', function (): void {
+    $registry = new ServiceRegistry();
+
+    $plugin1 = new class implements \Seaman\Plugin\PluginInterface {
+        public function getName(): string
+        {
+            return 'test-plugin-1';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Test plugin 1';
+        }
+
+        #[\Seaman\Plugin\Attribute\ProvidesService]
+        public function provideTestService(): \Seaman\Plugin\ServiceDefinition
+        {
+            return new \Seaman\Plugin\ServiceDefinition(
+                name: 'custom-service-1',
+                template: '/path/to/template1.yaml',
+                displayName: 'Custom Service 1',
+                icon: '🚀',
+                ports: [9001],
+            );
+        }
+    };
+
+    $plugin2 = new class implements \Seaman\Plugin\PluginInterface {
+        public function getName(): string
+        {
+            return 'test-plugin-2';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Test plugin 2';
+        }
+
+        #[\Seaman\Plugin\Attribute\ProvidesService]
+        public function provideAnotherService(): \Seaman\Plugin\ServiceDefinition
+        {
+            return new \Seaman\Plugin\ServiceDefinition(
+                name: 'custom-service-2',
+                template: '/path/to/template2.yaml',
+                displayName: 'Custom Service 2',
+                icon: '🔥',
+                ports: [9002],
+            );
+        }
+    };
+
+    $pluginRegistry = new \Seaman\Plugin\PluginRegistry();
+    $pluginRegistry->register($plugin1, [], 'test');
+    $pluginRegistry->register($plugin2, [], 'test');
+
+    $registry->registerPluginServices($pluginRegistry);
+
+    $allServices = $registry->all();
+
+    expect($allServices)->toHaveKey('custom-service-1')
+        ->and($allServices)->toHaveKey('custom-service-2')
+        ->and($allServices['custom-service-1']->getName())->toBe('custom-service-1')
+        ->and($allServices['custom-service-1']->getDisplayName())->toBe('Custom Service 1')
+        ->and($allServices['custom-service-1']->getIcon())->toBe('🚀')
+        ->and($allServices['custom-service-1']->getType())->toBe(Service::Custom)
+        ->and($allServices['custom-service-2']->getName())->toBe('custom-service-2')
+        ->and($allServices['custom-service-2']->getDisplayName())->toBe('Custom Service 2')
+        ->and($allServices['custom-service-2']->getIcon())->toBe('🔥')
+        ->and($allServices['custom-service-2']->getType())->toBe(Service::Custom);
+});
