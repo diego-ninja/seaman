@@ -39,6 +39,7 @@ use Seaman\Command\XdebugCommand;
 use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
+use Seaman\Command\Plugin\PluginInstallCommand;
 use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
 use Seaman\EventListener\EventListenerMetadata;
@@ -140,6 +141,7 @@ class Application extends BaseApplication
             $container->get(PluginListCommand::class),
             $container->get(PluginInfoCommand::class),
             $container->get(PluginCreateCommand::class),
+            $container->get(PluginInstallCommand::class),
         ];
 
         // Only register build command when not running from PHAR

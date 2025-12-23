@@ -54,6 +54,8 @@ use Seaman\Plugin\Extractor\TemplateExtractor;
 use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
+use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Service\PackagistClient;
 
 use function DI\create;
 use function DI\factory;
@@ -380,9 +382,22 @@ return function (ContainerBuilder $builder): void {
             ),
         ),
 
+        PackagistClient::class => factory(
+            fn(ContainerInterface $c): PackagistClient => new PackagistClient(
+                $c->get('projectRoot') . '/.seaman/cache',
+            ),
+        ),
+
         PluginListCommand::class => factory(
             fn(ContainerInterface $c): PluginListCommand => new PluginListCommand(
                 $c->get(PluginRegistry::class),
+                $c->get(PackagistClient::class),
+            ),
+        ),
+
+        PluginInstallCommand::class => factory(
+            fn(ContainerInterface $c): PluginInstallCommand => new PluginInstallCommand(
+                $c->get(PackagistClient::class),
             ),
         ),
 
