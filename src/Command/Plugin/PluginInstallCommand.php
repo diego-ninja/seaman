@@ -1,7 +1,7 @@
 <?php
 
 // ABOUTME: Installs Seaman plugins from Packagist.
-// ABOUTME: Wraps composer require to install seaman-plugin packages.
+// ABOUTME: Shows interactive selection when no package specified, or installs directly.
 
 declare(strict_types=1);
 
@@ -9,7 +9,9 @@ namespace Seaman\Command\Plugin;
 
 use Seaman\Command\AbstractSeamanCommand;
 use Seaman\Exception\PackagistException;
+use Seaman\Plugin\PluginRegistry;
 use Seaman\Service\PackagistClient;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -21,12 +23,13 @@ use Symfony\Component\Process\Process;
 
 #[AsCommand(
     name: 'plugin:install',
-    description: 'Install a plugin from Packagist',
+    description: 'Install plugins from Packagist',
 )]
 final class PluginInstallCommand extends AbstractSeamanCommand
 {
     public function __construct(
         private readonly PackagistClient $packagist,
+        private readonly PluginRegistry $registry,
     ) {
         parent::__construct();
     }
@@ -35,7 +38,7 @@ final class PluginInstallCommand extends AbstractSeamanCommand
     {
         $this->addArgument(
             'package',
-            InputArgument::REQUIRED,
+            InputArgument::OPTIONAL,
             'The plugin package name (e.g., vendor/seaman-plugin-name)',
         );
 
@@ -49,10 +52,91 @@ final class PluginInstallCommand extends AbstractSeamanCommand
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        /** @var string $package */
+        /** @var string|null $package */
         $package = $input->getArgument('package');
-        $isDev = $input->getOption('dev');
+        $isDev = (bool) $input->getOption('dev');
 
+        if ($package === null) {
+            return $this->interactiveInstall($isDev);
+        }
+
+        return $this->installPackage($package, $isDev);
+    }
+
+    private function interactiveInstall(bool $isDev): int
+    {
+        try {
+            $availablePlugins = $this->packagist->searchPlugins();
+        } catch (PackagistException $e) {
+            Terminal::error(sprintf('Could not fetch plugins from Packagist: %s', $e->getMessage()));
+            return Command::FAILURE;
+        }
+
+        if (empty($availablePlugins)) {
+            Terminal::info('No plugins available on Packagist');
+            return Command::SUCCESS;
+        }
+
+        // Get installed plugin names
+        $installedNames = $this->getInstalledPluginNames();
+
+        // Filter out already installed plugins
+        $installablePlugins = array_filter(
+            $availablePlugins,
+            fn(array $plugin): bool => !in_array($plugin['name'], $installedNames, true),
+        );
+
+        if (empty($installablePlugins)) {
+            Terminal::info('All available plugins are already installed');
+            return Command::SUCCESS;
+        }
+
+        // Build options for multiselect
+        $options = [];
+        foreach ($installablePlugins as $plugin) {
+            $downloads = $this->formatNumber($plugin['downloads']);
+            $description = $this->truncate($plugin['description'], 40);
+            $options[$plugin['name']] = sprintf(
+                '%s - %s (%s downloads)',
+                $plugin['name'],
+                $description,
+                $downloads,
+            );
+        }
+
+        $selected = Prompts::multiselect(
+            label: 'Select plugins to install',
+            options: $options,
+            hint: 'Use space to select, enter to confirm',
+        );
+
+        if (empty($selected)) {
+            Terminal::info('No plugins selected');
+            return Command::SUCCESS;
+        }
+
+        // Install selected plugins
+        $failed = [];
+        foreach ($selected as $packageName) {
+            $result = $this->installPackage($packageName, $isDev);
+            if ($result !== Command::SUCCESS) {
+                $failed[] = $packageName;
+            }
+        }
+
+        if (!empty($failed)) {
+            Terminal::error(sprintf(
+                'Failed to install: %s',
+                implode(', ', $failed),
+            ));
+            return Command::FAILURE;
+        }
+
+        return Command::SUCCESS;
+    }
+
+    private function installPackage(string $package, bool $isDev): int
+    {
         // Validate that the package is a seaman-plugin
         if (!$this->isValidPlugin($package)) {
             Terminal::error(sprintf(
@@ -78,13 +162,11 @@ final class PluginInstallCommand extends AbstractSeamanCommand
         });
 
         if ($exitCode !== 0) {
-            Terminal::error('Failed to install plugin');
+            Terminal::error(sprintf('Failed to install plugin: %s', $package));
             return Command::FAILURE;
         }
 
         Terminal::success(sprintf('Plugin "%s" installed successfully', $package));
-        Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=gray>Run "seaman plugin:list" to see installed plugins</>');
 
         return Command::SUCCESS;
     }
@@ -106,5 +188,39 @@ final class PluginInstallCommand extends AbstractSeamanCommand
             // Composer will fail if the package doesn't exist
             return true;
         }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getInstalledPluginNames(): array
+    {
+        $names = [];
+        foreach ($this->registry->all() as $loaded) {
+            $names[] = $loaded->instance->getName();
+        }
+        return $names;
+    }
+
+    private function truncate(string $text, int $length): string
+    {
+        if (mb_strlen($text) <= $length) {
+            return $text;
+        }
+
+        return mb_substr($text, 0, $length - 3) . '...';
+    }
+
+    private function formatNumber(int $number): string
+    {
+        if ($number >= 1000000) {
+            return round($number / 1000000, 1) . 'M';
+        }
+
+        if ($number >= 1000) {
+            return round($number / 1000, 1) . 'k';
+        }
+
+        return (string) $number;
     }
 }

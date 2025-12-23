@@ -398,6 +398,7 @@ return function (ContainerBuilder $builder): void {
         PluginInstallCommand::class => factory(
             fn(ContainerInterface $c): PluginInstallCommand => new PluginInstallCommand(
                 $c->get(PackagistClient::class),
+                $c->get(PluginRegistry::class),
             ),
         ),
 
