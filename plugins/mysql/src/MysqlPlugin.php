@@ -71,6 +71,9 @@ final class MysqlPlugin implements PluginInterface
     #[ProvidesService(name: 'mysql', category: ServiceCategory::Database)]
     public function mysqlService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'mysql',
             template: __DIR__ . '/../templates/mysql.yaml.twig',
@@ -78,7 +81,7 @@ final class MysqlPlugin implements PluginInterface
             description: 'Popular open-source relational database',
             icon: '🐬',
             category: ServiceCategory::Database,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [3306],
             defaultConfig: [
                 'version' => $this->config['version'],

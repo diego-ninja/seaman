@@ -67,6 +67,9 @@ final class MemcachedPlugin implements PluginInterface
     #[ProvidesService(name: 'memcached', category: ServiceCategory::Cache)]
     public function memcachedService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'memcached',
             template: __DIR__ . '/../templates/memcached.yaml.twig',
@@ -74,7 +77,7 @@ final class MemcachedPlugin implements PluginInterface
             description: 'High-performance distributed memory caching system',
             icon: '🗃️',
             category: ServiceCategory::Cache,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [11211],
             defaultConfig: [
                 'version' => $this->config['version'],

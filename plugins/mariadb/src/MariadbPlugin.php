@@ -71,6 +71,9 @@ final class MariadbPlugin implements PluginInterface
     #[ProvidesService(name: 'mariadb', category: ServiceCategory::Database)]
     public function mariadbService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'mariadb',
             template: __DIR__ . '/../templates/mariadb.yaml.twig',
@@ -78,7 +81,7 @@ final class MariadbPlugin implements PluginInterface
             description: 'Community-developed MySQL fork',
             icon: '🦭',
             category: ServiceCategory::Database,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [3306],
             defaultConfig: [
                 'version' => $this->config['version'],

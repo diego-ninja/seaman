@@ -70,6 +70,9 @@ final class PostgresqlPlugin implements PluginInterface
     #[ProvidesService(name: 'postgresql', category: ServiceCategory::Database)]
     public function postgresqlService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'postgresql',
             template: __DIR__ . '/../templates/postgresql.yaml.twig',
@@ -77,7 +80,7 @@ final class PostgresqlPlugin implements PluginInterface
             description: 'Advanced open-source relational database',
             icon: '🐘',
             category: ServiceCategory::Database,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [5432],
             defaultConfig: [
                 'version' => $this->config['version'],

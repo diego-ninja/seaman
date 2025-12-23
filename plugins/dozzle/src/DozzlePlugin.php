@@ -30,7 +30,7 @@ final class DozzlePlugin implements PluginInterface
     public function __construct()
     {
         $this->schema = ConfigSchema::create()
-            ->string('version', default: 'latest')
+            ->string('version', default: 'v8.8')
             ->integer('port', default: 8080, min: 1, max: 65535);
 
         $this->config = $this->schema->validate([]);
@@ -67,6 +67,9 @@ final class DozzlePlugin implements PluginInterface
     #[ProvidesService(name: 'dozzle', category: ServiceCategory::Utility)]
     public function dozzleService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'dozzle',
             template: __DIR__ . '/../templates/dozzle.yaml.twig',
@@ -74,7 +77,7 @@ final class DozzlePlugin implements PluginInterface
             description: 'Real-time Docker container log viewer',
             icon: '📋',
             category: ServiceCategory::Utility,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [8080],
             defaultConfig: [
                 'version' => $this->config['version'],
@@ -82,8 +85,8 @@ final class DozzlePlugin implements PluginInterface
             ],
             healthCheck: new HealthCheck(
                 test: ['CMD', '/dozzle', 'healthcheck'],
-                interval: '3s',
-                timeout: '30s',
+                interval: '10s',
+                timeout: '5s',
                 retries: 5,
             ),
         );

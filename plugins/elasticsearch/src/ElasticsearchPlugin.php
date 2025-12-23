@@ -68,6 +68,9 @@ final class ElasticsearchPlugin implements PluginInterface
     #[ProvidesService(name: 'elasticsearch', category: ServiceCategory::Search)]
     public function elasticsearchService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'elasticsearch',
             template: __DIR__ . '/../templates/elasticsearch.yaml.twig',
@@ -75,7 +78,7 @@ final class ElasticsearchPlugin implements PluginInterface
             description: 'Distributed search and analytics engine',
             icon: '🔍',
             category: ServiceCategory::Search,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [9200, 9300],
             defaultConfig: [
                 'version' => $this->config['version'],

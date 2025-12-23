@@ -68,6 +68,11 @@ final class OpensearchPlugin implements PluginInterface
     #[ProvidesService(name: 'opensearch', category: ServiceCategory::Search)]
     public function opensearchService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        $performancePort = $this->config['performance_port'];
+        assert(is_int($port));
+        assert(is_int($performancePort));
+
         return new ServiceDefinition(
             name: 'opensearch',
             template: __DIR__ . '/../templates/opensearch.yaml.twig',
@@ -75,7 +80,7 @@ final class OpensearchPlugin implements PluginInterface
             description: 'Open-source search and analytics suite',
             icon: '🔎',
             category: ServiceCategory::Search,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0), /* @phpstan-ignore cast.int */ (int) ($this->config['performance_port'] ?? 0)],
+            ports: [$port, $performancePort],
             internalPorts: [9200, 9600],
             defaultConfig: [
                 'version' => $this->config['version'],

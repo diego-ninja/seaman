@@ -30,7 +30,7 @@ final class MercurePlugin implements PluginInterface
     public function __construct()
     {
         $this->schema = ConfigSchema::create()
-            ->string('version', default: 'latest')
+            ->string('version', default: 'v0.16')
             ->integer('port', default: 3000, min: 1, max: 65535)
             ->string('jwt_secret', default: '!ChangeThisMercureHubJWTSecretKey!');
 
@@ -68,6 +68,9 @@ final class MercurePlugin implements PluginInterface
     #[ProvidesService(name: 'mercure', category: ServiceCategory::Utility)]
     public function mercureService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'mercure',
             template: __DIR__ . '/../templates/mercure.yaml.twig',
@@ -75,7 +78,7 @@ final class MercurePlugin implements PluginInterface
             description: 'Real-time updates hub for Symfony UX Turbo',
             icon: '⚡',
             category: ServiceCategory::Utility,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [3000],
             defaultConfig: [
                 'version' => $this->config['version'],

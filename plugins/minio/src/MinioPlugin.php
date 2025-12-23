@@ -30,7 +30,7 @@ final class MinioPlugin implements PluginInterface
     public function __construct()
     {
         $this->schema = ConfigSchema::create()
-            ->string('version', default: 'latest')
+            ->string('version', default: 'RELEASE.2024-11-07T00-52-20Z')
             ->integer('port', default: 9000, min: 1, max: 65535)
             ->integer('console_port', default: 9001, min: 1, max: 65535)
             ->string('root_user', default: 'minioadmin')
@@ -70,6 +70,11 @@ final class MinioPlugin implements PluginInterface
     #[ProvidesService(name: 'minio', category: ServiceCategory::Storage)]
     public function minioService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        $consolePort = $this->config['console_port'];
+        assert(is_int($port));
+        assert(is_int($consolePort));
+
         return new ServiceDefinition(
             name: 'minio',
             template: __DIR__ . '/../templates/minio.yaml.twig',
@@ -77,7 +82,7 @@ final class MinioPlugin implements PluginInterface
             description: 'S3-compatible object storage',
             icon: '🗄️',
             category: ServiceCategory::Storage,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0), /* @phpstan-ignore cast.int */ (int) ($this->config['console_port'] ?? 0)],
+            ports: [$port, $consolePort],
             internalPorts: [9000, 9001],
             defaultConfig: [
                 'version' => $this->config['version'],
@@ -88,9 +93,9 @@ final class MinioPlugin implements PluginInterface
             ],
             healthCheck: new HealthCheck(
                 test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live'],
-                interval: '30s',
-                timeout: '20s',
-                retries: 3,
+                interval: '10s',
+                timeout: '5s',
+                retries: 5,
             ),
         );
     }

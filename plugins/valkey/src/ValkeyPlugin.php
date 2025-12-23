@@ -67,14 +67,17 @@ final class ValkeyPlugin implements PluginInterface
     #[ProvidesService(name: 'valkey', category: ServiceCategory::Cache)]
     public function valkeyService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'valkey',
             template: __DIR__ . '/../templates/valkey.yaml.twig',
             displayName: 'Valkey',
             description: 'Redis-compatible in-memory data store',
-            icon: '🧵',
+            icon: '🔑',
             category: ServiceCategory::Cache,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [6379],
             defaultConfig: [
                 'version' => $this->config['version'],

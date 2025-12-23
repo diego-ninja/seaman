@@ -30,7 +30,7 @@ final class KafkaPlugin implements PluginInterface
     public function __construct()
     {
         $this->schema = ConfigSchema::create()
-            ->string('version', default: 'latest')
+            ->string('version', default: '3.7')
             ->integer('port', default: 9092, min: 1, max: 65535);
 
         $this->config = $this->schema->validate([]);
@@ -67,6 +67,9 @@ final class KafkaPlugin implements PluginInterface
     #[ProvidesService(name: 'kafka', category: ServiceCategory::Queue)]
     public function kafkaService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'kafka',
             template: __DIR__ . '/../templates/kafka.yaml.twig',
@@ -74,7 +77,7 @@ final class KafkaPlugin implements PluginInterface
             description: 'Distributed event streaming platform',
             icon: '📨',
             category: ServiceCategory::Queue,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [9092, 9093],
             defaultConfig: [
                 'version' => $this->config['version'],

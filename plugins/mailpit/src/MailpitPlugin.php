@@ -30,7 +30,7 @@ final class MailpitPlugin implements PluginInterface
     public function __construct()
     {
         $this->schema = ConfigSchema::create()
-            ->string('version', default: 'latest')
+            ->string('version', default: 'v1.21')
             ->integer('port', default: 8025, min: 1, max: 65535)
             ->integer('smtp_port', default: 1025, min: 1, max: 65535);
 
@@ -68,6 +68,11 @@ final class MailpitPlugin implements PluginInterface
     #[ProvidesService(name: 'mailpit', category: ServiceCategory::Utility)]
     public function mailpitService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        $smtpPort = $this->config['smtp_port'];
+        assert(is_int($port));
+        assert(is_int($smtpPort));
+
         return new ServiceDefinition(
             name: 'mailpit',
             template: __DIR__ . '/../templates/mailpit.yaml.twig',
@@ -75,7 +80,7 @@ final class MailpitPlugin implements PluginInterface
             description: 'Email testing tool with web UI',
             icon: '📧',
             category: ServiceCategory::Utility,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0), /* @phpstan-ignore cast.int */ (int) ($this->config['smtp_port'] ?? 0)],
+            ports: [$port, $smtpPort],
             internalPorts: [8025, 1025],
             defaultConfig: [
                 'version' => $this->config['version'],

@@ -71,6 +71,11 @@ final class SoketiPlugin implements PluginInterface
     #[ProvidesService(name: 'soketi', category: ServiceCategory::Utility)]
     public function soketiService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        $metricsPort = $this->config['metrics_port'];
+        assert(is_int($port));
+        assert(is_int($metricsPort));
+
         return new ServiceDefinition(
             name: 'soketi',
             template: __DIR__ . '/../templates/soketi.yaml.twig',
@@ -78,7 +83,7 @@ final class SoketiPlugin implements PluginInterface
             description: 'Pusher-compatible WebSocket server',
             icon: '🔌',
             category: ServiceCategory::Utility,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0), /* @phpstan-ignore cast.int */ (int) ($this->config['metrics_port'] ?? 0)],
+            ports: [$port, $metricsPort],
             internalPorts: [6001, 9601],
             defaultConfig: [
                 'version' => $this->config['version'],

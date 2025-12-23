@@ -70,6 +70,11 @@ final class RabbitmqPlugin implements PluginInterface
     #[ProvidesService(name: 'rabbitmq', category: ServiceCategory::Queue)]
     public function rabbitmqService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        $managementPort = $this->config['management_port'];
+        assert(is_int($port));
+        assert(is_int($managementPort));
+
         return new ServiceDefinition(
             name: 'rabbitmq',
             template: __DIR__ . '/../templates/rabbitmq.yaml.twig',
@@ -77,7 +82,7 @@ final class RabbitmqPlugin implements PluginInterface
             description: 'Open-source message broker with management UI',
             icon: '🐰',
             category: ServiceCategory::Queue,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0), /* @phpstan-ignore cast.int */ (int) ($this->config['management_port'] ?? 0)],
+            ports: [$port, $managementPort],
             internalPorts: [5672, 15672],
             defaultConfig: [
                 'version' => $this->config['version'],

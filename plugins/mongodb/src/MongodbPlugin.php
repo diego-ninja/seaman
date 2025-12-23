@@ -70,6 +70,9 @@ final class MongodbPlugin implements PluginInterface
     #[ProvidesService(name: 'mongodb', category: ServiceCategory::Database)]
     public function mongodbService(): ServiceDefinition
     {
+        $port = $this->config['port'];
+        assert(is_int($port));
+
         return new ServiceDefinition(
             name: 'mongodb',
             template: __DIR__ . '/../templates/mongodb.yaml.twig',
@@ -77,7 +80,7 @@ final class MongodbPlugin implements PluginInterface
             description: 'Document-oriented NoSQL database',
             icon: '🍃',
             category: ServiceCategory::Database,
-            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            ports: [$port],
             internalPorts: [27017],
             defaultConfig: [
                 'version' => $this->config['version'],
