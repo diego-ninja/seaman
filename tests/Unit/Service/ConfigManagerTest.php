@@ -81,7 +81,34 @@ test('loads configuration from YAML', function () {
         ->and($config->php->xdebug->ideKey)->toBe('PHPSTORM')
         ->and($config->php->xdebug->clientHost)->toBe('host.docker.internal')
         ->and($config->services->count())->toBe(0)
-        ->and($config->volumes->persist)->toBe([]);
+        ->and($config->volumes->persist)->toBe([])
+        ->and($config->plugins)->toBe([]);
+});
+
+test('loads configuration with plugins from YAML', function () {
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $seamanDir = $tempDir . '/.seaman';
+    if (!is_dir($seamanDir)) {
+        mkdir($seamanDir, 0755, true);
+    }
+    copy(__DIR__ . '/../../Fixtures/configs/plugins-seaman.yaml', $seamanDir . '/seaman.yaml');
+
+    $config = $manager->load();
+
+    expect($config)->toBeInstanceOf(Configuration::class)
+        ->and($config->plugins)->toBe([
+            'my-plugin' => [
+                'setting1' => 'value1',
+                'setting2' => 42,
+            ],
+            'another-plugin' => [
+                'enabled' => true,
+                'timeout' => 30,
+            ],
+        ]);
 });
 
 test('throws exception when seaman.yaml does not exist', function () {
@@ -130,6 +157,40 @@ test('saves configuration to YAML', function () {
     $loadedConfig = $manager->load();
     expect($loadedConfig->version)->toBe('1.0')
         ->and($loadedConfig->php->version)->toBe(PhpVersion::Php84);
+});
+
+test('saves configuration with plugins to YAML', function () {
+    $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+    $plugins = [
+        'test-plugin' => [
+            'enabled' => true,
+            'setting' => 'value',
+        ],
+    ];
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+        plugins: $plugins,
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $yamlPath = $tempDir . '/.seaman/seaman.yaml';
+    expect(file_exists($yamlPath))->toBeTrue();
+
+    $loadedConfig = $manager->load();
+    expect($loadedConfig->plugins)->toBe($plugins);
 });
 
 test('generates .env file when saving', function () {

@@ -330,11 +330,27 @@ return function (ContainerBuilder $builder): void {
 
         // Plugin system
         PluginRegistry::class => factory(
-            fn(ContainerInterface $c): PluginRegistry => PluginRegistry::discover(
-                projectRoot: $c->get('projectRoot'),
-                localPluginsDir: $c->get('projectRoot') . '/.seaman/plugins',
-                pluginConfig: [],
-            ),
+            function (ContainerInterface $c): PluginRegistry {
+                $projectRoot = $c->get('projectRoot');
+                $pluginConfig = [];
+
+                // Try to load plugin config from seaman.yaml if project is initialized
+                $yamlPath = $projectRoot . '/.seaman/seaman.yaml';
+                if (file_exists($yamlPath)) {
+                    try {
+                        $config = $c->get(ConfigManager::class)->load();
+                        $pluginConfig = $config->plugins;
+                    } catch (\RuntimeException $e) {
+                        // Project not initialized or invalid config, use empty config
+                    }
+                }
+
+                return PluginRegistry::discover(
+                    projectRoot: $projectRoot,
+                    localPluginsDir: $projectRoot . '/.seaman/plugins',
+                    pluginConfig: $pluginConfig,
+                );
+            },
         ),
 
         PluginLifecycleDispatcher::class => factory(

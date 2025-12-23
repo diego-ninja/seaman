@@ -11,6 +11,9 @@ use Seaman\Enum\ProjectType;
 
 final readonly class Configuration
 {
+    /**
+     * @param array<string, array<string, mixed>> $plugins
+     */
     public function __construct(
         public string $projectName,
         public string $version,
@@ -20,6 +23,7 @@ final readonly class Configuration
         public ProjectType $projectType = ProjectType::Existing,
         public ?ProxyConfig $proxy = null,
         public CustomServiceCollection $customServices = new CustomServiceCollection(),
+        public array $plugins = [],
     ) {}
 
     public function proxy(): ProxyConfig
@@ -35,6 +39,8 @@ final readonly class Configuration
 
     /**
      * Creates a copy of this configuration with updated fields.
+     *
+     * @param array<string, array<string, mixed>>|null $plugins
      */
     public function with(
         ?string $projectName = null,
@@ -45,6 +51,7 @@ final readonly class Configuration
         ?ProjectType $projectType = null,
         ?ProxyConfig $proxy = null,
         ?CustomServiceCollection $customServices = null,
+        ?array $plugins = null,
     ): self {
         return new self(
             projectName: $projectName ?? $this->projectName,
@@ -55,6 +62,7 @@ final readonly class Configuration
             projectType: $projectType ?? $this->projectType,
             proxy: $proxy ?? $this->proxy,
             customServices: $customServices ?? $this->customServices,
+            plugins: $plugins ?? $this->plugins,
         );
     }
 }

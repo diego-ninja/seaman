@@ -255,3 +255,70 @@ test('with() preserves original configuration', function (): void {
 
     expect($config->proxy)->toBe($originalProxy);
 });
+
+test('configuration includes plugins', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+    $plugins = [
+        'my-plugin' => [
+            'setting1' => 'value1',
+            'setting2' => 42,
+        ],
+    ];
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+        plugins: $plugins,
+    );
+
+    expect($config->plugins)->toBe($plugins);
+});
+
+test('plugins defaults to empty array', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    expect($config->plugins)->toBe([]);
+});
+
+test('with() creates a copy with updated plugins', function (): void {
+    $xdebug = new XdebugConfig(true, 'PHPSTORM', 'localhost');
+    $php = new PhpConfig(PhpVersion::Php84, $xdebug);
+    $services = new ServiceCollection([]);
+    $volumes = new VolumeConfig([]);
+
+    $config = new Configuration(
+        projectName: 'test-project',
+        version: '1.0',
+        php: $php,
+        services: $services,
+        volumes: $volumes,
+    );
+
+    $newPlugins = [
+        'new-plugin' => [
+            'option' => 'test',
+        ],
+    ];
+    $newConfig = $config->with(plugins: $newPlugins);
+
+    expect($newConfig)->not->toBe($config)
+        ->and($newConfig->plugins)->toBe($newPlugins)
+        ->and($newConfig->projectName)->toBe('test-project');
+});

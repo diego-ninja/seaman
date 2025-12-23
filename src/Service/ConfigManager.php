@@ -12,6 +12,7 @@ use RuntimeException;
 use Seaman\Enum\ProjectType;
 use Seaman\Service\ConfigParser\CustomServiceParser;
 use Seaman\Service\ConfigParser\PhpConfigParser;
+use Seaman\Service\ConfigParser\PluginConfigParser;
 use Seaman\Service\ConfigParser\ProxyConfigParser;
 use Seaman\Service\ConfigParser\ServiceConfigParser;
 use Seaman\Service\ConfigParser\VolumeConfigParser;
@@ -27,6 +28,7 @@ readonly class ConfigManager
     private VolumeConfigParser $volumeParser;
     private ProxyConfigParser $proxyParser;
     private CustomServiceParser $customServiceParser;
+    private PluginConfigParser $pluginParser;
 
     public function __construct(
         private string $projectRoot,
@@ -38,6 +40,7 @@ readonly class ConfigManager
         $this->volumeParser = new VolumeConfigParser();
         $this->proxyParser = new ProxyConfigParser();
         $this->customServiceParser = new CustomServiceParser();
+        $this->pluginParser = new PluginConfigParser();
     }
 
     public function load(): Configuration
@@ -99,6 +102,7 @@ readonly class ConfigManager
             projectType: $projectType,
             proxy: $this->proxyParser->parse($data, $projectName),
             customServices: $this->customServiceParser->parse($data),
+            plugins: $this->pluginParser->parse($data),
         );
     }
 
@@ -154,6 +158,11 @@ readonly class ConfigManager
         // Add custom services if present
         if ($config->hasCustomServices()) {
             $data['custom_services'] = $config->customServices->all();
+        }
+
+        // Add plugins configuration if present
+        if (!empty($config->plugins)) {
+            $data['plugins'] = $config->plugins;
         }
 
         $yamlContent = Yaml::dump($data, 4, 2);
