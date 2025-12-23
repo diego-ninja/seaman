@@ -12,6 +12,8 @@ use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\ComposeImporter;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Detector\ProjectDetector;
@@ -54,6 +56,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
         private readonly InitializationWizard       $wizard,
         private readonly ProjectInitializer         $initializer,
         private readonly DnsManager                 $dnsManager,
+        private readonly PluginLifecycleDispatcher  $lifecycleDispatcher,
+        private readonly string                     $projectRoot,
     ) {
         parent::__construct();
     }
@@ -78,6 +82,11 @@ class InitCommand extends ModeAwareCommand implements Decorable
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        $this->lifecycleDispatcher->dispatch('before:init', new LifecycleEventData(
+            event: 'before:init',
+            projectRoot: $this->projectRoot,
+        ));
+
         $projectRoot = (string) getcwd();
 
         // Check if seaman.yaml already exists
@@ -95,12 +104,26 @@ class InitCommand extends ModeAwareCommand implements Decorable
             $importResult = $this->handleExistingDockerCompose($projectRoot);
 
             if ($importResult !== null) {
-                return $this->executeImportFlow($input, $projectRoot, $importResult);
+                $result = $this->executeImportFlow($input, $projectRoot, $importResult);
+                if ($result === Command::SUCCESS) {
+                    $this->lifecycleDispatcher->dispatch('after:init', new LifecycleEventData(
+                        event: 'after:init',
+                        projectRoot: $this->projectRoot,
+                    ));
+                }
+                return $result;
             }
         }
 
         // Standard initialization flow
-        return $this->executeStandardFlow($input, $projectRoot);
+        $result = $this->executeStandardFlow($input, $projectRoot);
+        if ($result === Command::SUCCESS) {
+            $this->lifecycleDispatcher->dispatch('after:init', new LifecycleEventData(
+                event: 'after:init',
+                projectRoot: $this->projectRoot,
+            ));
+        }
+        return $result;
     }
 
     /**

@@ -10,7 +10,7 @@ namespace Seaman\Plugin;
 final readonly class LifecycleHandler
 {
     /**
-     * @param callable(): void $handler
+     * @param callable(LifecycleEventData): void $handler
      */
     public function __construct(
         public string $event,

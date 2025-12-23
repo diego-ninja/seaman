@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
@@ -29,6 +31,8 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
         private readonly DnsManager $dnsHelper,
+        private readonly PluginLifecycleDispatcher $lifecycleDispatcher,
+        private readonly string $projectRoot,
     ) {
         parent::__construct();
     }
@@ -45,12 +49,22 @@ class DestroyCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
+        $this->lifecycleDispatcher->dispatch('before:destroy', new LifecycleEventData(
+            event: 'before:destroy',
+            projectRoot: $this->projectRoot,
+        ));
+
         $result = $this->dockerManager->destroy();
 
         if (!$result->isSuccessful()) {
             Terminal::error('Failed to destroy services');
             return Command::FAILURE;
         }
+
+        $this->lifecycleDispatcher->dispatch('after:destroy', new LifecycleEventData(
+            event: 'after:destroy',
+            projectRoot: $this->projectRoot,
+        ));
 
         // Offer DNS cleanup
         Terminal::output()->writeln('');

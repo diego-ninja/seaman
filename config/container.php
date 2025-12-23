@@ -48,6 +48,7 @@ use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
@@ -190,6 +191,8 @@ return function (ContainerBuilder $builder): void {
                 $c->get(InitializationWizard::class),
                 $c->get(ProjectInitializer::class),
                 $c->get(DnsManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -204,12 +207,16 @@ return function (ContainerBuilder $builder): void {
                 $c->get(PortAllocator::class),
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
         StopCommand::class => factory(
             fn(ContainerInterface $c): StopCommand => new StopCommand(
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -229,6 +236,8 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): RebuildCommand => new RebuildCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -237,6 +246,8 @@ return function (ContainerBuilder $builder): void {
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
                 $c->get(DnsManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -323,6 +334,12 @@ return function (ContainerBuilder $builder): void {
                 projectRoot: $c->get('projectRoot'),
                 localPluginsDir: $c->get('projectRoot') . '/.seaman/plugins',
                 pluginConfig: [],
+            ),
+        ),
+
+        PluginLifecycleDispatcher::class => factory(
+            fn(ContainerInterface $c): PluginLifecycleDispatcher => new PluginLifecycleDispatcher(
+                $c->get(PluginRegistry::class),
             ),
         ),
 
