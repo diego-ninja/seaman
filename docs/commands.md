@@ -306,6 +306,63 @@ seaman php script.php
 seaman php -r "echo phpversion();"
 ```
 
+## Plugin Management
+
+### plugin:list
+
+List all discovered plugins with their status.
+
+```bash
+seaman plugin:list
+```
+
+Displays:
+- Plugin name and version
+- Status (enabled/disabled)
+- Source (Composer/local)
+- Number of services, commands, and hooks provided
+
+### plugin:info
+
+Show detailed information about a specific plugin.
+
+```bash
+seaman plugin:info <plugin-name>
+```
+
+**Examples:**
+```bash
+seaman plugin:info vendor/my-plugin
+seaman plugin:info local/custom-plugin
+```
+
+Displays:
+- Plugin metadata (name, version, description)
+- Provided services
+- Registered commands
+- Lifecycle hooks
+- Template overrides
+- Configuration options
+
+### plugin:create
+
+Create a new plugin skeleton in `.seaman/plugins/`.
+
+```bash
+seaman plugin:create <name>
+```
+
+**Example:**
+```bash
+seaman plugin:create my-custom-plugin
+```
+
+Creates:
+- `.seaman/plugins/my-custom-plugin/composer.json`
+- `.seaman/plugins/my-custom-plugin/src/MyCustomPlugin.php`
+
+See [Plugins documentation](plugins.md) for more details on plugin development.
+
 ## DevContainer
 
 ### devcontainer:generate

@@ -343,13 +343,18 @@ return function (ContainerBuilder $builder): void {
                 $projectRoot = $c->get('projectRoot');
                 $pluginConfig = [];
 
-                // Try to load plugin config from seaman.yaml if project is initialized
+                // Load plugin config directly from YAML to avoid circular dependency
+                // (PluginRegistry <- ServiceRegistry <- ConfigManager <- PluginRegistry)
                 $yamlPath = $projectRoot . '/.seaman/seaman.yaml';
                 if (file_exists($yamlPath)) {
                     try {
-                        $config = $c->get(ConfigManager::class)->load();
-                        $pluginConfig = $config->plugins;
-                    } catch (\RuntimeException $e) {
+                        $content = file_get_contents($yamlPath);
+                        if ($content !== false) {
+                            /** @var array{plugins?: array<string, array<string, mixed>>} $config */
+                            $config = \Symfony\Component\Yaml\Yaml::parse($content);
+                            $pluginConfig = $config['plugins'] ?? [];
+                        }
+                    } catch (\Exception $e) {
                         // Project not initialized or invalid config, use empty config
                     }
                 }

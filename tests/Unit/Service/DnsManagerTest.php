@@ -75,7 +75,7 @@ test('detects dnsmasq and returns automatic configuration', function () {
         ->and($result->requiresSudo)->toBeTrue()
         ->and($result->configPath)->toContain('dnsmasq')
         ->and($result->configContent)->toContain('.myproject.local');
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS uses MacOSResolver with higher priority');
 
 test('detects systemd-resolved when dnsmasq not available', function () {
     // systemd-resolved active without stub listener (port 53 not occupied)
@@ -94,7 +94,7 @@ test('detects systemd-resolved when dnsmasq not available', function () {
         ->and($result->requiresSudo)->toBeTrue()
         ->and($result->configPath)->toContain('systemd')
         ->and($result->configContent)->toContain('testproject.local');
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS uses MacOSResolver with higher priority');
 
 test('returns hosts-file configuration when no other providers available', function () {
     // No dnsmasq, no systemd-resolved, no NetworkManager - falls back to /etc/hosts
@@ -109,7 +109,7 @@ test('returns hosts-file configuration when no other providers available', funct
         ->and($result->requiresSudo)->toBeTrue()
         ->and($result->configPath)->toBe('/etc/hosts')
         ->and($result->configContent)->toContain('myproject.local');
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS uses MacOSResolver with higher priority');
 
 test('hasDnsmasq returns true when dnsmasq is available', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
@@ -159,7 +159,7 @@ test('detectAvailableProviders always includes HostsFile as fallback', function 
 
     $hostsFile = array_filter($providers, fn($p) => $p->provider === DnsProvider::HostsFile);
     expect($hostsFile)->toHaveCount(1);
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS always includes MacOSResolver provider');
 
 test('detectAvailableProviders detects dnsmasq when running', function () {
     // dnsmasq installed and running (can use port 53)
@@ -224,7 +224,7 @@ test('detectAvailableProviders returns providers sorted by priority', function (
 
     // Dnsmasq should be first (priority 2), then systemd-resolved (priority 4), then HostsFile (priority 5)
     expect($providers[0]->provider)->toBe(DnsProvider::Dnsmasq);
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS MacOSResolver has priority 1 (highest)');
 
 test('getRecommendedProvider returns first provider by priority', function () {
     // dnsmasq running, systemd-resolved without stub listener
@@ -241,7 +241,7 @@ test('getRecommendedProvider returns first provider by priority', function () {
     expect($recommended)->not->toBeNull();
     /** @var \Seaman\ValueObject\DetectedDnsProvider $recommended */
     expect($recommended->provider)->toBe(DnsProvider::Dnsmasq);
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS MacOSResolver has priority 1 (highest)');
 
 test('getRecommendedProvider returns HostsFile when no other providers available', function () {
     // No DNS providers available - HostsFile is always the fallback
@@ -253,7 +253,7 @@ test('getRecommendedProvider returns HostsFile when no other providers available
     expect($recommended)->not->toBeNull();
     /** @var \Seaman\ValueObject\DetectedDnsProvider $recommended */
     expect($recommended->provider)->toBe(DnsProvider::HostsFile);
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'macOS always has MacOSResolver available');
 
 test('configureProvider returns correct result for dnsmasq', function () {
     $executor = new FakeDnsCommandExecutor(hasDnsmasq: true);
@@ -284,7 +284,7 @@ test('hasNetworkManager returns true when NetworkManager is active', function ()
     $helper = new DnsManager($executor);
 
     expect($helper->hasNetworkManager())->toBeTrue();
-});
+})->skip(PHP_OS_FAMILY === 'Darwin', 'NetworkManager is Linux-specific (/etc/NetworkManager does not exist)');
 
 test('hasNetworkManager returns false when NetworkManager is not active', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: false);

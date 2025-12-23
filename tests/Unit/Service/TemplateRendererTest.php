@@ -68,7 +68,7 @@ test('renders plugin override when configured', function (): void {
 
     // Create plugin with override using the attribute
     $pluginTemplatePath = $pluginTemplate;
-    $plugin = new class($pluginTemplatePath) implements \Seaman\Plugin\PluginInterface {
+    $plugin = new class ($pluginTemplatePath) implements \Seaman\Plugin\PluginInterface {
         public function __construct(private readonly string $templatePath) {}
 
         public function getName(): string

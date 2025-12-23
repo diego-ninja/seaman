@@ -75,6 +75,7 @@ final readonly class TraefikLabelGenerator
             Service::Mercure,
             Service::Soketi,
             Service::SQLite,
+            Service::Custom,
             Service::None => ServiceExposureType::DirectPort,
         };
     }
