@@ -345,6 +345,14 @@ return function (ContainerBuilder $builder): void {
                 $projectRoot = $c->get('projectRoot');
                 $pluginConfig = [];
 
+                // Determine bundled plugins directory
+                // When running from PHAR, it's inside the archive
+                // When running from source, it's at repo root
+                $pharPath = \Phar::running(false);
+                $bundledPluginsDir = $pharPath !== ''
+                    ? $pharPath . '/plugins'
+                    : dirname(__DIR__) . '/plugins';
+
                 // Load plugin config directly from YAML to avoid circular dependency
                 // (PluginRegistry <- ServiceRegistry <- ConfigManager <- PluginRegistry)
                 $yamlPath = $projectRoot . '/.seaman/seaman.yaml';
@@ -365,6 +373,7 @@ return function (ContainerBuilder $builder): void {
                     projectRoot: $projectRoot,
                     localPluginsDir: $projectRoot . '/.seaman/plugins',
                     pluginConfig: $pluginConfig,
+                    bundledPluginsDir: $bundledPluginsDir,
                 );
             },
         ),

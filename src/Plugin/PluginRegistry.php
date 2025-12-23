@@ -61,17 +61,27 @@ final class PluginRegistry
         string $projectRoot,
         string $localPluginsDir,
         array $pluginConfig,
+        ?string $bundledPluginsDir = null,
     ): self {
         $registry = new self();
 
-        // Load Composer plugins first
+        // 1. Load bundled plugins first (lowest priority, can be overridden)
+        if ($bundledPluginsDir !== null && is_dir($bundledPluginsDir)) {
+            $bundledLoader = new Loader\BundledPluginLoader($bundledPluginsDir);
+            foreach ($bundledLoader->load() as $plugin) {
+                $config = $pluginConfig[$plugin->getName()] ?? [];
+                $registry->register($plugin, $config, 'bundled');
+            }
+        }
+
+        // 2. Load Composer plugins (can override bundled)
         $composerLoader = new Loader\ComposerPluginLoader($projectRoot);
         foreach ($composerLoader->load() as $plugin) {
             $config = $pluginConfig[$plugin->getName()] ?? [];
             $registry->register($plugin, $config, 'composer');
         }
 
-        // Load local plugins (can override Composer)
+        // 3. Load local plugins (highest priority, can override all)
         $localLoader = new Loader\LocalPluginLoader($localPluginsDir);
         foreach ($localLoader->load() as $plugin) {
             $config = $pluginConfig[$plugin->getName()] ?? [];
