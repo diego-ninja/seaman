@@ -20,6 +20,13 @@ final readonly class PluginServiceAdapter implements ServiceInterface
 
     public function getType(): Service
     {
+        // Try to match the service name to a known Service enum case
+        foreach (Service::cases() as $case) {
+            if ($case->value === $this->definition->name) {
+                return $case;
+            }
+        }
+
         return Service::Custom;
     }
 
@@ -64,7 +71,7 @@ final readonly class PluginServiceAdapter implements ServiceInterface
         return new ServiceConfig(
             name: $this->definition->name,
             enabled: true,
-            type: Service::Custom,
+            type: $this->getType(),
             version: $version,
             port: $port,
             additionalPorts: $additionalPorts,
