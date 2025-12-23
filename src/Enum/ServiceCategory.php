@@ -13,6 +13,8 @@ enum ServiceCategory: string
     case Cache = 'cache';
     case Queue = 'queue';
     case Search = 'search';
+    case Storage = 'storage';
+    case Utility = 'utility';
     case DevTools = 'dev-tools';
     case Proxy = 'proxy';
     case Misc = 'misc';

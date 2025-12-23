@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types=1);
+
+// ABOUTME: Apache Kafka bundled plugin for Seaman.
+// ABOUTME: Provides Kafka distributed event streaming platform.
+
+namespace Seaman\Plugin\Kafka;
+
+use Seaman\Enum\ServiceCategory;
+use Seaman\Plugin\Attribute\AsSeamanPlugin;
+use Seaman\Plugin\Attribute\ProvidesService;
+use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\PluginInterface;
+use Seaman\Plugin\ServiceDefinition;
+use Seaman\ValueObject\HealthCheck;
+
+#[AsSeamanPlugin(
+    name: 'seaman/kafka',
+    version: '1.0.0',
+    description: 'Apache Kafka event streaming for Seaman',
+)]
+final class KafkaPlugin implements PluginInterface
+{
+    private ConfigSchema $schema;
+
+    /** @var array<string, mixed> */
+    private array $config = [];
+
+    public function __construct()
+    {
+        $this->schema = ConfigSchema::create()
+            ->string('version', default: 'latest')
+            ->integer('port', default: 9092, min: 1, max: 65535);
+
+        $this->config = $this->schema->validate([]);
+    }
+
+    public function getName(): string
+    {
+        return 'seaman/kafka';
+    }
+
+    public function getVersion(): string
+    {
+        return '1.0.0';
+    }
+
+    public function getDescription(): string
+    {
+        return 'Apache Kafka event streaming for Seaman';
+    }
+
+    public function configSchema(): ConfigSchema
+    {
+        return $this->schema;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function configure(array $values): void
+    {
+        $this->config = $this->schema->validate($values);
+    }
+
+    #[ProvidesService(name: 'kafka', category: ServiceCategory::Queue)]
+    public function kafkaService(): ServiceDefinition
+    {
+        return new ServiceDefinition(
+            name: 'kafka',
+            template: __DIR__ . '/../templates/kafka.yaml.twig',
+            displayName: 'Apache Kafka',
+            description: 'Distributed event streaming platform',
+            icon: '📨',
+            category: ServiceCategory::Queue,
+            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            internalPorts: [9092, 9093],
+            defaultConfig: [
+                'version' => $this->config['version'],
+                'port' => $this->config['port'],
+            ],
+            healthCheck: new HealthCheck(
+                test: ['CMD-SHELL', '/opt/kafka/bin/kafka-cluster.sh cluster-id --bootstrap-server localhost:9092 || exit 1'],
+                interval: '10s',
+                timeout: '10s',
+                retries: 5,
+            ),
+        );
+    }
+}

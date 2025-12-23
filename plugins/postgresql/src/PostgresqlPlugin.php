@@ -1,0 +1,97 @@
+<?php
+
+declare(strict_types=1);
+
+// ABOUTME: PostgreSQL bundled plugin for Seaman.
+// ABOUTME: Provides PostgreSQL database service with health checks and data persistence.
+
+namespace Seaman\Plugin\Postgresql;
+
+use Seaman\Enum\ServiceCategory;
+use Seaman\Plugin\Attribute\AsSeamanPlugin;
+use Seaman\Plugin\Attribute\ProvidesService;
+use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\PluginInterface;
+use Seaman\Plugin\ServiceDefinition;
+use Seaman\ValueObject\HealthCheck;
+
+#[AsSeamanPlugin(
+    name: 'seaman/postgresql',
+    version: '1.0.0',
+    description: 'PostgreSQL database service for Seaman',
+)]
+final class PostgresqlPlugin implements PluginInterface
+{
+    private ConfigSchema $schema;
+
+    /** @var array<string, mixed> */
+    private array $config = [];
+
+    public function __construct()
+    {
+        $this->schema = ConfigSchema::create()
+            ->string('version', default: '16')
+            ->integer('port', default: 5432, min: 1, max: 65535)
+            ->string('database', default: 'seaman')
+            ->string('user', default: 'seaman')
+            ->string('password', default: 'seaman');
+
+        $this->config = $this->schema->validate([]);
+    }
+
+    public function getName(): string
+    {
+        return 'seaman/postgresql';
+    }
+
+    public function getVersion(): string
+    {
+        return '1.0.0';
+    }
+
+    public function getDescription(): string
+    {
+        return 'PostgreSQL database service for Seaman';
+    }
+
+    public function configSchema(): ConfigSchema
+    {
+        return $this->schema;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function configure(array $values): void
+    {
+        $this->config = $this->schema->validate($values);
+    }
+
+    #[ProvidesService(name: 'postgresql', category: ServiceCategory::Database)]
+    public function postgresqlService(): ServiceDefinition
+    {
+        return new ServiceDefinition(
+            name: 'postgresql',
+            template: __DIR__ . '/../templates/postgresql.yaml.twig',
+            displayName: 'PostgreSQL',
+            description: 'Advanced open-source relational database',
+            icon: '🐘',
+            category: ServiceCategory::Database,
+            ports: [/* @phpstan-ignore cast.int */ (int) ($this->config['port'] ?? 0)],
+            internalPorts: [5432],
+            defaultConfig: [
+                'version' => $this->config['version'],
+                'port' => $this->config['port'],
+                'database' => $this->config['database'],
+                'user' => $this->config['user'],
+                'password' => $this->config['password'],
+            ],
+            healthCheck: new HealthCheck(
+                test: ['CMD-SHELL', 'pg_isready -U $POSTGRES_USER'],
+                interval: '10s',
+                timeout: '5s',
+                retries: 5,
+            ),
+        );
+    }
+}

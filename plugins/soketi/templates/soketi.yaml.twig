@@ -1,0 +1,25 @@
+{# ABOUTME: Docker Compose service template for Soketi. #}
+{# ABOUTME: Generates Soketi WebSocket server configuration. #}
+
+  soketi:
+    image: quay.io/soketi/soketi:{{ config.version | default('latest-16-alpine') }}
+    container_name: {{ project.name }}-soketi
+    ports:
+      - "${SOKETI_PORT:-{{ config.port | default(6001) }}}:6001"
+      - "${SOKETI_METRICS_PORT:-{{ config.metrics_port | default(9601) }}}:9601"
+    environment:
+      SOKETI_DEBUG: "1"
+      SOKETI_DEFAULT_APP_ID: "{{ config.app_id | default('app-id') }}"
+      SOKETI_DEFAULT_APP_KEY: "{{ config.app_key | default('app-key') }}"
+      SOKETI_DEFAULT_APP_SECRET: "{{ config.app_secret | default('app-secret') }}"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:6001"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

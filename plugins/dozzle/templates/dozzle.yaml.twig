@@ -1,0 +1,21 @@
+{# ABOUTME: Docker Compose service template for Dozzle. #}
+{# ABOUTME: Generates Dozzle log viewer container configuration. #}
+
+  dozzle:
+    image: amir20/dozzle:{{ config.version | default('latest') }}
+    container_name: {{ project.name }}-dozzle
+    ports:
+      - "${DOZZLE_PORT:-{{ config.port | default(8080) }}}:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    healthcheck:
+      test: ["CMD", "/dozzle", "healthcheck"]
+      interval: 3s
+      timeout: 30s
+      retries: 5
+      start_period: 5s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped
