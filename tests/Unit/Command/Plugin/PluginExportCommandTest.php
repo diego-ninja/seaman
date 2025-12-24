@@ -1,5 +1,8 @@
 <?php
 
+// ABOUTME: Tests for PluginExportCommand validation and export functionality.
+// ABOUTME: Verifies plugin structure requirements, vendor name handling, and output paths.
+
 declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Command\Plugin;
@@ -155,6 +158,62 @@ PHP;
     ]);
 
     expect($tester->getStatusCode())->toBe(0);
+
+    recursiveRemove($tempDir);
+});
+
+test('PluginExportCommand uses vendor name from git config when not specified', function (): void {
+    $tempDir = sys_get_temp_dir() . '/seaman-export-test-' . uniqid();
+    $pluginDir = $tempDir . '/.seaman/plugins/my-plugin';
+    mkdir($pluginDir . '/src', 0755, true);
+
+    $content = <<<'PHP'
+<?php
+
+declare(strict_types=1);
+
+namespace Seaman\LocalPlugins\MyPlugin;
+
+use Seaman\Plugin\Attribute\AsSeamanPlugin;
+use Seaman\Plugin\PluginInterface;
+
+#[AsSeamanPlugin(
+    name: 'my-plugin',
+    version: '1.0.0',
+)]
+final class MyPluginPlugin implements PluginInterface
+{
+    public function getName(): string { return 'my-plugin'; }
+    public function getVersion(): string { return '1.0.0'; }
+    public function getDescription(): string { return ''; }
+}
+PHP;
+
+    file_put_contents($pluginDir . '/src/MyPluginPlugin.php', $content);
+
+    $gitUser = trim(shell_exec('git config user.name 2>/dev/null') ?: '');
+    $expectedVendor = $gitUser !== '' ? strtolower(str_replace(' ', '-', $gitUser)) : 'your-vendor';
+
+    $actualVendor = '';
+    $exporter = new class ($actualVendor) implements PluginExporter {
+        /** @phpstan-ignore-next-line property.onlyWritten */
+        public function __construct(private string &$capturedVendor) {}
+
+        public function export(string $pluginPath, string $outputPath, string $vendorName): void
+        {
+            $this->capturedVendor = $vendorName;
+        }
+    };
+
+    $command = new PluginExportCommand($tempDir, $exporter);
+    $tester = new CommandTester($command);
+
+    $tester->execute([
+        'plugin-name' => 'my-plugin',
+    ]);
+
+    expect($tester->getStatusCode())->toBe(0);
+    expect($actualVendor)->toBe($expectedVendor);
 
     recursiveRemove($tempDir);
 });

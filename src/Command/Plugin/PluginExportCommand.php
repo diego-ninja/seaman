@@ -9,6 +9,7 @@ namespace Seaman\Command\Plugin;
 
 use Seaman\Command\AbstractSeamanCommand;
 use Seaman\Plugin\Export\PluginExporter;
+use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -43,8 +44,10 @@ final class PluginExportCommand extends AbstractSeamanCommand
         $pluginName = $input->getArgument('plugin-name');
 
         if ($pluginName === null) {
-            $this->selectPlugin();
-            return Command::FAILURE;
+            $pluginName = $this->selectPlugin();
+            if ($pluginName === null) {
+                return Command::FAILURE;
+            }
         }
 
         $pluginPath = $this->projectRoot . '/.seaman/plugins/' . $pluginName;
@@ -80,13 +83,13 @@ final class PluginExportCommand extends AbstractSeamanCommand
             Terminal::output()->writeln("  Install with: composer require {$vendorName}/{$pluginName}");
 
             return Command::SUCCESS;
-        } catch (\Exception $e) {
+        } catch (\RuntimeException $e) {
             Terminal::error('Export failed: ' . $e->getMessage());
             return Command::FAILURE;
         }
     }
 
-    private function selectPlugin(): null
+    private function selectPlugin(): ?string
     {
         $pluginsDir = $this->projectRoot . '/.seaman/plugins';
 
@@ -103,17 +106,10 @@ final class PluginExportCommand extends AbstractSeamanCommand
             return null;
         }
 
-        Terminal::info('Available local plugins:');
-        Terminal::output()->writeln('');
-
-        foreach ($plugins as $index => $plugin) {
-            Terminal::output()->writeln("  " . ($index + 1) . ". {$plugin}");
-        }
-
-        Terminal::output()->writeln('');
-        Terminal::error('Interactive selection not yet implemented. Please specify plugin name as argument.');
-
-        return null;
+        return Prompts::select(
+            label: 'Select a plugin to export:',
+            options: $plugins,
+        );
     }
 
     private function validatePlugin(string $pluginPath): bool
