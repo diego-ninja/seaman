@@ -9,6 +9,7 @@ namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
 use Seaman\Plugin\Extractor\ServiceExtractor;
+use Seaman\Plugin\PluginDatabaseServiceAdapter;
 use Seaman\Plugin\PluginRegistry;
 use Seaman\Plugin\PluginServiceAdapter;
 use Seaman\ValueObject\Configuration;
@@ -83,7 +84,9 @@ class ServiceRegistry
             $serviceDefinitions = $extractor->extract($loadedPlugin->instance);
 
             foreach ($serviceDefinitions as $definition) {
-                $adapter = new PluginServiceAdapter($definition);
+                $adapter = $definition->databaseOperations !== null
+                    ? new PluginDatabaseServiceAdapter($definition)
+                    : new PluginServiceAdapter($definition);
                 $this->register($adapter);
             }
         }

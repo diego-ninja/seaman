@@ -11,6 +11,7 @@ use Seaman\Enum\ServiceCategory;
 use Seaman\Plugin\Attribute\AsSeamanPlugin;
 use Seaman\Plugin\Attribute\ProvidesService;
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\DatabaseOperations;
 use Seaman\Plugin\PluginInterface;
 use Seaman\Plugin\ServiceDefinition;
 use Seaman\ValueObject\HealthCheck;
@@ -88,12 +89,37 @@ final class PostgresqlPlugin implements PluginInterface
                 'database' => $this->config['database'],
                 'user' => $this->config['user'],
                 'password' => $this->config['password'],
+                'environment' => [
+                    'POSTGRES_DB' => $this->config['database'],
+                    'POSTGRES_USER' => $this->config['user'],
+                    'POSTGRES_PASSWORD' => $this->config['password'],
+                ],
             ],
             healthCheck: new HealthCheck(
                 test: ['CMD-SHELL', 'pg_isready -U $POSTGRES_USER'],
                 interval: '10s',
                 timeout: '5s',
                 retries: 5,
+            ),
+            databaseOperations: new DatabaseOperations(
+                dumpCommand: static fn($config) => [
+                    'pg_dump',
+                    '-U',
+                    $config->environmentVariables['POSTGRES_USER'] ?? 'postgres',
+                    $config->environmentVariables['POSTGRES_DB'] ?? 'postgres',
+                ],
+                restoreCommand: static fn($config) => [
+                    'psql',
+                    '-U',
+                    $config->environmentVariables['POSTGRES_USER'] ?? 'postgres',
+                    $config->environmentVariables['POSTGRES_DB'] ?? 'postgres',
+                ],
+                shellCommand: static fn($config) => [
+                    'psql',
+                    '-U',
+                    $config->environmentVariables['POSTGRES_USER'] ?? 'postgres',
+                    $config->environmentVariables['POSTGRES_DB'] ?? 'postgres',
+                ],
             ),
         );
     }

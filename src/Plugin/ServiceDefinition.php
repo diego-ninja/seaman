@@ -31,6 +31,7 @@ final readonly class ServiceDefinition
         public array $internalPorts = [],
         public array $dependencies = [],
         public ?HealthCheck $healthCheck = null,
+        public ?DatabaseOperations $databaseOperations = null,
     ) {}
 
     public function getDisplayName(): string

@@ -58,7 +58,7 @@ test('db:restore command requires database service', function () {
     expect($commandTester->getDisplay())->toContain('No database service found');
 });
 
-test('db:restore command reports when plugin service does not support database operations', function () {
+test('db:restore command requires existing file', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
 
     $application = new Application();
@@ -66,7 +66,6 @@ test('db:restore command reports when plugin service does not support database o
 
     $commandTester->execute(['file' => 'nonexistent.sql']);
 
-    // Plugin-based services don't implement DatabaseServiceInterface yet
     expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('does not support database operations');
+    expect($commandTester->getDisplay())->toContain('Dump file not found');
 });

@@ -11,6 +11,7 @@ use Seaman\Enum\ServiceCategory;
 use Seaman\Plugin\Attribute\AsSeamanPlugin;
 use Seaman\Plugin\Attribute\ProvidesService;
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\DatabaseOperations;
 use Seaman\Plugin\PluginInterface;
 use Seaman\Plugin\ServiceDefinition;
 
@@ -78,8 +79,26 @@ final class SqlitePlugin implements PluginInterface
             defaultConfig: [
                 'version' => $this->config['version'],
                 'database_path' => $this->config['database_path'],
+                'environment' => [
+                    'DATABASE_PATH' => $this->config['database_path'],
+                ],
             ],
             healthCheck: null,
+            databaseOperations: new DatabaseOperations(
+                dumpCommand: static fn($config) => [
+                    'sqlite3',
+                    $config->environmentVariables['DATABASE_PATH'] ?? '/data/database.db',
+                    '.dump',
+                ],
+                restoreCommand: static fn($config) => [
+                    'sqlite3',
+                    $config->environmentVariables['DATABASE_PATH'] ?? '/data/database.db',
+                ],
+                shellCommand: static fn($config) => [
+                    'sqlite3',
+                    $config->environmentVariables['DATABASE_PATH'] ?? '/data/database.db',
+                ],
+            ),
         );
     }
 }

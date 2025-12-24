@@ -11,6 +11,7 @@ use Seaman\Enum\ServiceCategory;
 use Seaman\Plugin\Attribute\AsSeamanPlugin;
 use Seaman\Plugin\Attribute\ProvidesService;
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\DatabaseOperations;
 use Seaman\Plugin\PluginInterface;
 use Seaman\Plugin\ServiceDefinition;
 use Seaman\ValueObject\HealthCheck;
@@ -90,12 +91,41 @@ final class MysqlPlugin implements PluginInterface
                 'user' => $this->config['user'],
                 'password' => $this->config['password'],
                 'root_password' => $this->config['root_password'],
+                'environment' => [
+                    'MYSQL_DATABASE' => $this->config['database'],
+                    'MYSQL_USER' => $this->config['user'],
+                    'MYSQL_PASSWORD' => $this->config['password'],
+                    'MYSQL_ROOT_PASSWORD' => $this->config['root_password'],
+                ],
             ],
             healthCheck: new HealthCheck(
                 test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost'],
                 interval: '10s',
                 timeout: '5s',
                 retries: 5,
+            ),
+            databaseOperations: new DatabaseOperations(
+                dumpCommand: static fn($config) => [
+                    'mysqldump',
+                    '-u',
+                    $config->environmentVariables['MYSQL_USER'] ?? 'root',
+                    '-p' . ($config->environmentVariables['MYSQL_PASSWORD'] ?? ''),
+                    $config->environmentVariables['MYSQL_DATABASE'] ?? 'mysql',
+                ],
+                restoreCommand: static fn($config) => [
+                    'mysql',
+                    '-u',
+                    $config->environmentVariables['MYSQL_USER'] ?? 'root',
+                    '-p' . ($config->environmentVariables['MYSQL_PASSWORD'] ?? ''),
+                    $config->environmentVariables['MYSQL_DATABASE'] ?? 'mysql',
+                ],
+                shellCommand: static fn($config) => [
+                    'mysql',
+                    '-u',
+                    $config->environmentVariables['MYSQL_USER'] ?? 'root',
+                    '-p' . ($config->environmentVariables['MYSQL_PASSWORD'] ?? ''),
+                    $config->environmentVariables['MYSQL_DATABASE'] ?? 'mysql',
+                ],
             ),
         );
     }

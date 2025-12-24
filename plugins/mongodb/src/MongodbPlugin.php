@@ -11,6 +11,7 @@ use Seaman\Enum\ServiceCategory;
 use Seaman\Plugin\Attribute\AsSeamanPlugin;
 use Seaman\Plugin\Attribute\ProvidesService;
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\DatabaseOperations;
 use Seaman\Plugin\PluginInterface;
 use Seaman\Plugin\ServiceDefinition;
 use Seaman\ValueObject\HealthCheck;
@@ -88,12 +89,49 @@ final class MongodbPlugin implements PluginInterface
                 'database' => $this->config['database'],
                 'user' => $this->config['user'],
                 'password' => $this->config['password'],
+                'environment' => [
+                    'MONGO_INITDB_ROOT_USERNAME' => $this->config['user'],
+                    'MONGO_INITDB_ROOT_PASSWORD' => $this->config['password'],
+                    'MONGO_INITDB_DATABASE' => $this->config['database'],
+                ],
             ],
             healthCheck: new HealthCheck(
                 test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")'],
                 interval: '10s',
                 timeout: '5s',
                 retries: 5,
+            ),
+            databaseOperations: new DatabaseOperations(
+                dumpCommand: static fn($config) => [
+                    'mongodump',
+                    '--username',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                    '--password',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                    '--authenticationDatabase',
+                    'admin',
+                    '--archive',
+                ],
+                restoreCommand: static fn($config) => [
+                    'mongorestore',
+                    '--username',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                    '--password',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                    '--authenticationDatabase',
+                    'admin',
+                    '--archive',
+                    '--drop',
+                ],
+                shellCommand: static fn($config) => [
+                    'mongosh',
+                    '--username',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_USERNAME'] ?? 'root',
+                    '--password',
+                    $config->environmentVariables['MONGO_INITDB_ROOT_PASSWORD'] ?? '',
+                    '--authenticationDatabase',
+                    'admin',
+                ],
             ),
         );
     }
