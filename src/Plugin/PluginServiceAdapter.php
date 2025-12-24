@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Plugin;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\ValueObject\HealthCheck;
 use Seaman\ValueObject\ServiceConfig;
@@ -134,5 +135,10 @@ final readonly class PluginServiceAdapter implements ServiceInterface
     public function getInspectInfo(ServiceConfig $config): string
     {
         return "v{$config->version}";
+    }
+
+    public function getConfigSchema(): ?ConfigSchema
+    {
+        return $this->definition->configSchema;
     }
 }

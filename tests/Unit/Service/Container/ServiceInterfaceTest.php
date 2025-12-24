@@ -8,9 +8,10 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
 test('mock service implements interface correctly', function () {
     $service = new class implements ServiceInterface {
@@ -71,6 +72,11 @@ test('mock service implements interface correctly', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 

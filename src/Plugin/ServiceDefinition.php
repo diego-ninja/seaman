@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Plugin;
 
 use Seaman\Enum\ServiceCategory;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\ValueObject\HealthCheck;
 
 final readonly class ServiceDefinition
@@ -32,6 +33,7 @@ final readonly class ServiceDefinition
         public array $dependencies = [],
         public ?HealthCheck $healthCheck = null,
         public ?DatabaseOperations $databaseOperations = null,
+        public ?ConfigSchema $configSchema = null,
     ) {}
 
     public function getDisplayName(): string

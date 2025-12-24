@@ -8,8 +8,9 @@ declare(strict_types=1);
 namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
-use Seaman\ValueObject\ServiceConfig;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
 interface ServiceInterface
 {
@@ -55,4 +56,9 @@ interface ServiceInterface
      * Get display info for inspect command (credentials, version, etc.).
      */
     public function getInspectInfo(ServiceConfig $config): string;
+
+    /**
+     * Get the configuration schema for interactive configuration.
+     */
+    public function getConfigSchema(): ?ConfigSchema;
 }

@@ -101,6 +101,16 @@ class ServiceRegistry
         return $this->services[$name->value];
     }
 
+    public function has(string $name): bool
+    {
+        return isset($this->services[$name]);
+    }
+
+    public function getByName(string $name): ?ServiceInterface
+    {
+        return $this->services[$name] ?? null;
+    }
+
     /**
      * @return array<string, ServiceInterface>
      */

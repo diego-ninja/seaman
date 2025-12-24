@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\ValueObject\HealthCheck;
 use Seaman\ValueObject\ServiceConfig;
 
@@ -89,5 +90,10 @@ abstract readonly class AbstractService implements ServiceInterface
     public function getInspectInfo(ServiceConfig $config): string
     {
         return "v{$config->version}";
+    }
+
+    public function getConfigSchema(): ?ConfigSchema
+    {
+        return null;
     }
 }

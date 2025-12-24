@@ -9,6 +9,7 @@ namespace Seaman\Plugin;
 
 use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\ValueObject\HealthCheck;
 use Seaman\ValueObject\ServiceConfig;
@@ -161,5 +162,10 @@ final readonly class PluginDatabaseServiceAdapter implements ServiceInterface, D
     public function getShellCommand(ServiceConfig $config): array
     {
         return $this->definition->databaseOperations->getShellCommand($config);
+    }
+
+    public function getConfigSchema(): ?ConfigSchema
+    {
+        return $this->definition->configSchema;
     }
 }
