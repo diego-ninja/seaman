@@ -9,6 +9,7 @@ namespace Seaman\Tests\Unit\Service\Container;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
@@ -141,6 +142,11 @@ test('can register a service', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $registry->register($service);
@@ -232,6 +238,11 @@ test('returns all registered services', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -306,6 +317,11 @@ test('returns all registered services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
 
     };
@@ -402,6 +418,11 @@ test('returns only enabled services', function () {
             return 'info';
         }
 
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
+
     };
 
     $redisService = new class implements ServiceInterface {
@@ -476,6 +497,11 @@ test('returns only enabled services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 
@@ -568,6 +594,11 @@ test('returns only available services', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $redisService = new class implements ServiceInterface {
@@ -642,6 +673,11 @@ test('returns only available services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 
@@ -731,6 +767,11 @@ test('replaces service with same name on re-registration', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $service2 = new class implements ServiceInterface {
@@ -805,6 +846,11 @@ test('replaces service with same name on re-registration', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 
