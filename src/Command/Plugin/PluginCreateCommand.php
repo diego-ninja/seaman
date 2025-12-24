@@ -50,6 +50,7 @@ final class PluginCreateCommand extends AbstractSeamanCommand
         }
 
         // Create directory structure
+        mkdir($pluginDir . '/src', 0755, true);
         mkdir($pluginDir . '/templates', 0755, true);
 
         // Generate class name from plugin name
@@ -58,10 +59,10 @@ final class PluginCreateCommand extends AbstractSeamanCommand
 
         // Generate plugin file
         $content = $this->generatePluginCode($name, $className, $namespace);
-        file_put_contents($pluginDir . '/' . $className . '.php', $content);
+        file_put_contents($pluginDir . '/src/' . $className . '.php', $content);
 
         Terminal::success("Created plugin scaffold at: {$pluginDir}");
-        Terminal::output()->writeln("  Main file: {$className}.php");
+        Terminal::output()->writeln("  Main file: src/{$className}.php");
         Terminal::output()->writeln("  Templates: templates/");
 
         return Command::SUCCESS;

@@ -7,7 +7,7 @@ namespace Seaman\Tests\Unit\Command\Plugin;
 use Seaman\Command\Plugin\PluginCreateCommand;
 use Symfony\Component\Console\Tester\CommandTester;
 
-test('PluginCreateCommand creates plugin scaffold', function (): void {
+test('PluginCreateCommand creates plugin scaffold with src structure', function (): void {
     $tempDir = sys_get_temp_dir() . '/seaman-plugin-test-' . uniqid();
     mkdir($tempDir . '/.seaman', 0755, true);
 
@@ -18,12 +18,18 @@ test('PluginCreateCommand creates plugin scaffold', function (): void {
 
     expect($tester->getStatusCode())->toBe(0);
     expect(is_dir($tempDir . '/.seaman/plugins/my-plugin'))->toBeTrue();
-    expect(file_exists($tempDir . '/.seaman/plugins/my-plugin/MyPluginPlugin.php'))->toBeTrue();
+    expect(is_dir($tempDir . '/.seaman/plugins/my-plugin/src'))->toBeTrue();
+    expect(file_exists($tempDir . '/.seaman/plugins/my-plugin/src/MyPluginPlugin.php'))->toBeTrue();
+    expect(is_dir($tempDir . '/.seaman/plugins/my-plugin/templates'))->toBeTrue();
 
     // Cleanup
-    $phpFile = $tempDir . '/.seaman/plugins/my-plugin/MyPluginPlugin.php';
+    $phpFile = $tempDir . '/.seaman/plugins/my-plugin/src/MyPluginPlugin.php';
     if (file_exists($phpFile)) {
         unlink($phpFile);
+    }
+    $srcDir = $tempDir . '/.seaman/plugins/my-plugin/src';
+    if (is_dir($srcDir)) {
+        rmdir($srcDir);
     }
     $templatesDir = $tempDir . '/.seaman/plugins/my-plugin/templates';
     if (is_dir($templatesDir)) {

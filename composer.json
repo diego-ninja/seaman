@@ -61,7 +61,8 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Seaman\\Tests\\": "tests/"
+      "Seaman\\Tests\\": "tests/",
+      "Seaman\\Tests\\Fixtures\\Plugins\\ValidPlugin\\": "tests/Fixtures/Plugins/ValidPlugin/src/"
     }
   },
   "config": {
