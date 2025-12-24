@@ -107,7 +107,20 @@ final readonly class PluginServiceAdapter implements ServiceInterface
      */
     public function getEnvVariables(ServiceConfig $config): array
     {
-        return $config->environmentVariables;
+        $envVars = $config->environmentVariables;
+
+        // Add port variable using service-specific naming
+        $portVarName = strtoupper($this->definition->name) . '_PORT';
+
+        // For database services, also add DB_PORT for compatibility
+        if (in_array($this->definition->name, ['mysql', 'postgresql', 'mariadb', 'sqlite'], true)) {
+            $envVars['DB_PORT'] = $config->port;
+        }
+
+        // Always add the service-specific port variable
+        $envVars[$portVarName] = $config->port;
+
+        return $envVars;
     }
 
     /**

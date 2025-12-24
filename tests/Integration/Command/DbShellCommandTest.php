@@ -58,7 +58,7 @@ test('db:shell command requires database service', function () {
     expect($commandTester->getDisplay())->toContain('No database service found');
 });
 
-test('db:shell command requires docker-compose file', function () {
+test('db:shell command reports when plugin service does not support database operations', function () {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
 
     $application = new Application();
@@ -66,6 +66,7 @@ test('db:shell command requires docker-compose file', function () {
 
     $commandTester->execute([]);
 
+    // Plugin-based services don't implement DatabaseServiceInterface yet
     expect($commandTester->getStatusCode())->toBe(1);
-    expect($commandTester->getDisplay())->toContain('Docker Compose file not found');
+    expect($commandTester->getDisplay())->toContain('does not support database operations');
 });

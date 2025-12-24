@@ -233,7 +233,7 @@ test('adapter generates basic compose config from template path', function (): v
         ->and($composeConfig['__template_path'])->toBe('/path/to/template.yaml');
 });
 
-test('adapter returns env variables from config', function (): void {
+test('adapter returns env variables from config with port variable', function (): void {
     $definition = new ServiceDefinition(
         name: 'test-service',
         template: '/path/to/template.yaml',
@@ -250,7 +250,39 @@ test('adapter returns env variables from config', function (): void {
         environmentVariables: ['KEY' => 'value'],
     );
 
-    expect($adapter->getEnvVariables($config))->toBe(['KEY' => 'value']);
+    $envVars = $adapter->getEnvVariables($config);
+
+    // Should include custom env vars plus port variable
+    expect($envVars)->toHaveKey('KEY')
+        ->and($envVars['KEY'])->toBe('value')
+        ->and($envVars)->toHaveKey('TEST-SERVICE_PORT')
+        ->and($envVars['TEST-SERVICE_PORT'])->toBe(8080);
+});
+
+test('adapter adds DB_PORT for database services', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'mysql',
+        template: '/path/to/template.yaml',
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'mysql',
+        enabled: true,
+        type: Service::MySQL,
+        version: '8.0',
+        port: 3306,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    $envVars = $adapter->getEnvVariables($config);
+
+    // Database services get both DB_PORT and service-specific port
+    expect($envVars)->toHaveKey('DB_PORT')
+        ->and($envVars['DB_PORT'])->toBe(3306)
+        ->and($envVars)->toHaveKey('MYSQL_PORT')
+        ->and($envVars['MYSQL_PORT'])->toBe(3306);
 });
 
 test('adapter returns inspect info with version', function (): void {
