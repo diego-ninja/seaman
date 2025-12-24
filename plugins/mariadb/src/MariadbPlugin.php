@@ -32,11 +32,26 @@ final class MariadbPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '11')
+                ->label('MariaDB version')
+                ->description('Docker image tag to use')
+                ->enum(['10.11', '11', '11.4', 'latest'])
             ->integer('port', default: 3306, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port to expose MariaDB on')
             ->string('database', default: 'seaman')
+                ->label('Database name')
+                ->description('Name of the default database to create')
             ->string('user', default: 'seaman')
+                ->label('Database user')
+                ->description('Username for database access')
             ->string('password', default: 'seaman')
-            ->string('root_password', default: 'root');
+                ->label('Database password')
+                ->description('Password for the database user')
+                ->secret()
+            ->string('root_password', default: 'root')
+                ->label('Root password')
+                ->description('Password for the MariaDB root user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -127,6 +142,7 @@ final class MariadbPlugin implements PluginInterface
                     $config->environmentVariables['MARIADB_DATABASE'] ?? 'mysql',
                 ],
             ),
+            configSchema: $this->schema,
         );
     }
 }

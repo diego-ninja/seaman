@@ -31,7 +31,12 @@ final class ValkeyPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '8-alpine')
-            ->integer('port', default: 6379, min: 1, max: 65535);
+                ->label('Valkey version')
+                ->description('Docker image tag to use')
+                ->enum(['7-alpine', '8-alpine', 'alpine', 'latest'])
+            ->integer('port', default: 6379, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port to expose Valkey on');
 
         $this->config = $this->schema->validate([]);
     }
@@ -89,6 +94,7 @@ final class ValkeyPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

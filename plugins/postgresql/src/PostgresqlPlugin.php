@@ -34,6 +34,7 @@ final class PostgresqlPlugin implements PluginInterface
             ->string('version', default: '16')
                 ->label('PostgreSQL version')
                 ->description('PostgreSQL version to use')
+                ->enum(['13', '14', '15', '16', '17', 'latest'])
             ->integer('port', default: 5432, min: 1, max: 65535)
                 ->label('Port')
                 ->description('Port number for PostgreSQL')

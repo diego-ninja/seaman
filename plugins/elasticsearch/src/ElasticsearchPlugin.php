@@ -31,8 +31,15 @@ final class ElasticsearchPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '8.12.0')
+                ->label('Elasticsearch version')
+                ->description('Docker image tag to use')
+                ->enum(['7.17.27', '8.12.0', '8.17.0', 'latest'])
             ->integer('port', default: 9200, min: 1, max: 65535)
-            ->boolean('security_enabled', default: false);
+                ->label('HTTP port')
+                ->description('Host port for HTTP API')
+            ->boolean('security_enabled', default: false)
+                ->label('Enable security')
+                ->description('Enable authentication and TLS');
 
         $this->config = $this->schema->validate([]);
     }
@@ -91,6 +98,7 @@ final class ElasticsearchPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

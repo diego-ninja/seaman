@@ -31,7 +31,12 @@ final class KafkaPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '3.7')
-            ->integer('port', default: 9092, min: 1, max: 65535);
+                ->label('Kafka version')
+                ->description('Docker image tag to use')
+                ->enum(['3.6', '3.7', '3.8', '3.9', 'latest'])
+            ->integer('port', default: 9092, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port for Kafka broker');
 
         $this->config = $this->schema->validate([]);
     }
@@ -89,6 +94,7 @@ final class KafkaPlugin implements PluginInterface
                 timeout: '10s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

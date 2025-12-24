@@ -31,10 +31,22 @@ final class RabbitmqPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '3-management')
+                ->label('RabbitMQ version')
+                ->description('Docker image tag to use')
+                ->enum(['3-management', '3-management-alpine', '4.0-management', 'latest'])
             ->integer('port', default: 5672, min: 1, max: 65535)
+                ->label('AMQP port')
+                ->description('Host port for AMQP protocol')
             ->integer('management_port', default: 15672, min: 1, max: 65535)
+                ->label('Management UI port')
+                ->description('Host port for web management interface')
             ->string('user', default: 'seaman')
-            ->string('password', default: 'seaman');
+                ->label('Username')
+                ->description('Default user for authentication')
+            ->string('password', default: 'seaman')
+                ->label('Password')
+                ->description('Password for default user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -97,6 +109,7 @@ final class RabbitmqPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

@@ -31,7 +31,12 @@ final class SqlitePlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '3')
-            ->string('database_path', default: 'var/data.db');
+                ->label('SQLite version')
+                ->description('SQLite version (informational only)')
+                ->enum(['3'])
+            ->string('database_path', default: 'var/data.db')
+                ->label('Database path')
+                ->description('Path to the SQLite database file');
 
         $this->config = $this->schema->validate([]);
     }
@@ -99,6 +104,7 @@ final class SqlitePlugin implements PluginInterface
                     $config->environmentVariables['DATABASE_PATH'] ?? '/data/database.db',
                 ],
             ),
+            configSchema: $this->schema,
         );
     }
 }

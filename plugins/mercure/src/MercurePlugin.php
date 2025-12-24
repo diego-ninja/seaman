@@ -31,8 +31,16 @@ final class MercurePlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: 'v0.16')
+                ->label('Mercure version')
+                ->description('Docker image tag to use')
+                ->enum(['v0.15', 'v0.16', 'latest'])
             ->integer('port', default: 3000, min: 1, max: 65535)
-            ->string('jwt_secret', default: '!ChangeThisMercureHubJWTSecretKey!');
+                ->label('Port')
+                ->description('Host port for Mercure hub')
+            ->string('jwt_secret', default: '!ChangeThisMercureHubJWTSecretKey!')
+                ->label('JWT secret')
+                ->description('Secret key for JWT token signing')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -91,6 +99,7 @@ final class MercurePlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

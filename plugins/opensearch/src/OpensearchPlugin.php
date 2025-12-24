@@ -31,8 +31,15 @@ final class OpensearchPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '2')
+                ->label('OpenSearch version')
+                ->description('Docker image tag to use')
+                ->enum(['1', '2', '2.18.0', 'latest'])
             ->integer('port', default: 9200, min: 1, max: 65535)
-            ->integer('performance_port', default: 9600, min: 1, max: 65535);
+                ->label('HTTP port')
+                ->description('Host port for HTTP API')
+            ->integer('performance_port', default: 9600, min: 1, max: 65535)
+                ->label('Performance Analyzer port')
+                ->description('Host port for Performance Analyzer');
 
         $this->config = $this->schema->validate([]);
     }
@@ -93,6 +100,7 @@ final class OpensearchPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

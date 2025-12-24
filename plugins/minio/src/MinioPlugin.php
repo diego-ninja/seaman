@@ -31,10 +31,22 @@ final class MinioPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: 'RELEASE.2024-11-07T00-52-20Z')
+                ->label('MinIO version')
+                ->description('Docker image tag to use')
+                ->enum(['RELEASE.2024-11-07T00-52-20Z', 'latest'])
             ->integer('port', default: 9000, min: 1, max: 65535)
+                ->label('API port')
+                ->description('Host port for S3 API')
             ->integer('console_port', default: 9001, min: 1, max: 65535)
+                ->label('Console port')
+                ->description('Host port for web console')
             ->string('root_user', default: 'minioadmin')
-            ->string('root_password', default: 'minioadmin');
+                ->label('Root user')
+                ->description('Username for root access')
+            ->string('root_password', default: 'minioadmin')
+                ->label('Root password')
+                ->description('Password for root user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -97,6 +109,7 @@ final class MinioPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

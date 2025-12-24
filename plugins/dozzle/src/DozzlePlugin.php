@@ -31,7 +31,12 @@ final class DozzlePlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: 'v8.8')
-            ->integer('port', default: 8080, min: 1, max: 65535);
+                ->label('Dozzle version')
+                ->description('Docker image tag to use')
+                ->enum(['v8.7', 'v8.8', 'v8.9', 'latest'])
+            ->integer('port', default: 8080, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port for web interface');
 
         $this->config = $this->schema->validate([]);
     }
@@ -89,6 +94,7 @@ final class DozzlePlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

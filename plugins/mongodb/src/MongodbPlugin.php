@@ -32,10 +32,22 @@ final class MongodbPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '7')
+                ->label('MongoDB version')
+                ->description('Docker image tag to use')
+                ->enum(['6', '7', '8', 'latest'])
             ->integer('port', default: 27017, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port to expose MongoDB on')
             ->string('database', default: 'seaman')
+                ->label('Database name')
+                ->description('Name of the initial database to create')
             ->string('user', default: 'seaman')
-            ->string('password', default: 'seaman');
+                ->label('Root username')
+                ->description('Username for the root admin user')
+            ->string('password', default: 'seaman')
+                ->label('Root password')
+                ->description('Password for the root admin user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -133,6 +145,7 @@ final class MongodbPlugin implements PluginInterface
                     'admin',
                 ],
             ),
+            configSchema: $this->schema,
         );
     }
 }

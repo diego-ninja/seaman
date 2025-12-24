@@ -31,11 +31,25 @@ final class SoketiPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: 'latest-16-alpine')
+                ->label('Soketi version')
+                ->description('Docker image tag to use')
+                ->enum(['latest-16-alpine', 'latest-18-alpine', 'latest'])
             ->integer('port', default: 6001, min: 1, max: 65535)
+                ->label('WebSocket port')
+                ->description('Host port for WebSocket connections')
             ->integer('metrics_port', default: 9601, min: 1, max: 65535)
+                ->label('Metrics port')
+                ->description('Host port for Prometheus metrics')
             ->string('app_id', default: 'app-id')
+                ->label('App ID')
+                ->description('Pusher-compatible application ID')
             ->string('app_key', default: 'app-key')
-            ->string('app_secret', default: 'app-secret');
+                ->label('App key')
+                ->description('Pusher-compatible application key')
+            ->string('app_secret', default: 'app-secret')
+                ->label('App secret')
+                ->description('Pusher-compatible application secret')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -99,6 +113,7 @@ final class SoketiPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

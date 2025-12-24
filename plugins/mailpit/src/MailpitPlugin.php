@@ -31,8 +31,15 @@ final class MailpitPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: 'v1.21')
+                ->label('Mailpit version')
+                ->description('Docker image tag to use')
+                ->enum(['v1.20', 'v1.21', 'v1.22', 'latest'])
             ->integer('port', default: 8025, min: 1, max: 65535)
-            ->integer('smtp_port', default: 1025, min: 1, max: 65535);
+                ->label('Web UI port')
+                ->description('Host port for web interface')
+            ->integer('smtp_port', default: 1025, min: 1, max: 65535)
+                ->label('SMTP port')
+                ->description('Host port for SMTP server');
 
         $this->config = $this->schema->validate([]);
     }
@@ -93,6 +100,7 @@ final class MailpitPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }

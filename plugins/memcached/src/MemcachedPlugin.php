@@ -31,7 +31,12 @@ final class MemcachedPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '1.6-alpine')
-            ->integer('port', default: 11211, min: 1, max: 65535);
+                ->label('Memcached version')
+                ->description('Docker image tag to use')
+                ->enum(['1.6-alpine', 'alpine', 'latest'])
+            ->integer('port', default: 11211, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Host port to expose Memcached on');
 
         $this->config = $this->schema->validate([]);
     }
@@ -89,6 +94,7 @@ final class MemcachedPlugin implements PluginInterface
                 timeout: '5s',
                 retries: 5,
             ),
+            configSchema: $this->schema,
         );
     }
 }
