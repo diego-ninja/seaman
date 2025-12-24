@@ -566,6 +566,36 @@ final class MyPlugin implements PluginInterface
 | `string(name, default?, nullable?)` | String with optional null |
 | `boolean(name, default?)` | Boolean value |
 
+**UI Metadata Methods:**
+
+After defining a field, chain these methods to add UI metadata for `seaman configure`:
+
+| Method | Description |
+|--------|-------------|
+| `label(string)` | Human-readable field label |
+| `description(string)` | Help text for the field |
+| `secret()` | Mark as password field (hidden input) |
+| `enum(array)` | Restrict to allowed values (shown as select) |
+
+**Example with UI Metadata:**
+
+```php
+$this->schema = ConfigSchema::create()
+    ->string('version', default: '8.0')
+        ->label('MySQL version')
+        ->description('Docker image tag to use')
+        ->enum(['5.7', '8.0', '8.4', 'latest'])
+    ->integer('port', default: 3306, min: 1, max: 65535)
+        ->label('Port')
+        ->description('Host port to expose MySQL on')
+    ->string('password', default: 'secret')
+        ->label('Database password')
+        ->description('Password for the database user')
+        ->secret();
+```
+
+This enables interactive configuration via `seaman configure <service>` where users see labeled fields, descriptions as hints, password masking, and dropdown selection for enum fields.
+
 User configuration in `seaman.yaml`:
 
 ```yaml

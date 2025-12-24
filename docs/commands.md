@@ -133,6 +133,36 @@ Prompts you to:
 2. Confirm removal
 3. Regenerate docker-compose.yml
 
+### configure
+
+Interactively configure an enabled service.
+
+```bash
+seaman configure <service>
+```
+
+**Arguments:**
+- `service` - Name of the enabled service to configure
+
+**Examples:**
+```bash
+seaman configure postgresql   # Configure PostgreSQL settings
+seaman configure redis        # Configure Redis settings
+seaman configure rabbitmq     # Configure RabbitMQ settings
+```
+
+Opens an interactive form based on the service's configuration schema. For each field you can:
+- Enter a new value
+- Press Enter to keep the current value (shown as default)
+- For password fields, input is hidden
+
+After saving configuration, you're offered restart options:
+- **Do nothing** - Save config without restarting
+- **Restart this service** - Restart only the configured service
+- **Restart entire stack** - Restart all services
+
+Configuration is saved to `seaman.yaml` and the `.env` file is regenerated automatically.
+
 ## Development Tools
 
 ### shell
