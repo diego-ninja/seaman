@@ -28,12 +28,13 @@ use Symfony\Component\Console\Output\OutputInterface;
     description: 'Interactively configure a service',
     aliases: ['configure'],
 )]
-final class ConfigureCommand extends AbstractServiceCommand implements Decorable
+final class ConfigureCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
         private readonly ConfigurationService $configService,
+        private readonly \Seaman\Service\ComposeRegenerator $regenerator,
     ) {
         parent::__construct();
     }
@@ -148,7 +149,8 @@ final class ConfigureCommand extends AbstractServiceCommand implements Decorable
         }
 
         if ($restartChoice === 'stack') {
-            return $this->restartServices();
+            $result = $this->regenerator->restartIfConfirmed();
+            return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
         }
 
         return Command::SUCCESS;

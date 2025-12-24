@@ -30,6 +30,7 @@ use Seaman\Command\StartCommand;
 use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
+use Seaman\Service\ComposeRegenerator;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\ConfigurationValidator;
@@ -39,6 +40,8 @@ use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PortAllocator;
@@ -47,6 +50,7 @@ use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
+use Seaman\Service\TemplateRenderer;
 use Seaman\Plugin\PluginRegistry;
 use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Plugin\PluginTemplateLoader;
@@ -110,6 +114,26 @@ return function (ContainerBuilder $builder): void {
 
         DockerManager::class => factory(
             fn(ContainerInterface $c): DockerManager => new DockerManager($c->get('projectRoot')),
+        ),
+
+        TemplateRenderer::class => factory(
+            fn(): TemplateRenderer => new TemplateRenderer(__DIR__ . '/../src/Template'),
+        ),
+
+        TraefikLabelGenerator::class => create(TraefikLabelGenerator::class),
+
+        DockerComposeGenerator::class => factory(
+            fn(ContainerInterface $c): DockerComposeGenerator => new DockerComposeGenerator(
+                $c->get(TemplateRenderer::class),
+                $c->get(TraefikLabelGenerator::class),
+            ),
+        ),
+
+        ComposeRegenerator::class => factory(
+            fn(ContainerInterface $c): ComposeRegenerator => new ComposeRegenerator(
+                $c->get(DockerComposeGenerator::class),
+                $c->get(DockerManager::class),
+            ),
         ),
 
         ConfigManager::class => factory(
@@ -188,6 +212,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): ServiceAddCommand => new ServiceAddCommand(
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
+                $c->get(ComposeRegenerator::class),
             ),
         ),
 
@@ -195,6 +220,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): ServiceRemoveCommand => new ServiceRemoveCommand(
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
+                $c->get(ComposeRegenerator::class),
             ),
         ),
 
@@ -203,6 +229,7 @@ return function (ContainerBuilder $builder): void {
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
                 $c->get(ConfigurationService::class),
+                $c->get(ComposeRegenerator::class),
             ),
         ),
 
