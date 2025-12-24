@@ -8,14 +8,14 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Plugin\Export;
 
 use PHPUnit\Framework\TestCase;
-use Seaman\Plugin\Export\DefaultPluginExporter;
+use Seaman\Plugin\Export\PluginExporter;
 use Seaman\Plugin\Export\NamespaceTransformer;
 
 final class PluginExporterTest extends TestCase
 {
     private string $tempPluginDir;
     private string $tempOutputDir;
-    private DefaultPluginExporter $exporter;
+    private PluginExporter $exporter;
 
     protected function setUp(): void
     {
@@ -25,7 +25,7 @@ final class PluginExporterTest extends TestCase
         mkdir($this->tempPluginDir);
         mkdir($this->tempOutputDir);
 
-        $this->exporter = new DefaultPluginExporter(new NamespaceTransformer());
+        $this->exporter = new PluginExporter(new NamespaceTransformer());
     }
 
     protected function tearDown(): void

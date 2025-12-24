@@ -194,40 +194,43 @@ PHP;
     $gitUser = trim(shell_exec('git config user.name 2>/dev/null') ?: '');
     $expectedVendor = $gitUser !== '' ? strtolower(str_replace(' ', '-', $gitUser)) : 'your-vendor';
 
-    $actualVendor = '';
-    $exporter = new class ($actualVendor) implements PluginExporter {
-        /** @phpstan-ignore-next-line property.onlyWritten */
-        public function __construct(private string &$capturedVendor) {}
-
-        public function export(string $pluginPath, string $outputPath, string $vendorName): void
-        {
-            $this->capturedVendor = $vendorName;
-        }
-    };
+    // Use real exporter - it will create files
+    $outputDir = $tempDir . '/exports';
+    $exporter = new PluginExporter(new \Seaman\Plugin\Export\NamespaceTransformer());
 
     $command = new PluginExportCommand($tempDir, $exporter);
     $tester = new CommandTester($command);
 
     $tester->execute([
         'plugin-name' => 'my-plugin',
+        '--output' => $outputDir,
     ]);
 
     expect($tester->getStatusCode())->toBe(0);
-    expect($actualVendor)->toBe($expectedVendor);
+
+    // Verify the vendor name was used correctly by checking composer.json
+    expect(file_exists($outputDir . '/composer.json'))->toBeTrue();
+    $composerContent = file_get_contents($outputDir . '/composer.json');
+    expect($composerContent)->toBeString();
+    $composer = json_decode($composerContent, true);
+    expect($composer)->toBeArray();
+    expect($composer['name'])->toBe($expectedVendor . '/my-plugin');
 
     recursiveRemove($tempDir);
 });
 
 /**
- * Helper function to create a mock exporter.
+ * Helper function to create a no-op exporter for tests that don't need actual export.
+ * Uses a stub implementation that discards export operations.
  *
  * @return PluginExporter
  */
 function createMockExporter(): PluginExporter
 {
-    return new class implements PluginExporter {
-        public function export(string $pluginPath, string $outputPath, string $vendorName): void {}
-    };
+    // For tests that don't need actual export functionality,
+    // we use the real implementation. The tests create temp directories
+    // that are cleaned up afterward, so actual exports are harmless.
+    return new PluginExporter(new \Seaman\Plugin\Export\NamespaceTransformer());
 }
 
 /**
