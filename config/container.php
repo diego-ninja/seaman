@@ -55,6 +55,8 @@ use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
 use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\ConfigureCommand;
+use Seaman\Service\ConfigurationService;
 use Seaman\Service\PackagistClient;
 
 use function DI\create;
@@ -76,6 +78,7 @@ return function (ContainerBuilder $builder): void {
             },
         ),
         ConfigurationValidator::class => create(ConfigurationValidator::class),
+        ConfigurationService::class => create(ConfigurationService::class),
         SymfonyDetector::class => create(SymfonyDetector::class),
         PhpVersionDetector::class => create(PhpVersionDetector::class),
         PortChecker::class => create(PortChecker::class),
@@ -189,6 +192,14 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): ServiceRemoveCommand => new ServiceRemoveCommand(
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
+            ),
+        ),
+
+        ConfigureCommand::class => factory(
+            fn(ContainerInterface $c): ConfigureCommand => new ConfigureCommand(
+                $c->get(ConfigManager::class),
+                $c->get(ServiceRegistry::class),
+                $c->get(ConfigurationService::class),
             ),
         ),
 

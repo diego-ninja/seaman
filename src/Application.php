@@ -14,6 +14,7 @@ use DI\NotFoundException;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
 use Seaman\Command\CleanCommand;
+use Seaman\Command\ConfigureCommand;
 use Seaman\Command\Database\DbDumpCommand;
 use Seaman\Command\Database\DbRestoreCommand;
 use Seaman\Command\Database\DbShellCommand;
@@ -116,6 +117,7 @@ class Application extends BaseApplication
             $container->get(ServiceListCommand::class),
             $container->get(ServiceAddCommand::class),
             $container->get(ServiceRemoveCommand::class),
+            $container->get(ConfigureCommand::class),
             $container->get(InitCommand::class),
             $container->get(DevContainerGenerateCommand::class),
             $container->get(StartCommand::class),

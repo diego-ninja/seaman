@@ -32,10 +32,21 @@ final class PostgresqlPlugin implements PluginInterface
     {
         $this->schema = ConfigSchema::create()
             ->string('version', default: '16')
+                ->label('PostgreSQL version')
+                ->description('PostgreSQL version to use')
             ->integer('port', default: 5432, min: 1, max: 65535)
+                ->label('Port')
+                ->description('Port number for PostgreSQL')
             ->string('database', default: 'seaman')
+                ->label('Database name')
+                ->description('Name of the database to create')
             ->string('user', default: 'seaman')
-            ->string('password', default: 'seaman');
+                ->label('Database user')
+                ->description('Username for database access')
+            ->string('password', default: 'seaman')
+                ->label('Database password')
+                ->description('Password for database user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -121,6 +132,7 @@ final class PostgresqlPlugin implements PluginInterface
                     $config->environmentVariables['POSTGRES_DB'] ?? 'postgres',
                 ],
             ),
+            configSchema: $this->schema,
         );
     }
 }
