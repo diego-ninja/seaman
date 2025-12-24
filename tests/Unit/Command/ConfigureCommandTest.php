@@ -29,9 +29,9 @@ beforeEach(function () {
 
 afterEach(function () {
     HeadlessMode::reset();
-    /** @phpstan-ignore argument.type */
+    /** @phpstan-ignore property.notFound, argument.type */
     chdir($this->originalDir);
-    /** @phpstan-ignore argument.type */
+    /** @phpstan-ignore property.notFound, argument.type */
     TestHelper::removeTempDir($this->tempDir);
 });
 
@@ -46,7 +46,7 @@ test('configure command requires managed mode', function () {
 });
 
 test('configure command requires valid service name', function () {
-    /** @phpstan-ignore argument.type */
+    /** @phpstan-ignore property.notFound, argument.type */
     TestHelper::copyFixture('minimal-seaman.yaml', $this->tempDir);
 
     $application = new Application();
@@ -59,7 +59,7 @@ test('configure command requires valid service name', function () {
 });
 
 test('configure command requires service to be enabled', function () {
-    /** @phpstan-ignore argument.type */
+    /** @phpstan-ignore property.notFound, argument.type */
     TestHelper::copyFixture('minimal-seaman.yaml', $this->tempDir);
 
     $application = new Application();
@@ -72,7 +72,7 @@ test('configure command requires service to be enabled', function () {
 });
 
 test('configure command updates service configuration', function () {
-    /** @phpstan-ignore argument.type */
+    /** @phpstan-ignore property.notFound, argument.type */
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
 
     HeadlessMode::preset([
@@ -92,7 +92,7 @@ test('configure command updates service configuration', function () {
     expect($commandTester->getStatusCode())->toBe(0);
     expect($commandTester->getDisplay())->toContain('Configuration saved');
 
-    /** @phpstan-ignore binaryOp.invalid */
+    /** @phpstan-ignore property.notFound, binaryOp.invalid */
     $yamlPath = $this->tempDir . '/.seaman/seaman.yaml';
     expect(file_exists($yamlPath))->toBeTrue();
 
