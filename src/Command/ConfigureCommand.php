@@ -24,8 +24,9 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
 #[AsCommand(
-    name: 'configure',
+    name: 'service:configure',
     description: 'Interactively configure a service',
+    aliases: ['configure'],
 )]
 final class ConfigureCommand extends AbstractServiceCommand implements Decorable
 {
