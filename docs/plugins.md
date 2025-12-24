@@ -2,6 +2,27 @@
 
 Seaman's plugin system allows you to extend functionality by adding custom Docker services, CLI commands, lifecycle hooks, and template overrides. Plugins can be distributed via Composer packages or installed locally in your project.
 
+## Bundled Plugins
+
+Seaman ships with 17 bundled plugins that provide all built-in services. These are located in the `plugins/` directory and are automatically loaded. Bundled plugins have the lowest priority, meaning Composer or local plugins can override them.
+
+**Database Services:**
+- MySQL, PostgreSQL, MariaDB, MongoDB, SQLite
+
+**Cache Services:**
+- Redis, Valkey, Memcached
+
+**Queue Services:**
+- RabbitMQ, Kafka
+
+**Search Services:**
+- Elasticsearch, OpenSearch
+
+**Dev Tools:**
+- Mailpit, Minio, Dozzle, Mercure, Soketi
+
+All database plugins support `db:dump`, `db:restore`, and `db:shell` commands.
+
 ## Table of Contents
 
 - [For Users](#for-users)
@@ -276,6 +297,41 @@ final class MyPlugin implements PluginInterface
 | `defaultConfig` | `array<string, mixed>` | Default configuration values |
 | `dependencies` | `list<string>` | Service dependencies |
 | `healthCheck` | `?HealthCheck` | Health check configuration |
+| `databaseOperations` | `?DatabaseOperations` | Database dump/restore/shell commands |
+
+#### Database Operations
+
+For database services, you can provide `databaseOperations` to enable `db:dump`, `db:restore`, and `db:shell` commands:
+
+```php
+use Seaman\Plugin\DatabaseOperations;
+
+return new ServiceDefinition(
+    name: 'mydb',
+    template: __DIR__ . '/../templates/mydb.yaml.twig',
+    // ... other properties
+    databaseOperations: new DatabaseOperations(
+        dumpCommand: static fn($config) => [
+            'mydump',
+            '-u', $config->environmentVariables['DB_USER'] ?? 'root',
+            '-p' . ($config->environmentVariables['DB_PASSWORD'] ?? ''),
+            $config->environmentVariables['DB_NAME'] ?? 'mydb',
+        ],
+        restoreCommand: static fn($config) => [
+            'myrestore',
+            '-u', $config->environmentVariables['DB_USER'] ?? 'root',
+            '-p' . ($config->environmentVariables['DB_PASSWORD'] ?? ''),
+            $config->environmentVariables['DB_NAME'] ?? 'mydb',
+        ],
+        shellCommand: static fn($config) => [
+            'myshell',
+            '-u', $config->environmentVariables['DB_USER'] ?? 'root',
+        ],
+    ),
+);
+```
+
+Each closure receives the `ServiceConfig` and should return a `list<string>` of command arguments.
 
 **Service Categories:**
 
