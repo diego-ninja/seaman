@@ -55,9 +55,13 @@ use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
 use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\Plugin\PluginExportCommand;
 use Seaman\Command\ConfigureCommand;
 use Seaman\Service\ConfigurationService;
 use Seaman\Service\PackagistClient;
+use Seaman\Plugin\Export\NamespaceTransformer;
+use Seaman\Plugin\Export\PluginExporter;
+use Seaman\Plugin\Export\DefaultPluginExporter;
 
 use function DI\create;
 use function DI\factory;
@@ -431,6 +435,21 @@ return function (ContainerBuilder $builder): void {
         PluginCreateCommand::class => factory(
             fn(ContainerInterface $c): PluginCreateCommand => new PluginCreateCommand(
                 $c->get('projectRoot'),
+            ),
+        ),
+
+        NamespaceTransformer::class => create(NamespaceTransformer::class),
+
+        PluginExporter::class => factory(
+            fn(ContainerInterface $c): PluginExporter => new DefaultPluginExporter(
+                $c->get(NamespaceTransformer::class),
+            ),
+        ),
+
+        PluginExportCommand::class => factory(
+            fn(ContainerInterface $c): PluginExportCommand => new PluginExportCommand(
+                $c->get('projectRoot'),
+                $c->get(PluginExporter::class),
             ),
         ),
     ]);
