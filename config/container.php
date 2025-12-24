@@ -61,7 +61,6 @@ use Seaman\Service\ConfigurationService;
 use Seaman\Service\PackagistClient;
 use Seaman\Plugin\Export\NamespaceTransformer;
 use Seaman\Plugin\Export\PluginExporter;
-use Seaman\Plugin\Export\DefaultPluginExporter;
 
 use function DI\create;
 use function DI\factory;
@@ -441,7 +440,7 @@ return function (ContainerBuilder $builder): void {
         NamespaceTransformer::class => create(NamespaceTransformer::class),
 
         PluginExporter::class => factory(
-            fn(ContainerInterface $c): PluginExporter => new DefaultPluginExporter(
+            fn(ContainerInterface $c): PluginExporter => new PluginExporter(
                 $c->get(NamespaceTransformer::class),
             ),
         ),
