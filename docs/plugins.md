@@ -76,12 +76,11 @@ your-project/
 │   ├── seaman.yaml
 │   └── plugins/
 │       └── my-custom-plugin/
-│           ├── composer.json
 │           └── src/
-│               └── MyPlugin.php
+│               └── MyCustomPlugin.php
 ```
 
-Local plugins require a `composer.json` with PSR-4 autoloading configuration.
+Local plugins use the same structure as bundled and Composer plugins, with all PHP code in a `src/` directory.
 
 ### Configuring Plugins
 
@@ -140,6 +139,16 @@ seaman plugin:create my-plugin
 
 Generates a plugin skeleton in `.seaman/plugins/my-plugin/` with the basic structure and example code.
 
+#### Export a Local Plugin
+
+Convert a local plugin into a distributable Composer package:
+
+```bash
+seaman plugin:export my-plugin
+```
+
+Exports the plugin to a Composer-ready package with transformed namespaces, generated `composer.json`, and instructions for publishing to Packagist. See [Exporting Plugins](#exporting-plugins) below for details.
+
 ---
 
 ## For Developers
@@ -186,20 +195,29 @@ final class MyPlugin implements PluginInterface
 
 ### Plugin Structure
 
-A typical plugin directory structure:
+All plugins (bundled, local, and Composer) use a unified directory structure:
 
 ```
 my-plugin/
-├── composer.json
+├── composer.json              # Only for Composer plugins
 ├── src/
 │   ├── MyPlugin.php           # Main plugin class
-│   └── Command/
-│       └── MyCommand.php      # Custom commands
-├── templates/
+│   ├── Command/               # CLI commands (optional)
+│   │   └── MyCommand.php
+│   └── Service/               # Helper classes (optional)
+│       └── Helper.php
+├── templates/                 # Twig templates (optional)
 │   └── services/
 │       └── my-service.yaml.twig
 └── README.md
 ```
+
+**Key Points:**
+
+- All PHP code lives in `src/` directory
+- Local plugins do not require `composer.json`
+- Templates are stored at the plugin root level
+- Commands and helper classes use subdirectories under `src/`
 
 #### composer.json
 
@@ -493,6 +511,125 @@ final class MyPlugin implements PluginInterface
 ```
 
 This allows you to customize how services are configured in the generated `docker-compose.yaml`.
+
+---
+
+## Exporting Plugins
+
+Once you've developed a local plugin in `.seaman/plugins/`, you can export it as a distributable Composer package for sharing or publishing to Packagist.
+
+### Export Command
+
+```bash
+seaman plugin:export [plugin-name] [--output=DIR] [--vendor=NAME]
+```
+
+**Arguments:**
+- `plugin-name` - Name of the local plugin to export (optional, prompts if not provided)
+
+**Options:**
+- `--output=DIR` - Output directory for the exported package (default: `./exports/<plugin-name>/`)
+- `--vendor=NAME` - Vendor name for Composer package (default: interactive prompt using git config)
+
+**Examples:**
+
+```bash
+# Interactive mode (select plugin, vendor prompted)
+seaman plugin:export
+
+# Export specific plugin with custom vendor
+seaman plugin:export my-plugin --vendor=diego
+
+# Export to custom directory
+seaman plugin:export my-plugin --output=/tmp/my-plugin-export
+```
+
+### What Gets Exported
+
+The export process:
+
+1. **Validates** the plugin structure (requires `src/` directory and `#[AsSeamanPlugin]` attribute)
+2. **Copies** the plugin's `src/` directory to the output location
+3. **Transforms** all PHP namespaces from `Seaman\LocalPlugins\PluginName` to `Vendor\PluginName`
+4. **Copies** any `templates/` directory unchanged
+5. **Generates** a complete `composer.json` file with all required metadata
+
+### Namespace Transformation
+
+Local plugins use the namespace `Seaman\LocalPlugins\PluginName`. When exported, all namespace declarations, `use` statements, and fully-qualified class references are automatically transformed to your vendor namespace.
+
+**Before export (local plugin):**
+```php
+namespace Seaman\LocalPlugins\MyPlugin;
+
+use Seaman\LocalPlugins\MyPlugin\Command\MyCommand;
+```
+
+**After export:**
+```php
+namespace Diego\MyPlugin;
+
+use Diego\MyPlugin\Command\MyCommand;
+```
+
+### Generated composer.json
+
+The export creates a complete `composer.json` file:
+
+```json
+{
+    "name": "diego/my-plugin",
+    "description": "Description from #[AsSeamanPlugin] attribute",
+    "type": "seaman-plugin",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "seaman/seaman": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Diego\\MyPlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "seaman": {
+            "plugin-class": "Diego\\MyPlugin\\MyPluginPlugin"
+        }
+    }
+}
+```
+
+### Publishing to Packagist
+
+After export, you'll see next steps for publishing:
+
+```
+✓ Plugin exported successfully!
+
+  Location: ./exports/my-plugin/
+
+  Next steps:
+  1. cd exports/my-plugin
+  2. Review and customize composer.json
+  3. Initialize git: git init
+  4. Publish to Packagist: composer publish
+
+  Install with: composer require diego/my-plugin
+```
+
+**Complete publishing workflow:**
+
+1. Review the generated `composer.json` and adjust metadata if needed
+2. Initialize git repository: `git init`
+3. Add and commit files: `git add . && git commit -m "Initial commit"`
+4. Create a repository on GitHub
+5. Push to GitHub: `git remote add origin <url> && git push -u origin main`
+6. Submit to Packagist at https://packagist.org/packages/submit
+7. Users can install with: `composer require vendor/plugin-name`
+
+---
 
 ### Configuration Schema
 

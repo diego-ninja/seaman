@@ -388,10 +388,61 @@ seaman plugin:create my-custom-plugin
 ```
 
 Creates:
-- `.seaman/plugins/my-custom-plugin/composer.json`
 - `.seaman/plugins/my-custom-plugin/src/MyCustomPlugin.php`
 
 See [Plugins documentation](plugins.md) for more details on plugin development.
+
+### plugin:export
+
+Export a local plugin to a distributable Composer package.
+
+```bash
+seaman plugin:export [plugin-name] [--output=DIR] [--vendor=NAME]
+```
+
+**Arguments:**
+- `plugin-name` - Name of the local plugin to export (optional)
+
+**Options:**
+- `--output=DIR` - Output directory for the exported package
+- `--vendor=NAME` - Vendor name for the Composer package
+
+**Examples:**
+```bash
+# Interactive mode (select plugin from list)
+seaman plugin:export
+
+# Export specific plugin with interactive vendor prompt
+seaman plugin:export my-plugin
+
+# Export with custom vendor name
+seaman plugin:export my-plugin --vendor=diego
+
+# Export to custom directory
+seaman plugin:export my-plugin --output=/tmp/exports/my-plugin
+
+# Full specification
+seaman plugin:export my-plugin --vendor=diego --output=./packages/my-plugin
+```
+
+**What it does:**
+
+1. Validates the plugin structure (requires `src/` directory with `#[AsSeamanPlugin]` attribute)
+2. Copies `src/` and `templates/` directories to the output location
+3. Transforms all PHP namespaces from `Seaman\LocalPlugins\PluginName` to `Vendor\PluginName`
+4. Generates a complete `composer.json` file with:
+   - Package metadata from plugin attributes
+   - PSR-4 autoloading configuration
+   - `seaman-plugin` type for automatic discovery
+   - Dependency requirements
+5. Displays publishing instructions
+
+**Default values:**
+- `plugin-name`: Interactive selection from available local plugins
+- `--output`: `./exports/<plugin-name>/`
+- `--vendor`: Interactive prompt (suggests value from git config)
+
+See [Exporting Plugins](plugins.md#exporting-plugins) for detailed documentation on the export process and publishing workflow.
 
 ## DevContainer
 
