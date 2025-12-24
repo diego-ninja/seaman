@@ -304,3 +304,179 @@ test('adapter returns inspect info with version', function (): void {
 
     expect($adapter->getInspectInfo($config))->toBe('v2.3.4');
 });
+
+test('adapter returns false for supportsDatabaseOperations when no database operations defined', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'redis',
+        template: '/path/to/redis.yaml',
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+
+    expect($adapter->supportsDatabaseOperations())->toBe(false);
+});
+
+test('adapter returns true for supportsDatabaseOperations when database operations defined', function (): void {
+    $dbOps = new \Seaman\Plugin\DatabaseOperations(
+        dumpCommand: fn($config) => ['mysqldump', '-u', 'root'],
+        restoreCommand: fn($config) => ['mysql', '-u', 'root'],
+        shellCommand: fn($config) => ['mysql', '-u', 'root'],
+    );
+
+    $definition = new ServiceDefinition(
+        name: 'mysql',
+        template: '/path/to/mysql.yaml',
+        databaseOperations: $dbOps,
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+
+    expect($adapter->supportsDatabaseOperations())->toBe(true);
+});
+
+test('adapter throws when calling getDumpCommand without database operations', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'redis',
+        template: '/path/to/redis.yaml',
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'redis',
+        enabled: true,
+        type: Service::Custom,
+        version: '7.0',
+        port: 6379,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect(fn() => $adapter->getDumpCommand($config))
+        ->toThrow(\LogicException::class, "Service 'redis' does not support database operations");
+});
+
+test('adapter throws when calling getRestoreCommand without database operations', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'redis',
+        template: '/path/to/redis.yaml',
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'redis',
+        enabled: true,
+        type: Service::Custom,
+        version: '7.0',
+        port: 6379,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect(fn() => $adapter->getRestoreCommand($config))
+        ->toThrow(\LogicException::class, "Service 'redis' does not support database operations");
+});
+
+test('adapter throws when calling getShellCommand without database operations', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'redis',
+        template: '/path/to/redis.yaml',
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'redis',
+        enabled: true,
+        type: Service::Custom,
+        version: '7.0',
+        port: 6379,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect(fn() => $adapter->getShellCommand($config))
+        ->toThrow(\LogicException::class, "Service 'redis' does not support database operations");
+});
+
+test('adapter delegates getDumpCommand to database operations', function (): void {
+    $dbOps = new \Seaman\Plugin\DatabaseOperations(
+        dumpCommand: fn($config) => ['mysqldump', '-u', 'root', '-p' . $config->port],
+        restoreCommand: fn($config) => ['mysql', '-u', 'root'],
+        shellCommand: fn($config) => ['mysql', '-u', 'root'],
+    );
+
+    $definition = new ServiceDefinition(
+        name: 'mysql',
+        template: '/path/to/mysql.yaml',
+        databaseOperations: $dbOps,
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'mysql',
+        enabled: true,
+        type: Service::MySQL,
+        version: '8.0',
+        port: 3306,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect($adapter->getDumpCommand($config))
+        ->toBe(['mysqldump', '-u', 'root', '-p3306']);
+});
+
+test('adapter delegates getRestoreCommand to database operations', function (): void {
+    $dbOps = new \Seaman\Plugin\DatabaseOperations(
+        dumpCommand: fn($config) => ['mysqldump', '-u', 'root'],
+        restoreCommand: fn($config) => ['mysql', '-u', 'root', '--port=' . $config->port],
+        shellCommand: fn($config) => ['mysql', '-u', 'root'],
+    );
+
+    $definition = new ServiceDefinition(
+        name: 'mysql',
+        template: '/path/to/mysql.yaml',
+        databaseOperations: $dbOps,
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'mysql',
+        enabled: true,
+        type: Service::MySQL,
+        version: '8.0',
+        port: 3306,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect($adapter->getRestoreCommand($config))
+        ->toBe(['mysql', '-u', 'root', '--port=3306']);
+});
+
+test('adapter delegates getShellCommand to database operations', function (): void {
+    $dbOps = new \Seaman\Plugin\DatabaseOperations(
+        dumpCommand: fn($config) => ['mysqldump', '-u', 'root'],
+        restoreCommand: fn($config) => ['mysql', '-u', 'root'],
+        shellCommand: fn($config) => ['mysql', '-u', 'root', '-h', 'localhost', '-P', (string) $config->port],
+    );
+
+    $definition = new ServiceDefinition(
+        name: 'mysql',
+        template: '/path/to/mysql.yaml',
+        databaseOperations: $dbOps,
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'mysql',
+        enabled: true,
+        type: Service::MySQL,
+        version: '8.0',
+        port: 3306,
+        additionalPorts: [],
+        environmentVariables: [],
+    );
+
+    expect($adapter->getShellCommand($config))
+        ->toBe(['mysql', '-u', 'root', '-h', 'localhost', '-P', '3306']);
+});

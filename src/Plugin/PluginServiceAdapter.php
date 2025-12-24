@@ -1,19 +1,20 @@
 <?php
 
-// ABOUTME: Adapts a plugin ServiceDefinition to ServiceInterface.
-// ABOUTME: Bridges plugin services with the core service registry.
+// ABOUTME: Adapts a plugin ServiceDefinition to ServiceInterface and optionally DatabaseServiceInterface.
+// ABOUTME: Single adapter for all plugin services, delegating database operations when available.
 
 declare(strict_types=1);
 
 namespace Seaman\Plugin;
 
+use Seaman\Contract\DatabaseServiceInterface;
 use Seaman\Enum\Service;
 use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\ValueObject\HealthCheck;
 use Seaman\ValueObject\ServiceConfig;
 
-final readonly class PluginServiceAdapter implements ServiceInterface
+final readonly class PluginServiceAdapter implements ServiceInterface, DatabaseServiceInterface
 {
     public function __construct(
         private ServiceDefinition $definition,
@@ -140,5 +141,49 @@ final readonly class PluginServiceAdapter implements ServiceInterface
     public function getConfigSchema(): ?ConfigSchema
     {
         return $this->definition->configSchema;
+    }
+
+    public function supportsDatabaseOperations(): bool
+    {
+        return $this->definition->databaseOperations !== null;
+    }
+
+    /**
+     * @return list<string>
+     * @throws \LogicException When service does not support database operations
+     */
+    public function getDumpCommand(ServiceConfig $config): array
+    {
+        $operations = $this->definition->databaseOperations ?? throw new \LogicException(
+            sprintf("Service '%s' does not support database operations", $this->definition->name),
+        );
+
+        return $operations->getDumpCommand($config);
+    }
+
+    /**
+     * @return list<string>
+     * @throws \LogicException When service does not support database operations
+     */
+    public function getRestoreCommand(ServiceConfig $config): array
+    {
+        $operations = $this->definition->databaseOperations ?? throw new \LogicException(
+            sprintf("Service '%s' does not support database operations", $this->definition->name),
+        );
+
+        return $operations->getRestoreCommand($config);
+    }
+
+    /**
+     * @return list<string>
+     * @throws \LogicException When service does not support database operations
+     */
+    public function getShellCommand(ServiceConfig $config): array
+    {
+        $operations = $this->definition->databaseOperations ?? throw new \LogicException(
+            sprintf("Service '%s' does not support database operations", $this->definition->name),
+        );
+
+        return $operations->getShellCommand($config);
     }
 }
