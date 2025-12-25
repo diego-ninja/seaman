@@ -9,16 +9,15 @@ namespace Seaman\Service\ConfigParser;
 
 final readonly class PluginConfigParser
 {
+    use ConfigDataExtractor;
+
     /**
      * @param array<string, mixed> $data
      * @return array<string, array<string, mixed>>
      */
     public function parse(array $data): array
     {
-        $pluginsData = $data['plugins'] ?? [];
-        if (!is_array($pluginsData)) {
-            return [];
-        }
+        $pluginsData = $this->getArray($data, 'plugins');
 
         return $this->normalizePluginConfig($pluginsData);
     }

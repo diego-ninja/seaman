@@ -7,25 +7,19 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
-use Seaman\Exception\InvalidConfigurationException;
 use Seaman\ValueObject\VolumeConfig;
 
 final readonly class VolumeConfigParser
 {
+    use ConfigDataExtractor;
+
     /**
      * @param array<string, mixed> $data
      */
     public function parse(array $data): VolumeConfig
     {
-        $volumesData = $data['volumes'] ?? [];
-        if (!is_array($volumesData)) {
-            throw new InvalidConfigurationException('Invalid volumes configuration: expected array');
-        }
-
-        $persistData = $volumesData['persist'] ?? [];
-        if (!is_array($persistData)) {
-            throw new InvalidConfigurationException('Invalid persist configuration: expected array');
-        }
+        $volumesData = $this->requireArray($data, 'volumes', 'Invalid volumes configuration: expected array');
+        $persistData = $this->requireArray($volumesData, 'persist', 'Invalid persist configuration: expected array');
 
         return new VolumeConfig(
             persist: $this->parsePersistList($persistData),
@@ -38,11 +32,9 @@ final readonly class VolumeConfigParser
      */
     public function merge(array $data, array $basePersist): VolumeConfig
     {
-        $volumesData = $data['volumes'] ?? [];
-        if (!is_array($volumesData)) {
-            $volumesData = [];
-        }
+        $volumesData = $this->getArray($data, 'volumes');
 
+        /** @var array<string, mixed> $volumesData */
         $persistData = $volumesData['persist'] ?? $basePersist;
         if (!is_array($persistData)) {
             $persistData = $basePersist;

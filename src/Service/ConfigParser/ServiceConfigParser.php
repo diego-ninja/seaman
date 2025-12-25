@@ -8,25 +8,25 @@ declare(strict_types=1);
 namespace Seaman\Service\ConfigParser;
 
 use Seaman\Enum\Service;
-use Seaman\Exception\InvalidConfigurationException;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 
 final readonly class ServiceConfigParser
 {
+    use ConfigDataExtractor;
+
     /**
      * @param array<string, mixed> $data
      */
     public function parse(array $data): ServiceCollection
     {
-        $servicesData = $data['services'] ?? [];
-        if (!is_array($servicesData)) {
-            throw new InvalidConfigurationException('Invalid services configuration: expected array');
-        }
+        $servicesData = $this->requireArray($data, 'services', 'Invalid services configuration: expected array');
 
         /** @var array<string, ServiceConfig> $services */
         $services = [];
         foreach ($servicesData as $name => $serviceData) {
+            // YAML can produce integer keys for numeric-looking strings
+            /** @phpstan-ignore function.alreadyNarrowedType */
             if (!is_string($name) || !is_array($serviceData)) {
                 continue;
             }
@@ -45,11 +45,7 @@ final readonly class ServiceConfigParser
     public function merge(array $data, array $baseServices): ServiceCollection
     {
         $mergedServices = $baseServices;
-        $servicesData = $data['services'] ?? [];
-
-        if (!is_array($servicesData)) {
-            return new ServiceCollection($mergedServices);
-        }
+        $servicesData = $this->getArray($data, 'services');
 
         foreach ($servicesData as $name => $serviceData) {
             if (!is_string($name) || !is_array($serviceData)) {
@@ -68,37 +64,14 @@ final readonly class ServiceConfigParser
      */
     private function parseServiceConfig(string $name, array $serviceData): ServiceConfig
     {
-        $enabled = $serviceData['enabled'] ?? false;
-        if (!is_bool($enabled)) {
-            $enabled = false;
-        }
-
-        $type = $serviceData['type'] ?? $name;
-        if (!is_string($type)) {
-            $type = $name;
-        }
-
-        $version = $serviceData['version'] ?? 'latest';
-        if (!is_string($version)) {
-            $version = 'latest';
-        }
-
-        $port = $serviceData['port'] ?? 0;
-        if (!is_int($port)) {
-            $port = 0;
-        }
-
-        $additionalPorts = $this->parseAdditionalPorts($serviceData);
-        $envVars = $this->parseEnvironmentVariables($serviceData);
-
         return new ServiceConfig(
             name: $name,
-            enabled: $enabled,
-            type: Service::from($type),
-            version: $version,
-            port: $port,
-            additionalPorts: $additionalPorts,
-            environmentVariables: $envVars,
+            enabled: $this->getBool($serviceData, 'enabled', false),
+            type: Service::from($this->getString($serviceData, 'type', $name)),
+            version: $this->getString($serviceData, 'version', 'latest'),
+            port: $this->getInt($serviceData, 'port', 0),
+            additionalPorts: $this->parseAdditionalPorts($serviceData),
+            environmentVariables: $this->parseEnvironmentVariables($serviceData),
         );
     }
 
@@ -108,10 +81,7 @@ final readonly class ServiceConfigParser
      */
     private function parseAdditionalPorts(array $serviceData): array
     {
-        $additionalPorts = $serviceData['additional_ports'] ?? [];
-        if (!is_array($additionalPorts)) {
-            return [];
-        }
+        $additionalPorts = $this->getArray($serviceData, 'additional_ports');
 
         /** @var list<int> $portsList */
         $portsList = [];
@@ -130,10 +100,7 @@ final readonly class ServiceConfigParser
      */
     private function parseEnvironmentVariables(array $serviceData): array
     {
-        $environmentVariables = $serviceData['environment'] ?? [];
-        if (!is_array($environmentVariables)) {
-            return [];
-        }
+        $environmentVariables = $this->getArray($serviceData, 'environment');
 
         /** @var array<string, string> $envVars */
         $envVars = array_filter($environmentVariables, function ($value, $key) {
