@@ -78,16 +78,16 @@ final class DozzlePlugin implements PluginInterface
         return new ServiceDefinition(
             name: 'dozzle',
             template: __DIR__ . '/../templates/dozzle.yaml.twig',
+            defaultConfig: [
+                'version' => $this->config['version'],
+                'port' => $this->config['port'],
+            ],
             displayName: 'Dozzle',
             description: 'Real-time Docker container log viewer',
             icon: '📋',
             category: ServiceCategory::Utility,
             ports: [$port],
             internalPorts: [8080],
-            defaultConfig: [
-                'version' => $this->config['version'],
-                'port' => $this->config['port'],
-            ],
             healthCheck: new HealthCheck(
                 test: ['CMD', '/dozzle', 'healthcheck'],
                 interval: '10s',

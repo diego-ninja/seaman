@@ -55,7 +55,9 @@ class ServiceRegistry
      */
     private static function getBundledPluginsDir(): ?string
     {
-        $pharPath = \Phar::running(false);
+        // Use Phar::running(true) to get path WITH phar:// prefix
+        // This is required to access files inside the PHAR archive
+        $pharPath = \Phar::running(true);
 
         if ($pharPath !== '') {
             return $pharPath . '/plugins';

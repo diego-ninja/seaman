@@ -8,8 +8,10 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Enum\OperatingMode;
 use Seaman\Plugin\Config\BooleanField;
 use Seaman\Plugin\Config\IntegerField;
+use Seaman\Service\ComposeRegenerator;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationService;
 use Seaman\Service\Container\ServiceRegistry;
@@ -34,14 +36,14 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
         private readonly ConfigurationService $configService,
-        private readonly \Seaman\Service\ComposeRegenerator $regenerator,
+        private readonly ComposeRegenerator $regenerator,
     ) {
         parent::__construct();
     }
 
-    public function supportsMode(\Seaman\Enum\OperatingMode $mode): bool
+    public function supportsMode(OperatingMode $mode): bool
     {
-        return $mode === \Seaman\Enum\OperatingMode::Managed;
+        return $mode === OperatingMode::Managed;
     }
 
     protected function configure(): void

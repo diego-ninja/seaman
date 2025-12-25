@@ -389,7 +389,8 @@ return function (ContainerBuilder $builder): void {
                 // Determine bundled plugins directory
                 // When running from PHAR, it's inside the archive
                 // When running from source, it's at repo root
-                $pharPath = \Phar::running(false);
+                // Use Phar::running(true) to get path WITH phar:// prefix
+                $pharPath = \Phar::running(true);
                 $bundledPluginsDir = $pharPath !== ''
                     ? $pharPath . '/plugins'
                     : dirname(__DIR__) . '/plugins';

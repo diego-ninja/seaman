@@ -1,0 +1,22 @@
+{
+    "name": "test-vendor/my-plugin",
+    "description": "",
+    "type": "seaman-plugin",
+    "license": "MIT",
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "seaman/seaman": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "TestVendor\\MyPlugin\\": "src/"
+        }
+    },
+    "extra": {
+        "seaman": {
+            "plugin-class": "TestVendor\\MyPlugin\\MyPluginPlugin"
+        }
+    }
+}
