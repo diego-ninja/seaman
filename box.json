@@ -8,7 +8,8 @@
         "assets",
         "config",
         "docker",
-        "resources"
+        "resources",
+        "plugins"
     ],
     "files": [
         "composer.json"
