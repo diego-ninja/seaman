@@ -69,20 +69,20 @@ final class PluginAutoloader
      * Resolves plugin packages and all their transitive dependencies.
      *
      * @param list<string> $pluginNames
-     * @param list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $installedPackages
-     * @return list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}>
+     * @param list<array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}> $installedPackages
+     * @return list<array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}>
      */
     public function resolveWithDependencies(
         array $pluginNames,
         array $installedPackages,
     ): array {
-        /** @var array<string, array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $packagesByName */
+        /** @var array<string, array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}> $packagesByName */
         $packagesByName = [];
         foreach ($installedPackages as $package) {
             $packagesByName[$package['name']] = $package;
         }
 
-        /** @var list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $resolved */
+        /** @var list<array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}> $resolved */
         $resolved = [];
         $queue = $pluginNames;
         /** @var array<string, true> $seen */
@@ -105,6 +105,7 @@ final class PluginAutoloader
 
             $requires = $package['require'] ?? [];
             foreach (array_keys($requires) as $dep) {
+                /** @var string $dep */
                 if (!$this->isPlatformDependency($dep)) {
                     $queue[] = $dep;
                 }
@@ -112,6 +113,40 @@ final class PluginAutoloader
         }
 
         return $resolved;
+    }
+
+    /**
+     * Registers the autoloader for plugin packages and their dependencies.
+     *
+     * @param list<string> $pluginPackageNames
+     * @param list<array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}> $installedPackages
+     */
+    public function register(
+        string $projectRoot,
+        array $pluginPackageNames,
+        array $installedPackages,
+    ): void {
+        if ($this->registered) {
+            return;
+        }
+
+        $relevantPackages = $this->resolveWithDependencies(
+            $pluginPackageNames,
+            $installedPackages,
+        );
+
+        $vendorDir = $projectRoot . '/vendor/composer';
+
+        foreach ($relevantPackages as $package) {
+            $this->addPackageMappings($package, $vendorDir);
+        }
+
+        if (!empty($this->prefixPaths)) {
+            spl_autoload_register(function (string $class): void {
+                $this->loadClass($class);
+            });
+            $this->registered = true;
+        }
     }
 
     private function isPlatformDependency(string $name): bool

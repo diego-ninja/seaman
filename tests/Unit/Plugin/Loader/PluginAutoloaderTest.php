@@ -119,4 +119,38 @@ final class PluginAutoloaderTest extends TestCase
         self::assertCount(1, $resolved);
         self::assertSame('acme/seaman-redis', $resolved[0]['name']);
     }
+
+    public function testRegisterOnlyRegistersOnce(): void
+    {
+        $autoloader = new PluginAutoloader();
+
+        $packages = [
+            [
+                'name' => 'acme/plugin',
+                'autoload' => ['psr-4' => ['Acme\\' => 'src/']],
+                'install-path' => '../acme/plugin',
+            ],
+        ];
+
+        $autoloader->register('/tmp/project', ['acme/plugin'], $packages);
+        $autoloader->register('/tmp/project', ['acme/plugin'], $packages);
+
+        // Check internal state via reflection
+        $reflection = new \ReflectionClass($autoloader);
+        $prop = $reflection->getProperty('registered');
+
+        self::assertTrue($prop->getValue($autoloader));
+    }
+
+    public function testRegisterDoesNothingWhenNoPlugins(): void
+    {
+        $autoloader = new PluginAutoloader();
+
+        $autoloader->register('/tmp/project', [], []);
+
+        $reflection = new \ReflectionClass($autoloader);
+        $prop = $reflection->getProperty('registered');
+
+        self::assertFalse($prop->getValue($autoloader));
+    }
 }
