@@ -352,6 +352,34 @@ Displays:
 - Source (Composer/local)
 - Number of services, commands, and hooks provided
 
+### plugin:install
+
+Install plugins from Packagist.
+
+```bash
+seaman plugin:install [package] [--dev]
+```
+
+**Arguments:**
+- `package` - The plugin package name (optional, opens interactive selection if omitted)
+
+**Options:**
+- `--dev` - Install as a development dependency
+
+**Examples:**
+```bash
+# Interactive mode - browse and select plugins
+seaman plugin:install
+
+# Install specific plugin
+seaman plugin:install vendor/seaman-plugin-name
+
+# Install as dev dependency
+seaman plugin:install vendor/seaman-plugin-name --dev
+```
+
+Searches Packagist for packages with type `seaman-plugin`, validates the plugin, and runs `composer require` in your project directory.
+
 ### plugin:info
 
 Show detailed information about a specific plugin.
