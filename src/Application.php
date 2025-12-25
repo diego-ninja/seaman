@@ -13,6 +13,7 @@ use DI\DependencyException;
 use DI\NotFoundException;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
+use Seaman\Exception\FileNotFoundException;
 use Seaman\Command\CleanCommand;
 use Seaman\Command\ConfigureCommand;
 use Seaman\Command\Database\DbDumpCommand;
@@ -95,7 +96,7 @@ class Application extends BaseApplication
 
         $configFile = __DIR__ . '/../config/container.php';
         if (!file_exists($configFile)) {
-            throw new RuntimeException('Container configuration file not found: ' . $configFile);
+            throw FileNotFoundException::create($configFile, 'Container configuration file not found');
         }
 
         /** @var callable(ContainerBuilder<Container>): void $configurator */

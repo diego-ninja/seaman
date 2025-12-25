@@ -112,7 +112,7 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
                 ),
                 'confirm' => Prompts::confirm(
                     label: is_string($promptConfig['label']) ? $promptConfig['label'] : '',
-                    default: is_bool($promptConfig['default'] ?? false) ? (bool) ($promptConfig['default'] ?? false) : false,
+                    default: is_bool($promptConfig['default'] ?? false) && ($promptConfig['default'] ?? false),
                     hint: is_string($promptConfig['hint'] ?? '') ? (string) ($promptConfig['hint'] ?? '') : '',
                 ),
                 default => Prompts::text(

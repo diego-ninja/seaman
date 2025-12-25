@@ -9,7 +9,7 @@ namespace Seaman\Plugin\Export;
 
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
-use RuntimeException;
+use Seaman\Exception\PluginException;
 use SplFileInfo;
 
 final readonly class PluginExporter
@@ -23,7 +23,7 @@ final readonly class PluginExporter
         // Validate plugin structure
         $srcPath = $pluginPath . '/src';
         if (!is_dir($srcPath)) {
-            throw new RuntimeException('Plugin must have a src directory');
+            throw PluginException::missingSrcDirectory($pluginPath);
         }
 
         // Extract plugin metadata
@@ -120,7 +120,7 @@ final readonly class PluginExporter
             ];
         }
 
-        throw new RuntimeException('Could not find AsSeamanPlugin attribute in any PHP file');
+        throw PluginException::missingPluginAttribute($srcPath);
     }
 
     /**

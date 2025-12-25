@@ -18,6 +18,8 @@ use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
+use Seaman\Exception\FileNotFoundException;
+use Seaman\Exception\YamlParseException;
 
 /**
  * @property string $tempDir
@@ -115,7 +117,7 @@ test('throws exception when seaman.yaml does not exist', function () {
     /** @var ConfigManager $manager */
     $manager = $this->manager;
     expect(fn() => $manager->load())
-        ->toThrow(\RuntimeException::class, 'seaman.yaml not found');
+        ->toThrow(FileNotFoundException::class, 'seaman.yaml not found');
 });
 
 test('throws exception when YAML is invalid', function () {
@@ -124,11 +126,13 @@ test('throws exception when YAML is invalid', function () {
     /** @var ConfigManager $manager */
     $manager = $this->manager;
 
-    $yamlPath = $tempDir . '/seaman.yaml';
+    $seamanDir = $tempDir . '/.seaman';
+    mkdir($seamanDir, 0755, true);
+    $yamlPath = $seamanDir . '/seaman.yaml';
     file_put_contents($yamlPath, "invalid: yaml: content: [");
 
     expect(fn() => $manager->load())
-        ->toThrow(\RuntimeException::class);
+        ->toThrow(YamlParseException::class);
 });
 
 test('saves configuration to YAML', function () {

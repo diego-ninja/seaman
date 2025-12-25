@@ -7,7 +7,7 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
-use RuntimeException;
+use Seaman\Exception\InvalidConfigurationException;
 use Seaman\ValueObject\VolumeConfig;
 
 final readonly class VolumeConfigParser
@@ -19,12 +19,12 @@ final readonly class VolumeConfigParser
     {
         $volumesData = $data['volumes'] ?? [];
         if (!is_array($volumesData)) {
-            throw new RuntimeException('Invalid volumes configuration');
+            throw new InvalidConfigurationException('Invalid volumes configuration: expected array');
         }
 
         $persistData = $volumesData['persist'] ?? [];
         if (!is_array($persistData)) {
-            throw new RuntimeException('Invalid persist configuration');
+            throw new InvalidConfigurationException('Invalid persist configuration: expected array');
         }
 
         return new VolumeConfig(

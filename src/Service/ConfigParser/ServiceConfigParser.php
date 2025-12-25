@@ -7,8 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
-use RuntimeException;
 use Seaman\Enum\Service;
+use Seaman\Exception\InvalidConfigurationException;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 
@@ -21,7 +21,7 @@ final readonly class ServiceConfigParser
     {
         $servicesData = $data['services'] ?? [];
         if (!is_array($servicesData)) {
-            throw new RuntimeException('Invalid services configuration');
+            throw new InvalidConfigurationException('Invalid services configuration: expected array');
         }
 
         /** @var array<string, ServiceConfig> $services */

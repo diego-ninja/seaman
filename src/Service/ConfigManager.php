@@ -7,9 +7,10 @@ declare(strict_types=1);
 
 namespace Seaman\Service;
 
-use Exception;
-use RuntimeException;
 use Seaman\Enum\ProjectType;
+use Seaman\Exception\FileNotFoundException;
+use Seaman\Exception\FileOperationException;
+use Seaman\Exception\InvalidConfigurationException;
 use Seaman\Service\ConfigParser\CustomServiceParser;
 use Seaman\Service\ConfigParser\PhpConfigParser;
 use Seaman\Service\ConfigParser\PluginConfigParser;
@@ -29,11 +30,13 @@ readonly class ConfigManager
     private ProxyConfigParser $proxyParser;
     private CustomServiceParser $customServiceParser;
     private PluginConfigParser $pluginParser;
+    private FileReader $fileReader;
 
     public function __construct(
         private string $projectRoot,
         private ServiceRegistry $serviceRegistry,
         private ConfigurationValidator $validator,
+        ?FileReader $fileReader = null,
     ) {
         $this->phpParser = new PhpConfigParser();
         $this->serviceParser = new ServiceConfigParser();
@@ -41,32 +44,22 @@ readonly class ConfigManager
         $this->proxyParser = new ProxyConfigParser();
         $this->customServiceParser = new CustomServiceParser();
         $this->pluginParser = new PluginConfigParser();
+        $this->fileReader = $fileReader ?? new FileReader();
     }
 
     public function load(): Configuration
     {
         $yamlPath = $this->projectRoot . '/.seaman/seaman.yaml';
 
-        if (!file_exists($yamlPath)) {
-            throw new RuntimeException('seaman.yaml not found at ' . $yamlPath);
+        if (!$this->fileReader->exists($yamlPath)) {
+            throw FileNotFoundException::create($yamlPath, 'seaman.yaml not found');
         }
 
-        $content = file_get_contents($yamlPath);
-        if ($content === false) {
-            throw new RuntimeException('Failed to read seaman.yaml');
-        }
+        $data = $this->fileReader->readYaml($yamlPath);
 
-        try {
-            $data = Yaml::parse($content);
-        } catch (Exception $e) {
-            throw new RuntimeException('Failed to parse YAML: ' . $e->getMessage(), 0, $e);
+        if (empty($data)) {
+            throw new InvalidConfigurationException('Invalid YAML structure: expected array');
         }
-
-        if (!is_array($data)) {
-            throw new RuntimeException('Invalid YAML structure');
-        }
-
-        /** @var array<string, mixed> $data */
 
         // Validate configuration structure
         $this->validator->validate($data);
@@ -81,7 +74,7 @@ readonly class ConfigManager
     {
         $projectName = $data['project_name'] ?? '';
         if (!is_string($projectName)) {
-            throw new RuntimeException('project_name must be a string');
+            throw new InvalidConfigurationException('project_name must be a string');
         }
 
         $version = $data['version'] ?? '1.0';
@@ -176,7 +169,7 @@ readonly class ConfigManager
         $yamlPath = $seamanDir . '/seaman.yaml';
 
         if (file_put_contents($yamlPath, $yamlContent) === false) {
-            throw new RuntimeException('Failed to write seaman.yaml');
+            throw FileOperationException::writeFailed($yamlPath);
         }
 
         $this->generateEnv($config);
@@ -289,7 +282,7 @@ readonly class ConfigManager
         $envContent = implode("\n", $lines);
 
         if (file_put_contents($envPath, $envContent) === false) {
-            throw new RuntimeException('Failed to write .env');
+            throw FileOperationException::writeFailed($envPath);
         }
     }
 

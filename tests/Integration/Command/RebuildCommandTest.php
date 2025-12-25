@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Tests\Integration\Command;
 
 use Seaman\Application;
+use Seaman\Exception\FileNotFoundException;
 use Seaman\Tests\Integration\TestHelper;
 use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -42,9 +43,9 @@ test('rebuild command requires seaman.yaml', function (): void {
     $application = new Application();
     $commandTester = new CommandTester($application->find('rebuild'));
 
-    // Command throws RuntimeException when seaman.yaml is missing
+    // Command throws FileNotFoundException when seaman.yaml is missing
     expect(fn() => $commandTester->execute([]))
-        ->toThrow(\RuntimeException::class, 'seaman.yaml not found');
+        ->toThrow(FileNotFoundException::class, 'seaman.yaml not found');
 });
 
 test('rebuild command regenerates Dockerfile from template', function (): void {

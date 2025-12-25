@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Plugin\Export;
 
 use PHPUnit\Framework\TestCase;
+use Seaman\Exception\PluginException;
 use Seaman\Plugin\Export\PluginExporter;
 use Seaman\Plugin\Export\NamespaceTransformer;
 
@@ -174,8 +175,8 @@ final class PluginExporterTest extends TestCase
             '<?php class MyPlugin {}',
         );
 
-        $this->expectException(\RuntimeException::class);
-        $this->expectExceptionMessage('Could not find AsSeamanPlugin attribute');
+        $this->expectException(PluginException::class);
+        $this->expectExceptionMessage('Could not find #[AsSeamanPlugin] attribute');
 
         $this->exporter->export(
             $this->tempPluginDir,
@@ -186,7 +187,7 @@ final class PluginExporterTest extends TestCase
 
     public function test_throws_exception_when_src_directory_missing(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(PluginException::class);
         $this->expectExceptionMessage('Plugin must have a src directory');
 
         $this->exporter->export(

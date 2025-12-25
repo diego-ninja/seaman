@@ -7,8 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
-use RuntimeException;
 use Seaman\Enum\PhpVersion;
+use Seaman\Exception\InvalidConfigurationException;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\XdebugConfig;
 
@@ -21,7 +21,7 @@ final readonly class PhpConfigParser
     {
         $phpData = $data['php'] ?? [];
         if (!is_array($phpData)) {
-            throw new RuntimeException('Invalid PHP configuration');
+            throw new InvalidConfigurationException('Invalid PHP configuration: expected array');
         }
 
         /** @var array<string, mixed> $phpData */
@@ -67,22 +67,22 @@ final readonly class PhpConfigParser
     {
         $xdebugData = $phpData['xdebug'] ?? [];
         if (!is_array($xdebugData)) {
-            throw new RuntimeException('Invalid xdebug configuration');
+            throw new InvalidConfigurationException('Invalid xdebug configuration: expected array');
         }
 
         $enabled = $xdebugData['enabled'] ?? false;
         if (!is_bool($enabled)) {
-            throw new RuntimeException('Xdebug enabled must be a boolean');
+            throw new InvalidConfigurationException('Xdebug enabled must be a boolean');
         }
 
         $ideKey = $xdebugData['ide_key'] ?? 'PHPSTORM';
         if (!is_string($ideKey)) {
-            throw new RuntimeException('Xdebug IDE key must be a string');
+            throw new InvalidConfigurationException('Xdebug IDE key must be a string');
         }
 
         $clientHost = $xdebugData['client_host'] ?? 'host.docker.internal';
         if (!is_string($clientHost)) {
-            throw new RuntimeException('Xdebug client host must be a string');
+            throw new InvalidConfigurationException('Xdebug client host must be a string');
         }
 
         return new XdebugConfig(
