@@ -36,18 +36,35 @@ final readonly class BundledPluginLoader implements PluginLoaderInterface
 
         $plugins = [];
 
-        $pattern = $this->pluginsDir . '/*/src/*Plugin.php';
-        $files = glob($pattern);
-
-        if ($files === false) {
-            // glob() returns false on error (e.g., permission denied)
+        // Use scandir instead of glob() because glob() doesn't work inside PHAR
+        $pluginDirs = scandir($this->pluginsDir);
+        if ($pluginDirs === false) {
             return [];
         }
 
-        foreach ($files as $filePath) {
-            $plugin = $this->loadPluginFromFile($filePath);
-            if ($plugin !== null) {
-                $plugins[] = $plugin;
+        foreach ($pluginDirs as $pluginDir) {
+            if ($pluginDir === '.' || $pluginDir === '..') {
+                continue;
+            }
+
+            $srcDir = $this->pluginsDir . '/' . $pluginDir . '/src';
+            if (!is_dir($srcDir)) {
+                continue;
+            }
+
+            $srcFiles = scandir($srcDir);
+            if ($srcFiles === false) {
+                continue;
+            }
+
+            foreach ($srcFiles as $file) {
+                if (str_ends_with($file, 'Plugin.php')) {
+                    $filePath = $srcDir . '/' . $file;
+                    $plugin = $this->loadPluginFromFile($filePath);
+                    if ($plugin !== null) {
+                        $plugins[] = $plugin;
+                    }
+                }
             }
         }
 
