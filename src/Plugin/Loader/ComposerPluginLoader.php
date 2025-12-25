@@ -43,18 +43,44 @@ final readonly class ComposerPluginLoader implements PluginLoaderInterface
             return [];
         }
 
-        $plugins = [];
+        $pluginPackages = [];
+        /** @var list<string> $pluginPackageNames */
+        $pluginPackageNames = [];
 
         foreach ($packages as $package) {
             if (!is_array($package)) {
                 continue;
             }
-            /** @var array{name?: string, type?: string, extra?: array{seaman?: array{plugin-class?: string}}} $package */
 
             $type = $package['type'] ?? '';
             if ($type !== 'seaman-plugin') {
                 continue;
             }
+
+            $name = $package['name'] ?? '';
+            if ($name === '') {
+                continue;
+            }
+
+            $pluginPackages[] = $package;
+            $pluginPackageNames[] = $name;
+        }
+
+        if (!empty($pluginPackages)) {
+            $autoloader = new PluginAutoloader();
+            /** @var list<array{name: string, require?: array<string, string>, autoload?: array{psr-4?: array<string, string|list<string>>}, install-path?: string}> $packages */
+            /** @phpstan-var list<string> $pluginPackageNames */
+            $autoloader->register(
+                $this->projectRoot,
+                $pluginPackageNames,
+                $packages,
+            );
+        }
+
+        $plugins = [];
+
+        foreach ($pluginPackages as $package) {
+            /** @var array{name?: string, type?: string, extra?: array{seaman?: array{plugin-class?: string}}} $package */
 
             $pluginClass = $package['extra']['seaman']['plugin-class'] ?? null;
             if ($pluginClass === null) {
