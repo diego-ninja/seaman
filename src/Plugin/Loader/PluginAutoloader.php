@@ -64,4 +64,61 @@ final class PluginAutoloader
 
         return false;
     }
+
+    /**
+     * Resolves plugin packages and all their transitive dependencies.
+     *
+     * @param list<string> $pluginNames
+     * @param list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $installedPackages
+     * @return list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}>
+     */
+    public function resolveWithDependencies(
+        array $pluginNames,
+        array $installedPackages,
+    ): array {
+        /** @var array<string, array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $packagesByName */
+        $packagesByName = [];
+        foreach ($installedPackages as $package) {
+            $packagesByName[$package['name']] = $package;
+        }
+
+        /** @var list<array{name: string, require?: array<string, string>, autoload?: array<string, mixed>, install-path?: string}> $resolved */
+        $resolved = [];
+        $queue = $pluginNames;
+        /** @var array<string, true> $seen */
+        $seen = [];
+
+        while (!empty($queue)) {
+            $name = array_shift($queue);
+
+            if (isset($seen[$name])) {
+                continue;
+            }
+            $seen[$name] = true;
+
+            if (!isset($packagesByName[$name])) {
+                continue;
+            }
+
+            $package = $packagesByName[$name];
+            $resolved[] = $package;
+
+            $requires = $package['require'] ?? [];
+            foreach (array_keys($requires) as $dep) {
+                if (!$this->isPlatformDependency($dep)) {
+                    $queue[] = $dep;
+                }
+            }
+        }
+
+        return $resolved;
+    }
+
+    private function isPlatformDependency(string $name): bool
+    {
+        return str_starts_with($name, 'php')
+            || str_starts_with($name, 'ext-')
+            || str_starts_with($name, 'lib-')
+            || $name === 'composer-plugin-api';
+    }
 }

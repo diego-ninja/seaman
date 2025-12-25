@@ -57,4 +57,66 @@ final class PluginAutoloaderTest extends TestCase
         rmdir($tempDir . '/src');
         rmdir($tempDir);
     }
+
+    public function testResolveWithDependenciesIncludesTransitiveDependencies(): void
+    {
+        $autoloader = new PluginAutoloader();
+
+        $packages = [
+            [
+                'name' => 'acme/seaman-redis',
+                'require' => ['predis/predis' => '^2.0'],
+                'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
+                'install-path' => '../acme/seaman-redis',
+            ],
+            [
+                'name' => 'predis/predis',
+                'require' => ['php' => '>=8.1'],
+                'autoload' => ['psr-4' => ['Predis\\' => 'src/']],
+                'install-path' => '../predis/predis',
+            ],
+            [
+                'name' => 'unrelated/package',
+                'autoload' => ['psr-4' => ['Unrelated\\' => 'src/']],
+                'install-path' => '../unrelated/package',
+            ],
+        ];
+
+        $resolved = $autoloader->resolveWithDependencies(
+            ['acme/seaman-redis'],
+            $packages,
+        );
+
+        $resolvedNames = array_column($resolved, 'name');
+
+        self::assertContains('acme/seaman-redis', $resolvedNames);
+        self::assertContains('predis/predis', $resolvedNames);
+        self::assertNotContains('unrelated/package', $resolvedNames);
+    }
+
+    public function testResolveWithDependenciesIgnoresPlatformDependencies(): void
+    {
+        $autoloader = new PluginAutoloader();
+
+        $packages = [
+            [
+                'name' => 'acme/seaman-redis',
+                'require' => [
+                    'php' => '>=8.1',
+                    'ext-json' => '*',
+                    'lib-pcre' => '*',
+                ],
+                'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
+                'install-path' => '../acme/seaman-redis',
+            ],
+        ];
+
+        $resolved = $autoloader->resolveWithDependencies(
+            ['acme/seaman-redis'],
+            $packages,
+        );
+
+        self::assertCount(1, $resolved);
+        self::assertSame('acme/seaman-redis', $resolved[0]['name']);
+    }
 }
