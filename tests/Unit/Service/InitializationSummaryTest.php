@@ -30,7 +30,7 @@ test('displays summary with database and services', function () {
 test('displays summary with no services', function () {
     $summary = new InitializationSummary();
 
-    $database = Service::None;
+    $database = null;
     $services = [];
     $phpConfig = new PhpConfig(
         PhpVersion::Php83,

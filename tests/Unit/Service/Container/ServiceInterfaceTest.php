@@ -33,7 +33,7 @@ test('mock service implements interface correctly', function () {
         }
         public function getDefaultConfig(): ServiceConfig
         {
-            return new ServiceConfig('test', true, Service::None, 'latest', 9999, [], []);
+            return new ServiceConfig('test', true, Service::Custom, 'latest', 9999, [], []);
         }
         public function generateComposeConfig(ServiceConfig $config): array
         {
@@ -55,7 +55,7 @@ test('mock service implements interface correctly', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string

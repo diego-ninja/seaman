@@ -22,7 +22,7 @@ class InitializationSummary
      * @param list<Service> $services
      */
     public function display(
-        Service $database,
+        ?Service $database,
         array $services,
         PhpConfig $phpConfig,
         ProjectType $projectType,
@@ -42,7 +42,7 @@ class InitializationSummary
                 'Project Type' => $projectType->getLabel(),
                 'Docker image' => 'seaman/seaman-php' . $phpConfig->version->value . ':latest',
                 'PHP Version' => $phpConfig->version->value,
-                'Database' => $database->name,
+                'Database' => $database !== null ? $database->name : 'None',
                 'Services' => $formattedServices,
                 'Reverse Proxy' => $proxyEnabled ? 'Traefik (HTTPS)' : 'Disabled (direct ports)',
                 'DNS' => $dnsDisplay,

@@ -44,7 +44,7 @@ test('creates configuration without database when None selected', function () {
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php83,
-        database: Service::None,
+        database: null,
         services: [Service::Redis],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
         generateDevContainer: true,
@@ -83,7 +83,7 @@ test('includes persistable services in persist volumes', function () {
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
-        database: Service::None,
+        database: null,
         services: [Service::Redis, Service::MongoDB, Service::Elasticsearch],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
         generateDevContainer: false,
@@ -103,7 +103,7 @@ test('does not include non-persistable services in persist volumes', function ()
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
-        database: Service::None,
+        database: null,
         services: [Service::Mailpit, Service::Dozzle],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
         generateDevContainer: false,

@@ -72,7 +72,7 @@ test('can register a service', function () {
     $service = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -93,9 +93,9 @@ test('can register a service', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -125,7 +125,7 @@ test('can register a service', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -151,7 +151,7 @@ test('can register a service', function () {
 
     $registry->register($service);
 
-    expect($registry->get(Service::None))->toBe($service);
+    expect($registry->get(Service::Custom))->toBe($service);
 });
 
 test('throws exception when getting non-existent service', function () {
@@ -191,7 +191,7 @@ test('returns all registered services', function () {
             return new ServiceConfig(
                 name: 'service1',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8001,
                 additionalPorts: [],
@@ -221,7 +221,7 @@ test('returns all registered services', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -697,7 +697,7 @@ test('replaces service with same name on re-registration', function () {
     $service1 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -718,9 +718,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -750,7 +750,7 @@ test('replaces service with same name on re-registration', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -777,7 +777,7 @@ test('replaces service with same name on re-registration', function () {
     $service2 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -798,9 +798,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '2.0',
                 port: 8000,
                 additionalPorts: [],
@@ -830,7 +830,7 @@ test('replaces service with same name on re-registration', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -858,8 +858,8 @@ test('replaces service with same name on re-registration', function () {
     $registry->register($service2);
 
     expect($registry->all())->toHaveCount(1)
-        ->and($registry->get(Service::None))->toBe($service2)
-        ->and($registry->get(Service::None)->getDisplayName())->toBe('Test V2');
+        ->and($registry->get(Service::Custom))->toBe($service2)
+        ->and($registry->get(Service::Custom)->getDisplayName())->toBe('Test V2');
 });
 
 test('registerPluginServices registers all plugin services', function (): void {
