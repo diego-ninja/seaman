@@ -450,6 +450,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): PluginInstallCommand => new PluginInstallCommand(
                 $c->get(PackagistClient::class),
                 $c->get(PluginRegistry::class),
+                $c->get('projectRoot'),
             ),
         ),
 

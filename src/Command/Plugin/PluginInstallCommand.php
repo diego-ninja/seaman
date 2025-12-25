@@ -30,6 +30,7 @@ final class PluginInstallCommand extends AbstractSeamanCommand
     public function __construct(
         private readonly PackagistClient $packagist,
         private readonly PluginRegistry $registry,
+        private readonly string $projectRoot,
     ) {
         parent::__construct();
     }
@@ -137,6 +138,13 @@ final class PluginInstallCommand extends AbstractSeamanCommand
 
     private function installPackage(string $package, bool $isDev): int
     {
+        // Check if composer.json exists in project directory
+        $composerJsonPath = $this->projectRoot . '/composer.json';
+        if (!file_exists($composerJsonPath)) {
+            Terminal::error('No composer.json found. Run this command from your Symfony project directory.');
+            return Command::FAILURE;
+        }
+
         // Validate that the package is a seaman-plugin
         if (!$this->isValidPlugin($package)) {
             Terminal::error(sprintf(
@@ -153,7 +161,7 @@ final class PluginInstallCommand extends AbstractSeamanCommand
             $command[] = '--dev';
         }
 
-        $process = new Process($command);
+        $process = new Process($command, $this->projectRoot);
         $process->setTimeout(300); // 5 minutes
         $process->setTty(Process::isTtySupported());
 
