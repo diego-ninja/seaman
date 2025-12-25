@@ -1011,6 +1011,20 @@ Si hay pocos usos, reemplazar con `array<string, mixed>` tipado.
 
 Este cambio es de bajo impacto. Puede hacerse o dejarse para despues. El wrapper no causa problemas, solo es innecesario.
 
+**Análisis ejecutado 2025-12-25:**
+- **32 usos encontrados** en src/ y tests/ (threshold era 10)
+- Usos principales:
+  - `LoadedPlugin` usa PluginConfig como property type
+  - `PluginRegistry` construye PluginConfig
+  - `PluginConfigTest` tiene 7 tests
+  - Parte de la API pública del sistema de plugins
+
+**Conclusión:** PluginConfig debe MANTENERSE. No es un wrapper innecesario, es una abstracción de value object que:
+1. Proporciona type safety (`array<string, mixed>` vs clase con métodos typed)
+2. Hace la API más expresiva (`$plugin->config->get('key')` vs `$plugin->config['key']`)
+3. Es inmutable (readonly) lo cual previene mutaciones accidentales
+4. Tiene 32 usos - refactorizarlo tendría alto impacto para bajo beneficio
+
 ---
 
 ## Resumen de Commits Esperados
@@ -1087,3 +1101,42 @@ Eliminar directamente los métodos `description()`, `port()`, e `icon()` del enu
 
 **Siguiente paso sugerido:**
 Task 13 (reducir casos de Service enum a core services) es MUY invasivo y debe evaluarse con cuidado. Podría ser mejor abordarlo en una rama separada después de estabilizar el sistema de plugins.
+
+---
+
+### Task 15 - Agregar validación en CI ✅ COMPLETADO
+
+**Fecha:** 2025-12-25
+**Commit:** (pendiente)
+
+**Acción:**
+Creado nuevo workflow `.github/workflows/ci.yml` que incluye:
+- PHPStan analysis (nivel 10)
+- php-cs-fixer check (--dry-run --diff)
+- Tests con coverage mínimo 95%
+- Cache de Composer para optimizar tiempos
+- Se ejecuta en push a main/feature/* y PRs a main
+
+**Análisis previo:**
+- Ya existían workflows separados:
+  - `code-style.yml`: Solo php-cs-fixer
+  - `security.yml`: Solo composer audit
+  - `release.yml`: Para releases
+- Faltaba integración completa con PHPStan y tests
+
+**Resultado:** Workflow completo de CI que valida calidad antes de merge.
+
+---
+
+### Task 16 - PluginConfig wrapper ⏸️ MANTENER (NO ELIMINAR)
+
+**Fecha:** 2025-12-25
+**Análisis:** 32 usos encontrados (threshold era 10)
+
+**Conclusión:** PluginConfig NO es un wrapper innecesario, es un value object válido que proporciona:
+- Type safety sobre `array<string, mixed>`
+- API expresiva con métodos `get()`, `has()`, `all()`
+- Inmutabilidad (readonly)
+- Parte de la API pública del sistema de plugins
+
+**Decisión:** MANTENER PluginConfig. Refactorizarlo tendría alto impacto para bajo beneficio.
