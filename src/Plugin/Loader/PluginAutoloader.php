@@ -14,8 +14,7 @@ final class PluginAutoloader
      */
     private array $prefixPaths = [];
 
-    /** @phpstan-ignore property.onlyWritten */
-    private bool $registered = false;
+    private static bool $registered = false;
 
     /**
      * @param array{install-path?: string, autoload?: array{psr-4?: array<string, string|list<string>>}} $package
@@ -126,7 +125,7 @@ final class PluginAutoloader
         array $pluginPackageNames,
         array $installedPackages,
     ): void {
-        if ($this->registered) {
+        if (self::$registered) {
             return;
         }
 
@@ -145,7 +144,7 @@ final class PluginAutoloader
             spl_autoload_register(function (string $class): void {
                 $this->loadClass($class);
             });
-            $this->registered = true;
+            self::$registered = true;
         }
     }
 
@@ -155,5 +154,25 @@ final class PluginAutoloader
             || str_starts_with($name, 'ext-')
             || str_starts_with($name, 'lib-')
             || $name === 'composer-plugin-api';
+    }
+
+    /**
+     * Reset the registered state. Only for testing purposes.
+     *
+     * @internal
+     */
+    public static function resetForTesting(): void
+    {
+        self::$registered = false;
+    }
+
+    /**
+     * Check if the autoloader is registered.
+     *
+     * @internal
+     */
+    public static function isRegistered(): bool
+    {
+        return self::$registered;
     }
 }

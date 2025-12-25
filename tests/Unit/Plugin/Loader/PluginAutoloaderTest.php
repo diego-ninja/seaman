@@ -2,155 +2,143 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Plugin\Loader;
+namespace Seaman\Tests\Unit\Plugin\Loader;
 
-use PHPUnit\Framework\TestCase;
 use Seaman\Plugin\Loader\PluginAutoloader;
 
-final class PluginAutoloaderTest extends TestCase
-{
-    public function testLoadClassReturnsFalseWhenNoMappingsRegistered(): void
-    {
-        $autoloader = new PluginAutoloader();
+beforeEach(function (): void {
+    PluginAutoloader::resetForTesting();
+});
 
-        $result = $autoloader->loadClass('NonExistent\\SomeClass');
+test('loadClass returns false when no mappings registered', function (): void {
+    $autoloader = new PluginAutoloader();
 
-        self::assertFalse($result);
-    }
+    $result = $autoloader->loadClass('NonExistent\\SomeClass');
 
-    public function testLoadClassResolvesClassFromAddedMappings(): void
-    {
-        $autoloader = new PluginAutoloader();
+    expect($result)->toBeFalse();
+});
 
-        // Create temp directory with a test class
-        $tempDir = sys_get_temp_dir() . '/plugin-autoloader-test-' . uniqid();
-        mkdir($tempDir . '/src', 0777, true);
+test('loadClass resolves class from added mappings', function (): void {
+    $autoloader = new PluginAutoloader();
 
-        $className = 'TestVendor' . uniqid() . '\\TestPlugin\\TestPlugin';
-        $namespace = substr($className, 0, strrpos($className, '\\') + 1);
-        $shortClass = substr($className, strrpos($className, '\\') + 1);
+    // Create temp directory with a test class
+    $tempDir = sys_get_temp_dir() . '/plugin-autoloader-test-' . uniqid();
+    mkdir($tempDir . '/src', 0777, true);
 
-        file_put_contents(
-            $tempDir . '/src/' . $shortClass . '.php',
-            "<?php namespace " . rtrim($namespace, '\\') . "; class {$shortClass} {}",
-        );
+    $className = 'TestVendor' . uniqid() . '\\TestPlugin\\TestPlugin';
+    $namespace = substr($className, 0, (int) strrpos($className, '\\') + 1);
+    $shortClass = substr($className, (int) strrpos($className, '\\') + 1);
 
-        $package = [
-            'name' => 'test-vendor/test-plugin',
-            'install-path' => $tempDir,
-            'autoload' => [
-                'psr-4' => [
-                    $namespace => 'src/',
-                ],
+    file_put_contents(
+        $tempDir . '/src/' . $shortClass . '.php',
+        "<?php namespace " . rtrim($namespace, '\\') . "; class {$shortClass} {}",
+    );
+
+    $package = [
+        'name' => 'test-vendor/test-plugin',
+        'install-path' => $tempDir,
+        'autoload' => [
+            'psr-4' => [
+                $namespace => 'src/',
             ],
-        ];
+        ],
+    ];
 
-        $autoloader->addPackageMappings($package, '');
+    $autoloader->addPackageMappings($package, '');
 
-        $result = $autoloader->loadClass($className);
+    $result = $autoloader->loadClass($className);
 
-        self::assertTrue($result);
-        self::assertTrue(class_exists($className, false));
+    expect($result)->toBeTrue();
+    expect(class_exists($className, false))->toBeTrue();
 
-        // Cleanup
-        unlink($tempDir . '/src/' . $shortClass . '.php');
-        rmdir($tempDir . '/src');
-        rmdir($tempDir);
-    }
+    // Cleanup
+    unlink($tempDir . '/src/' . $shortClass . '.php');
+    rmdir($tempDir . '/src');
+    rmdir($tempDir);
+});
 
-    public function testResolveWithDependenciesIncludesTransitiveDependencies(): void
-    {
-        $autoloader = new PluginAutoloader();
+test('resolveWithDependencies includes transitive dependencies', function (): void {
+    $autoloader = new PluginAutoloader();
 
-        $packages = [
-            [
-                'name' => 'acme/seaman-redis',
-                'require' => ['predis/predis' => '^2.0'],
-                'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
-                'install-path' => '../acme/seaman-redis',
+    $packages = [
+        [
+            'name' => 'acme/seaman-redis',
+            'require' => ['predis/predis' => '^2.0'],
+            'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
+            'install-path' => '../acme/seaman-redis',
+        ],
+        [
+            'name' => 'predis/predis',
+            'require' => ['php' => '>=8.1'],
+            'autoload' => ['psr-4' => ['Predis\\' => 'src/']],
+            'install-path' => '../predis/predis',
+        ],
+        [
+            'name' => 'unrelated/package',
+            'autoload' => ['psr-4' => ['Unrelated\\' => 'src/']],
+            'install-path' => '../unrelated/package',
+        ],
+    ];
+
+    $resolved = $autoloader->resolveWithDependencies(
+        ['acme/seaman-redis'],
+        $packages,
+    );
+
+    $resolvedNames = array_column($resolved, 'name');
+
+    expect($resolvedNames)->toContain('acme/seaman-redis');
+    expect($resolvedNames)->toContain('predis/predis');
+    expect($resolvedNames)->not->toContain('unrelated/package');
+});
+
+test('resolveWithDependencies ignores platform dependencies', function (): void {
+    $autoloader = new PluginAutoloader();
+
+    $packages = [
+        [
+            'name' => 'acme/seaman-redis',
+            'require' => [
+                'php' => '>=8.1',
+                'ext-json' => '*',
+                'lib-pcre' => '*',
             ],
-            [
-                'name' => 'predis/predis',
-                'require' => ['php' => '>=8.1'],
-                'autoload' => ['psr-4' => ['Predis\\' => 'src/']],
-                'install-path' => '../predis/predis',
-            ],
-            [
-                'name' => 'unrelated/package',
-                'autoload' => ['psr-4' => ['Unrelated\\' => 'src/']],
-                'install-path' => '../unrelated/package',
-            ],
-        ];
+            'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
+            'install-path' => '../acme/seaman-redis',
+        ],
+    ];
 
-        $resolved = $autoloader->resolveWithDependencies(
-            ['acme/seaman-redis'],
-            $packages,
-        );
+    $resolved = $autoloader->resolveWithDependencies(
+        ['acme/seaman-redis'],
+        $packages,
+    );
 
-        $resolvedNames = array_column($resolved, 'name');
+    expect($resolved)->toHaveCount(1);
+    expect($resolved[0]['name'])->toBe('acme/seaman-redis');
+});
 
-        self::assertContains('acme/seaman-redis', $resolvedNames);
-        self::assertContains('predis/predis', $resolvedNames);
-        self::assertNotContains('unrelated/package', $resolvedNames);
-    }
+test('register only registers once across instances', function (): void {
+    $autoloader1 = new PluginAutoloader();
+    $autoloader2 = new PluginAutoloader();
 
-    public function testResolveWithDependenciesIgnoresPlatformDependencies(): void
-    {
-        $autoloader = new PluginAutoloader();
+    $packages = [
+        [
+            'name' => 'acme/plugin',
+            'autoload' => ['psr-4' => ['Acme\\' => 'src/']],
+            'install-path' => '../acme/plugin',
+        ],
+    ];
 
-        $packages = [
-            [
-                'name' => 'acme/seaman-redis',
-                'require' => [
-                    'php' => '>=8.1',
-                    'ext-json' => '*',
-                    'lib-pcre' => '*',
-                ],
-                'autoload' => ['psr-4' => ['Acme\\Redis\\' => 'src/']],
-                'install-path' => '../acme/seaman-redis',
-            ],
-        ];
+    $autoloader1->register('/tmp/project', ['acme/plugin'], $packages);
+    $autoloader2->register('/tmp/project', ['acme/plugin'], $packages);
 
-        $resolved = $autoloader->resolveWithDependencies(
-            ['acme/seaman-redis'],
-            $packages,
-        );
+    expect(PluginAutoloader::isRegistered())->toBeTrue();
+});
 
-        self::assertCount(1, $resolved);
-        self::assertSame('acme/seaman-redis', $resolved[0]['name']);
-    }
+test('register does nothing when no plugins', function (): void {
+    $autoloader = new PluginAutoloader();
 
-    public function testRegisterOnlyRegistersOnce(): void
-    {
-        $autoloader = new PluginAutoloader();
+    $autoloader->register('/tmp/project', [], []);
 
-        $packages = [
-            [
-                'name' => 'acme/plugin',
-                'autoload' => ['psr-4' => ['Acme\\' => 'src/']],
-                'install-path' => '../acme/plugin',
-            ],
-        ];
-
-        $autoloader->register('/tmp/project', ['acme/plugin'], $packages);
-        $autoloader->register('/tmp/project', ['acme/plugin'], $packages);
-
-        // Check internal state via reflection
-        $reflection = new \ReflectionClass($autoloader);
-        $prop = $reflection->getProperty('registered');
-
-        self::assertTrue($prop->getValue($autoloader));
-    }
-
-    public function testRegisterDoesNothingWhenNoPlugins(): void
-    {
-        $autoloader = new PluginAutoloader();
-
-        $autoloader->register('/tmp/project', [], []);
-
-        $reflection = new \ReflectionClass($autoloader);
-        $prop = $reflection->getProperty('registered');
-
-        self::assertFalse($prop->getValue($autoloader));
-    }
-}
+    expect(PluginAutoloader::isRegistered())->toBeFalse();
+});

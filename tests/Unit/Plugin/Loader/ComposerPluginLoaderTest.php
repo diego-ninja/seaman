@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Plugin\Loader;
 
 use Seaman\Plugin\Loader\ComposerPluginLoader;
+use Seaman\Plugin\Loader\PluginAutoloader;
+
+beforeEach(function (): void {
+    PluginAutoloader::resetForTesting();
+});
 
 test('ComposerPluginLoader returns empty array when no plugins installed', function (): void {
     $tempDir = sys_get_temp_dir() . '/seaman-composer-test-' . uniqid();
