@@ -44,7 +44,28 @@ All database plugins support `db:dump`, `db:restore`, and `db:shell` commands.
 
 Seaman supports two methods for installing plugins:
 
-#### 1. Composer Packages (Recommended)
+#### 1. Using Seaman CLI (Recommended)
+
+Install plugins directly using Seaman's built-in command:
+
+```bash
+# Interactive mode - browse and select plugins
+seaman plugin:install
+
+# Install specific plugin
+seaman plugin:install vendor/seaman-plugin-name
+
+# Install as dev dependency
+seaman plugin:install vendor/seaman-plugin-name --dev
+```
+
+The `plugin:install` command:
+- Searches Packagist for packages with type `seaman-plugin`
+- Validates the plugin before installation
+- Runs `composer require` in your project directory
+- Shows installation progress
+
+#### 2. Using Composer Directly
 
 Install plugins as Composer dependencies:
 
@@ -62,11 +83,26 @@ Composer plugins are automatically discovered if they include the `seaman-plugin
         "psr-4": {
             "Vendor\\SeamanPluginName\\": "src/"
         }
+    },
+    "extra": {
+        "seaman": {
+            "plugin-class": "Vendor\\SeamanPluginName\\MyPlugin"
+        }
     }
 }
 ```
 
-#### 2. Local Plugins
+**How Discovery Works:**
+
+When Seaman runs (even as a PHAR), it:
+1. Reads your project's `vendor/composer/installed.json`
+2. Finds packages with `type: seaman-plugin`
+3. Registers an autoloader for plugin classes and their dependencies
+4. Instantiates plugin classes from the `extra.seaman.plugin-class` field
+
+This means plugins work seamlessly whether you install Seaman globally (PHAR) or as a project dependency.
+
+#### 3. Local Plugins
 
 For project-specific or development plugins, place them in the `.seaman/plugins/` directory:
 
@@ -903,6 +939,121 @@ clickhouse:
     - "traefik.enable=false"
   networks:
     - {{ project.name }}-network
+```
+
+---
+
+## Testing Plugins
+
+### Unit Testing
+
+Test your plugin logic independently using PHPUnit or Pest:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Unit;
+
+use MyVendor\MyPlugin\MyPlugin;
+use PHPUnit\Framework\TestCase;
+
+final class MyPluginTest extends TestCase
+{
+    public function testPluginMetadata(): void
+    {
+        $plugin = new MyPlugin();
+
+        self::assertSame('my-vendor/my-plugin', $plugin->getName());
+        self::assertSame('1.0.0', $plugin->getVersion());
+    }
+
+    public function testServiceDefinition(): void
+    {
+        $plugin = new MyPlugin();
+        $service = $plugin->myService();
+
+        self::assertSame('myservice', $service->name);
+        self::assertSame([8080], $service->ports);
+    }
+
+    public function testConfiguration(): void
+    {
+        $plugin = new MyPlugin();
+        $plugin->configure(['timeout' => 60]);
+
+        self::assertSame(60, $plugin->getTimeout());
+    }
+}
+```
+
+### Integration Testing
+
+Test your plugin with a real Seaman project:
+
+```bash
+# Create a test project
+mkdir /tmp/plugin-test && cd /tmp/plugin-test
+composer init --name=test/project --no-interaction
+
+# Install your plugin (from local path during development)
+composer config repositories.local path /path/to/your/plugin
+composer require my-vendor/my-plugin:@dev
+
+# Initialize Seaman and verify plugin is loaded
+seaman plugin:list
+# Should show your plugin
+
+# Enable your service
+seaman service:add myservice
+
+# Start and verify
+seaman start
+seaman status
+```
+
+### Testing Templates
+
+Verify your Twig templates render correctly:
+
+```php
+public function testTemplateRendersCorrectly(): void
+{
+    $twig = new \Twig\Environment(
+        new \Twig\Loader\FilesystemLoader(__DIR__ . '/../templates')
+    );
+
+    $result = $twig->render('myservice.yaml.twig', [
+        'project' => ['name' => 'test-project'],
+        'config' => ['version' => '1.0'],
+        'service' => ['port' => 8080],
+    ]);
+
+    self::assertStringContainsString('test-project-myservice', $result);
+    self::assertStringContainsString('8080:8080', $result);
+}
+```
+
+### Testing Lifecycle Hooks
+
+Test hooks receive correct event data:
+
+```php
+public function testLifecycleHookReceivesEventData(): void
+{
+    $plugin = new MyPlugin();
+    $eventData = new LifecycleEventData(
+        event: 'after:start',
+        projectRoot: '/tmp/test-project',
+        service: 'myservice',
+    );
+
+    // Should not throw
+    $plugin->onAfterStart($eventData);
+
+    // Verify side effects (file created, log written, etc.)
+}
 ```
 
 ---

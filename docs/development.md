@@ -200,25 +200,47 @@ php build/seaman.phar init
 ```
 seaman/
 ├── src/
-│   ├── Command/          # CLI commands
-│   ├── Event/            # Event classes
-│   ├── EventListener/    # Event listener discovery
-│   ├── Listener/         # Event listeners
-│   ├── Service/          # Business logic services
-│   │   └── Container/    # Service registry
-│   └── Application.php   # Main application
+│   ├── Command/              # CLI commands
+│   │   ├── Database/         # Database commands (db:shell, db:dump, etc.)
+│   │   └── Plugin/           # Plugin commands (plugin:list, plugin:install, etc.)
+│   ├── Enum/                 # Enums (ServiceCategory, etc.)
+│   ├── Plugin/               # Plugin system
+│   │   ├── Attribute/        # PHP attributes (#[AsSeamanPlugin], etc.)
+│   │   ├── Config/           # Plugin configuration (ConfigSchema)
+│   │   ├── Export/           # Plugin export functionality
+│   │   ├── Extractor/        # Service/template extraction from plugins
+│   │   └── Loader/           # Plugin loaders (Bundled, Composer, Local)
+│   ├── Service/              # Business logic services
+│   │   ├── Container/        # Service registry and discovery
+│   │   ├── Detector/         # Project detection (Symfony, PHP version)
+│   │   └── Generator/        # Docker Compose generation
+│   ├── Template/             # Twig templates for Docker files
+│   ├── UI/                   # Terminal UI helpers
+│   ├── ValueObject/          # Value objects (Configuration, HealthCheck, etc.)
+│   └── Application.php       # Main application
+├── plugins/                  # Bundled plugins (shipped with Seaman)
+│   ├── mysql/
+│   ├── postgresql/
+│   ├── redis/
+│   └── ...
 ├── tests/
-│   ├── Unit/            # Unit tests
-│   └── Feature/         # Feature tests
+│   ├── Unit/                 # Unit tests
+│   └── Integration/          # Integration tests
 ├── config/
-│   └── listeners.php    # Precompiled listeners (PHAR)
-├── helpers/
-│   └── functions.php    # Global helper functions
-├── templates/           # Twig templates for Docker files
+│   └── container.php         # PHP-DI container configuration
+├── docker/                   # Docker templates (Dockerfile, scripts)
+├── assets/                   # Static assets (logos, etc.)
 ├── bin/
-│   └── seaman          # Entry point
+│   └── seaman                # Entry point
+├── box.json                  # Box PHAR configuration
 └── composer.json
 ```
+
+### Key Directories
+
+- **plugins/**: Bundled plugins that ship with Seaman. Each subdirectory is a plugin with `src/` containing the plugin class.
+- **src/Plugin/**: Core plugin system infrastructure (loaders, attributes, extractors).
+- **src/Service/Container/**: Service registry that discovers services from plugins.
 
 ## Architecture
 
