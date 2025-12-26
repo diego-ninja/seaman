@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\ValueObject;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 use Seaman\ValueObject\InitializationChoices;
 use Seaman\ValueObject\XdebugConfig;
@@ -18,6 +19,7 @@ test('creates InitializationChoices with all properties including useProxy', fun
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [Service::Redis, Service::Mailpit],
         xdebug: $xdebug,
@@ -40,6 +42,7 @@ test('InitializationChoices useProxy defaults to true', function () {
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [],
         xdebug: $xdebug,
@@ -55,6 +58,7 @@ test('InitializationChoices is immutable', function () {
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [],
         xdebug: $xdebug,

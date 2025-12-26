@@ -40,8 +40,9 @@ class InitializationSummary
             icon: '⚙',
             data: [
                 'Project Type' => $projectType->getLabel(),
-                'Docker image' => 'seaman/seaman-php' . $phpConfig->version->value . ':latest',
+                'Docker image' => 'seaman/seaman-php' . $phpConfig->version->value . '-' . $phpConfig->server->value . ':latest',
                 'PHP Version' => $phpConfig->version->value,
+                'Server' => $phpConfig->server->getLabel(),
                 'Database' => $database !== null ? $database->name : 'None',
                 'Services' => $formattedServices,
                 'Reverse Proxy' => $proxyEnabled ? 'Traefik (HTTPS)' : 'Disabled (direct ports)',

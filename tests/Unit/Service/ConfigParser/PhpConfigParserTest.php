@@ -117,3 +117,72 @@ test('merges xdebug configuration partially', function () {
     expect($result->xdebug->ideKey)->toBe('PHPSTORM');
     expect($result->xdebug->clientHost)->toBe('host.docker.internal');
 });
+
+test('parses server configuration', function () {
+    $data = [
+        'php' => [
+            'version' => '8.4',
+            'server' => 'frankenphp',
+            'xdebug' => [
+                'enabled' => false,
+            ],
+        ],
+    ];
+
+    $result = $this->parser->parse($data);
+
+    expect($result->server)->toBe(\Seaman\Enum\ServerType::FrankenPhpClassic);
+});
+
+test('defaults server to symfony when not specified', function () {
+    $data = [
+        'php' => [
+            'version' => '8.4',
+            'xdebug' => [
+                'enabled' => false,
+            ],
+        ],
+    ];
+
+    $result = $this->parser->parse($data);
+
+    expect($result->server)->toBe(\Seaman\Enum\ServerType::SymfonyServer);
+});
+
+test('parses frankenphp-worker server type', function () {
+    $data = [
+        'php' => [
+            'version' => '8.4',
+            'server' => 'frankenphp-worker',
+            'xdebug' => [
+                'enabled' => false,
+            ],
+        ],
+    ];
+
+    $result = $this->parser->parse($data);
+
+    expect($result->server)->toBe(\Seaman\Enum\ServerType::FrankenPhpWorker);
+});
+
+test('merges server configuration', function () {
+    $base = new PhpConfig(
+        version: \Seaman\Enum\PhpVersion::Php84,
+        xdebug: new \Seaman\ValueObject\XdebugConfig(
+            enabled: false,
+            ideKey: 'PHPSTORM',
+            clientHost: 'host.docker.internal',
+        ),
+        server: \Seaman\Enum\ServerType::SymfonyServer,
+    );
+
+    $overrides = [
+        'php' => [
+            'server' => 'frankenphp',
+        ],
+    ];
+
+    $result = $this->parser->merge($overrides, $base);
+
+    expect($result->server)->toBe(\Seaman\Enum\ServerType::FrankenPhpClassic);
+});

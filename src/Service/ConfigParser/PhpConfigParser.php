@@ -3,11 +3,12 @@
 declare(strict_types=1);
 
 // ABOUTME: Parses PHP configuration section from YAML data.
-// ABOUTME: Handles PHP version and Xdebug settings parsing.
+// ABOUTME: Handles PHP version, server type, and Xdebug settings parsing.
 
 namespace Seaman\Service\ConfigParser;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ServerType;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\XdebugConfig;
 
@@ -26,9 +27,13 @@ final readonly class PhpConfigParser
         $versionString = $phpData['version'] ?? null;
         $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
 
+        $serverString = $phpData['server'] ?? null;
+        $server = is_string($serverString) ? ServerType::tryFrom($serverString) : null;
+
         return new PhpConfig(
             version: $phpVersion ?? PhpVersion::Php84,
             xdebug: $xdebug,
+            server: $server ?? ServerType::SymfonyServer,
         );
     }
 
@@ -45,9 +50,13 @@ final readonly class PhpConfigParser
         $versionString = $phpData['version'] ?? null;
         $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
 
+        $serverString = $phpData['server'] ?? null;
+        $server = is_string($serverString) ? ServerType::tryFrom($serverString) : null;
+
         return new PhpConfig(
             version: $phpVersion ?? $base->version,
             xdebug: $xdebug,
+            server: $server ?? $base->server,
         );
     }
 

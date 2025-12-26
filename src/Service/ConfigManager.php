@@ -107,6 +107,7 @@ readonly class ConfigManager
             'project_type' => $config->projectType->value,
             'php' => [
                 'version' => $config->php->version->value,
+                'server' => $config->php->server->value,
                 'xdebug' => [
                     'enabled' => $config->php->xdebug->enabled,
                     'ide_key' => $config->php->xdebug->ideKey,

@@ -130,3 +130,19 @@ test('shouldUseProxy method exists', function () {
         expect($returnType->getName())->toBe('bool');
     }
 });
+
+test('selectServer method exists and returns ServerType', function () {
+    $detector = new PhpVersionDetector();
+    $wizard = new InitializationWizard($detector);
+
+    $reflection = new \ReflectionClass($wizard);
+    $method = $reflection->getMethod('selectServer');
+    $returnType = $method->getReturnType();
+
+    expect($method->isPublic())->toBeTrue();
+    expect($returnType)->toBeInstanceOf(\ReflectionNamedType::class);
+
+    if ($returnType instanceof \ReflectionNamedType) {
+        expect($returnType->getName())->toBe(\Seaman\Enum\ServerType::class);
+    }
+});

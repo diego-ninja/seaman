@@ -1,0 +1,17 @@
+{
+    frankenphp
+    order php_server before file_server
+}
+
+:80 {
+    root * /var/www/html/public
+
+    php_server {
+        worker {
+            file ./index.php
+            num {$PHP_WORKERS:2}
+        }
+    }
+
+    file_server
+}

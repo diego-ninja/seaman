@@ -57,6 +57,7 @@ readonly class DockerComposeGenerator
 
         $context = [
             'php_version' => $config->php->version->value,
+            'server_type' => $config->php->server->value,
             'app_labels' => $appLabels,
             'services' => [
                 'enabled' => $servicesWithLabels,

@@ -44,7 +44,7 @@ test('generates docker-compose.yml from configuration', function (): void {
 
     expect($yaml)->toContain('services:')
         ->and($yaml)->toContain('app:')
-        ->and($yaml)->toContain('image: seaman/seaman-php8.4:latest')
+        ->and($yaml)->toContain('image: seaman/seaman-php8.4-symfony:latest')
         ->and($yaml)->toContain('build:')
         ->and($yaml)->toContain('dockerfile: .seaman/Dockerfile');
 });

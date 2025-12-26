@@ -10,6 +10,7 @@ namespace Seaman\Service;
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\Process\CommandExecutorInterface;
@@ -33,9 +34,10 @@ final readonly class InitializationWizard
     {
         $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
+        $server = $this->selectServer();
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
-        $xdebug = $this->enableXdebug();
+        $xdebug = $this->enableXdebug($server);
         $useProxy = $this->shouldUseProxy();
         $devContainer = $this->enableDevContainer($input);
 
@@ -49,6 +51,7 @@ final readonly class InitializationWizard
         return new InitializationChoices(
             projectName: $projectName,
             phpVersion: $phpVersion,
+            server: $server,
             database: $database,
             services: $services,
             xdebug: $xdebug,
@@ -89,6 +92,27 @@ final readonly class InitializationWizard
         return PhpVersion::from($choice);
     }
 
+    public function selectServer(): ServerType
+    {
+        $options = [];
+
+        foreach (ServerType::cases() as $server) {
+            $options[$server->value] = sprintf(
+                '%s - %s',
+                $server->getLabel(),
+                $server->getDescription(),
+            );
+        }
+
+        $choice = Prompts::select(
+            label: 'Select application server',
+            options: $options,
+            default: ServerType::SymfonyServer->value,
+        );
+
+        return ServerType::from($choice);
+    }
+
     public function selectDatabase(): Service
     {
         $choice = Prompts::select(
@@ -119,9 +143,18 @@ final readonly class InitializationWizard
         );
     }
 
-    public function enableXdebug(): XdebugConfig
+    public function enableXdebug(ServerType $server = ServerType::SymfonyServer): XdebugConfig
     {
-        $xdebugEnabled = Prompts::confirm(label: 'Do you want to enable Xdebug?', default: false);
+        $hint = $server->isWorkerMode()
+            ? 'Note: Xdebug in worker mode requires container restart after toggle'
+            : '';
+
+        $xdebugEnabled = Prompts::confirm(
+            label: 'Do you want to enable Xdebug?',
+            default: false,
+            hint: $hint,
+        );
+
         return new XdebugConfig($xdebugEnabled, 'seaman', 'host.docker.internal');
     }
 

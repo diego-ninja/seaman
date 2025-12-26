@@ -6,6 +6,7 @@ namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Container\ServiceRegistry;
@@ -19,6 +20,7 @@ test('creates configuration from choices with database and services', function (
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [Service::Redis, Service::Mailpit],
         xdebug: new XdebugConfig(true, 'seaman', 'host.docker.internal'),
@@ -44,6 +46,7 @@ test('creates configuration without database when None selected', function () {
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php83,
+        server: ServerType::SymfonyServer,
         database: null,
         services: [Service::Redis],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
@@ -65,6 +68,7 @@ test('includes database in persist volumes', function () {
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
@@ -83,6 +87,7 @@ test('includes persistable services in persist volumes', function () {
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: null,
         services: [Service::Redis, Service::MongoDB, Service::Elasticsearch],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),
@@ -103,6 +108,7 @@ test('does not include non-persistable services in persist volumes', function ()
     $choices = new InitializationChoices(
         projectName: 'test-project',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: null,
         services: [Service::Mailpit, Service::Dozzle],
         xdebug: new XdebugConfig(false, 'seaman', 'host.docker.internal'),

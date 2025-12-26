@@ -89,7 +89,7 @@ abstract readonly class AbstractService implements ServiceInterface
 
     public function getInspectInfo(ServiceConfig $config): string
     {
-        return "v{$config->version}";
+        return $config->version;
     }
 
     public function getConfigSchema(): ?ConfigSchema

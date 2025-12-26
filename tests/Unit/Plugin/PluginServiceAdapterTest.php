@@ -302,7 +302,7 @@ test('adapter returns inspect info with version', function (): void {
         environmentVariables: [],
     );
 
-    expect($adapter->getInspectInfo($config))->toBe('v2.3.4');
+    expect($adapter->getInspectInfo($config))->toBe('2.3.4');
 });
 
 test('adapter returns false for supportsDatabaseOperations when no database operations defined', function (): void {
