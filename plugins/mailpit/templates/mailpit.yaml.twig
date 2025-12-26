@@ -1,0 +1,22 @@
+{# ABOUTME: Docker Compose service template for Mailpit. #}
+{# ABOUTME: Generates Mailpit email testing container configuration. #}
+
+  mailpit:
+    image: axllent/mailpit:{{ config.version | default('latest') }}
+    container_name: {{ project.name }}-mailpit
+    ports:
+      - "${MAILPIT_PORT:-{{ config.port | default(8025) }}}:8025"
+      - "${MAILPIT_SMTP_PORT:-{{ config.smtp_port | default(1025) }}}:1025"
+    environment:
+      MP_MAX_MESSAGES: "5000"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8025/livez"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

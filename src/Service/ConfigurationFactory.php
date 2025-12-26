@@ -58,7 +58,7 @@ class ConfigurationFactory
      * @param list<Service> $services
      * @return array<string, ServiceConfig>
      */
-    private function buildServiceConfigs(Service $database, array $services, bool $useProxy): array
+    private function buildServiceConfigs(?Service $database, array $services, bool $useProxy): array
     {
         /** @var array<string, ServiceConfig> $serviceConfigs */
         $serviceConfigs = [];
@@ -79,7 +79,7 @@ class ConfigurationFactory
         }
 
         // Add database if selected
-        if ($database !== Service::None) {
+        if ($database !== null) {
             $serviceImpl = $this->registry->get($database);
             $defaultConfig = $serviceImpl->getDefaultConfig();
             $serviceConfigs[$database->value] = new ServiceConfig(
@@ -117,13 +117,13 @@ class ConfigurationFactory
      * @param list<Service> $services
      * @return list<string>
      */
-    private function determinePersistVolumes(Service $database, array $services): array
+    private function determinePersistVolumes(?Service $database, array $services): array
     {
         /** @var list<string> $persistVolumes */
         $persistVolumes = [];
 
         // Add database to persist volumes
-        if ($database !== Service::None) {
+        if ($database !== null) {
             $persistVolumes[] = $database->value;
         }
 

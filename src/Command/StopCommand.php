@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -25,6 +27,8 @@ class StopCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly DockerManager $dockerManager,
+        private readonly PluginLifecycleDispatcher $lifecycleDispatcher,
+        private readonly string $projectRoot,
     ) {
         parent::__construct();
     }
@@ -43,9 +47,22 @@ class StopCommand extends ModeAwareCommand implements Decorable
     {
         /** @var ?string $service */
         $service = $input->getArgument('service');
+
+        $this->lifecycleDispatcher->dispatch('before:stop', new LifecycleEventData(
+            event: 'before:stop',
+            projectRoot: $this->projectRoot,
+            service: $service,
+        ));
+
         $result = $this->dockerManager->stop($service);
 
         if ($result->isSuccessful()) {
+            $this->lifecycleDispatcher->dispatch('after:stop', new LifecycleEventData(
+                event: 'after:stop',
+                projectRoot: $this->projectRoot,
+                service: $service,
+            ));
+
             return Command::SUCCESS;
         }
 

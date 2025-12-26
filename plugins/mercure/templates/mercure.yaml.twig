@@ -1,0 +1,24 @@
+{# ABOUTME: Docker Compose service template for Mercure. #}
+{# ABOUTME: Generates Mercure container for real-time updates. #}
+
+  mercure:
+    image: dunglas/mercure:{{ config.version | default('latest') }}
+    container_name: {{ project.name }}-mercure
+    ports:
+      - "${MERCURE_PORT:-{{ config.port | default(3000) }}}:3000"
+    environment:
+      SERVER_NAME: ":3000"
+      MERCURE_PUBLISHER_JWT_KEY: "{{ config.jwt_secret | default('!ChangeThisMercureHubJWTSecretKey!') }}"
+      MERCURE_SUBSCRIBER_JWT_KEY: "{{ config.jwt_secret | default('!ChangeThisMercureHubJWTSecretKey!') }}"
+      MERCURE_EXTRA_DIRECTIVES: "anonymous; cors_origins *"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/.well-known/mercure"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

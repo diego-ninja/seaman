@@ -1,0 +1,25 @@
+project_name: test-project
+version: '1.0'
+
+php:
+  version: '8.4'
+  extensions:
+    - pdo_pgsql
+    - redis
+  xdebug:
+    enabled: false
+    ide_key: PHPSTORM
+    client_host: host.docker.internal
+
+services: {}
+
+volumes:
+  persist: []
+
+plugins:
+  my-plugin:
+    setting1: value1
+    setting2: 42
+  another-plugin:
+    enabled: true
+    timeout: 30

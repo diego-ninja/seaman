@@ -1,0 +1,35 @@
+{# ABOUTME: Docker Compose service template for ClickHouse. #}
+{# ABOUTME: Generates ClickHouse container configuration with health checks and volumes. #}
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:{{ config.version | default('24.8') }}
+    container_name: {{ project.name }}-clickhouse
+    ports:
+      - "{{ config.http_port | default(8123) }}:8123"
+      - "{{ config.native_port | default(9000) }}:9000"
+    environment:
+      CLICKHOUSE_DB: {{ config.database | default('default') }}
+      CLICKHOUSE_USER: {{ config.user | default('default') }}
+{% if config.password is defined and config.password is not empty %}
+      CLICKHOUSE_PASSWORD: {{ config.password }}
+{% else %}
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: 1
+{% endif %}
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

@@ -9,9 +9,6 @@ namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\MysqlService;
-use Seaman\Service\Container\PostgresqlService;
-use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
@@ -43,10 +40,7 @@ YAML;
 
     file_put_contents($this->tempDir . '/.seaman/seaman.yaml', $yaml);
 
-    $this->registry = new ServiceRegistry();
-    $this->registry->register(new MysqlService());
-    $this->registry->register(new PostgresqlService());
-    $this->registry->register(new RedisService());
+    $this->registry = ServiceRegistry::create();
     $this->configManager = new ConfigManager($this->tempDir, $this->registry, new ConfigurationValidator());
 });
 
@@ -87,7 +81,8 @@ test('registry shows all services as available when none enabled', function () {
     $config = $configManager->load();
     $available = $registry->disabled($config);
 
-    expect(count($available))->toBe(3);
+    // With bundled plugins, we have 18 services (17 plugins + 1 Traefik)
+    expect(count($available))->toBeGreaterThanOrEqual(18);
 
     $names = array_map(fn($service) => $service->getName(), $available);
     expect($names)->toContain('mysql');
@@ -95,11 +90,11 @@ test('registry shows all services as available when none enabled', function () {
     expect($names)->toContain('redis');
 });
 
-test('registry shows no available services when all are enabled', function () {
+test('registry shows enabled services as unavailable', function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
 
-    // Create config with all services enabled
+    // Create config with some services enabled
     $yaml = <<<YAML
 project_name: test-project
 version: '1.0'
@@ -138,9 +133,17 @@ YAML;
     $configManager = new ConfigManager($tempDir, $registry, new ConfigurationValidator());
 
     $config = $configManager->load();
-    $available = $registry->disabled($config);
+    $disabled = $registry->disabled($config);
 
-    expect($available)->toBeEmpty();
+    // Enabled services should not appear in disabled list
+    $disabledNames = array_map(fn($service) => $service->getName(), $disabled);
+    expect($disabledNames)->not->toContain('mysql');
+    expect($disabledNames)->not->toContain('postgresql');
+    expect($disabledNames)->not->toContain('redis');
+
+    // Other services should still be in the disabled list
+    expect($disabledNames)->toContain('mariadb');
+    expect($disabledNames)->toContain('mongodb');
 });
 
 test('adds single service to configuration', function () {

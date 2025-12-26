@@ -1,9 +1,9 @@
 <?php
 
-declare(strict_types=1);
-
 // ABOUTME: Base exception class for all Seaman-specific errors.
 // ABOUTME: Provides factory methods for consistent exception handling.
+
+declare(strict_types=1);
 
 namespace Seaman\Exception;
 
@@ -21,5 +21,4 @@ class SeamanException extends Exception
             previous: $ex,
         );
     }
-
 }

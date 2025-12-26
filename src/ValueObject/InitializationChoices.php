@@ -19,7 +19,7 @@ final readonly class InitializationChoices
     public function __construct(
         public string $projectName,
         public PhpVersion $phpVersion,
-        public Service $database,
+        public ?Service $database,
         public array $services,
         public XdebugConfig $xdebug,
         public bool $generateDevContainer,

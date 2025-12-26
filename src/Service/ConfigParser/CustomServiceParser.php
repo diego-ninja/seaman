@@ -11,15 +11,14 @@ use Seaman\ValueObject\CustomServiceCollection;
 
 final readonly class CustomServiceParser
 {
+    use ConfigDataExtractor;
+
     /**
      * @param array<string, mixed> $data
      */
     public function parse(array $data): CustomServiceCollection
     {
-        $customData = $data['custom_services'] ?? [];
-        if (!is_array($customData)) {
-            return new CustomServiceCollection();
-        }
+        $customData = $this->getArray($data, 'custom_services');
 
         /** @var array<string, array<string, mixed>> $validCustomServices */
         $validCustomServices = [];

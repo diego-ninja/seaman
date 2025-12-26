@@ -7,32 +7,27 @@ declare(strict_types=1);
 
 namespace Seaman\Service\ConfigParser;
 
-use RuntimeException;
 use Seaman\Enum\PhpVersion;
 use Seaman\ValueObject\PhpConfig;
 use Seaman\ValueObject\XdebugConfig;
 
 final readonly class PhpConfigParser
 {
+    use ConfigDataExtractor;
+
     /**
      * @param array<string, mixed> $data
      */
     public function parse(array $data): PhpConfig
     {
-        $phpData = $data['php'] ?? [];
-        if (!is_array($phpData)) {
-            throw new RuntimeException('Invalid PHP configuration');
-        }
-
-        /** @var array<string, mixed> $phpData */
+        $phpData = $this->requireArray($data, 'php', 'Invalid PHP configuration: expected array');
         $xdebug = $this->parseXdebug($phpData);
 
         $versionString = $phpData['version'] ?? null;
         $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
-        $phpVersion = $phpVersion ?? PhpVersion::Php84;
 
         return new PhpConfig(
-            version: $phpVersion,
+            version: $phpVersion ?? PhpVersion::Php84,
             xdebug: $xdebug,
         );
     }
@@ -42,20 +37,16 @@ final readonly class PhpConfigParser
      */
     public function merge(array $data, PhpConfig $base): PhpConfig
     {
-        $phpData = $data['php'] ?? [];
-        if (!is_array($phpData)) {
-            $phpData = [];
-        }
+        $phpData = $this->getArray($data, 'php');
 
         /** @var array<string, mixed> $phpData */
         $xdebug = $this->mergeXdebug($phpData, $base->xdebug);
 
         $versionString = $phpData['version'] ?? null;
         $phpVersion = is_string($versionString) ? PhpVersion::tryFrom($versionString) : null;
-        $phpVersion = $phpVersion ?? $base->version;
 
         return new PhpConfig(
-            version: $phpVersion,
+            version: $phpVersion ?? $base->version,
             xdebug: $xdebug,
         );
     }
@@ -65,30 +56,12 @@ final readonly class PhpConfigParser
      */
     private function parseXdebug(array $phpData): XdebugConfig
     {
-        $xdebugData = $phpData['xdebug'] ?? [];
-        if (!is_array($xdebugData)) {
-            throw new RuntimeException('Invalid xdebug configuration');
-        }
-
-        $enabled = $xdebugData['enabled'] ?? false;
-        if (!is_bool($enabled)) {
-            throw new RuntimeException('Xdebug enabled must be a boolean');
-        }
-
-        $ideKey = $xdebugData['ide_key'] ?? 'PHPSTORM';
-        if (!is_string($ideKey)) {
-            throw new RuntimeException('Xdebug IDE key must be a string');
-        }
-
-        $clientHost = $xdebugData['client_host'] ?? 'host.docker.internal';
-        if (!is_string($clientHost)) {
-            throw new RuntimeException('Xdebug client host must be a string');
-        }
+        $xdebugData = $this->requireArray($phpData, 'xdebug', 'Invalid xdebug configuration: expected array');
 
         return new XdebugConfig(
-            enabled: $enabled,
-            ideKey: $ideKey,
-            clientHost: $clientHost,
+            enabled: $this->getBool($xdebugData, 'enabled', false),
+            ideKey: $this->getString($xdebugData, 'ide_key', 'PHPSTORM'),
+            clientHost: $this->getString($xdebugData, 'client_host', 'host.docker.internal'),
         );
     }
 
@@ -97,30 +70,13 @@ final readonly class PhpConfigParser
      */
     private function mergeXdebug(array $phpData, XdebugConfig $base): XdebugConfig
     {
-        $xdebugData = $phpData['xdebug'] ?? [];
-        if (!is_array($xdebugData)) {
-            $xdebugData = [];
-        }
+        $xdebugData = $this->getArray($phpData, 'xdebug');
 
-        $enabled = $xdebugData['enabled'] ?? $base->enabled;
-        if (!is_bool($enabled)) {
-            $enabled = $base->enabled;
-        }
-
-        $ideKey = $xdebugData['ide_key'] ?? $base->ideKey;
-        if (!is_string($ideKey)) {
-            $ideKey = $base->ideKey;
-        }
-
-        $clientHost = $xdebugData['client_host'] ?? $base->clientHost;
-        if (!is_string($clientHost)) {
-            $clientHost = $base->clientHost;
-        }
-
+        /** @var array<string, mixed> $xdebugData */
         return new XdebugConfig(
-            enabled: $enabled,
-            ideKey: $ideKey,
-            clientHost: $clientHost,
+            enabled: $this->getBool($xdebugData, 'enabled', $base->enabled),
+            ideKey: $this->getString($xdebugData, 'ide_key', $base->ideKey),
+            clientHost: $this->getString($xdebugData, 'client_host', $base->clientHost),
         );
     }
 }

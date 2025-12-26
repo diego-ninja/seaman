@@ -8,6 +8,9 @@ declare(strict_types=1);
 namespace Seaman\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Extractor\ServiceExtractor;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\PluginServiceAdapter;
 use Seaman\ValueObject\Configuration;
 
 class ServiceRegistry
@@ -15,21 +18,77 @@ class ServiceRegistry
     /** @var array<string, ServiceInterface> */
     private array $services = [];
 
-    public static function create(): ServiceRegistry
+    /**
+     * Create a ServiceRegistry with core services and optionally bundled plugins.
+     *
+     * @param bool $includeBundledPlugins Whether to automatically load bundled plugins
+     */
+    public static function create(bool $includeBundledPlugins = true): ServiceRegistry
     {
         $registry = new self();
-        $discovery = new ServiceDiscovery(__DIR__);
 
+        // Load core services (currently only Traefik)
+        $discovery = new ServiceDiscovery(__DIR__);
         foreach ($discovery->discover() as $service) {
             $registry->register($service);
+        }
+
+        // Load bundled plugin services
+        if ($includeBundledPlugins) {
+            $bundledPluginsDir = self::getBundledPluginsDir();
+            if ($bundledPluginsDir !== null && is_dir($bundledPluginsDir)) {
+                $pluginRegistry = PluginRegistry::discover(
+                    projectRoot: getcwd() ?: '.',
+                    localPluginsDir: '',
+                    pluginConfig: [],
+                    bundledPluginsDir: $bundledPluginsDir,
+                );
+                $registry->registerPluginServices($pluginRegistry);
+            }
         }
 
         return $registry;
     }
 
+    /**
+     * Get the bundled plugins directory path.
+     */
+    private static function getBundledPluginsDir(): ?string
+    {
+        // Use Phar::running(true) to get path WITH phar:// prefix
+        // This is required to access files inside the PHAR archive
+        $pharPath = \Phar::running(true);
+
+        if ($pharPath !== '') {
+            return $pharPath . '/plugins';
+        }
+
+        // When running from source, plugins are at repo root
+        $sourceDir = dirname(__DIR__, 3) . '/plugins';
+        if (is_dir($sourceDir)) {
+            return $sourceDir;
+        }
+
+        return null;
+    }
+
     public function register(ServiceInterface $service): void
     {
         $this->services[$service->getName()] = $service;
+    }
+
+    public function registerPluginServices(PluginRegistry $pluginRegistry): void
+    {
+        $extractor = new ServiceExtractor();
+
+        foreach ($pluginRegistry->all() as $loadedPlugin) {
+            $serviceDefinitions = $extractor->extract($loadedPlugin->instance);
+
+            foreach ($serviceDefinitions as $definition) {
+                $adapter = new PluginServiceAdapter($definition);
+                $this->register($adapter);
+            }
+        }
     }
 
     public function get(Service $name): ServiceInterface
@@ -39,6 +98,16 @@ class ServiceRegistry
         }
 
         return $this->services[$name->value];
+    }
+
+    public function has(string $name): bool
+    {
+        return isset($this->services[$name]);
+    }
+
+    public function getByName(string $name): ?ServiceInterface
+    {
+        return $this->services[$name] ?? null;
     }
 
     /**

@@ -169,6 +169,37 @@ final class Prompts
     }
 
     /**
+     * Password input prompt.
+     */
+    public static function password(
+        string $label,
+        string $placeholder = '',
+        string $hint = '',
+    ): string {
+        if (HeadlessMode::isHeadless()) {
+            if (HeadlessMode::hasPreset($label)) {
+                $preset = HeadlessMode::getPreset($label);
+                if (!is_string($preset)) {
+                    throw new \InvalidArgumentException(sprintf(
+                        'Preset value for "%s" must be a string, %s given',
+                        $label,
+                        get_debug_type($preset),
+                    ));
+                }
+                return $preset;
+            }
+
+            return '';
+        }
+
+        return \Laravel\Prompts\password(
+            label: $label,
+            placeholder: $placeholder,
+            hint: $hint,
+        );
+    }
+
+    /**
      * Display info message.
      */
     public static function info(string $message): void

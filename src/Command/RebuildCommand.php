@@ -8,6 +8,8 @@ declare(strict_types=1);
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
@@ -27,6 +29,8 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
+        private readonly PluginLifecycleDispatcher $lifecycleDispatcher,
+        private readonly string $projectRoot,
     ) {
         parent::__construct();
     }
@@ -38,16 +42,19 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $projectRoot = (string) getcwd();
+        $this->lifecycleDispatcher->dispatch('before:rebuild', new LifecycleEventData(
+            event: 'before:rebuild',
+            projectRoot: $this->projectRoot,
+        ));
 
         // Load configuration to get PHP version
         $config = $this->configManager->load();
 
         // Regenerate Dockerfile from template
-        $this->regenerateDockerfile($projectRoot);
+        $this->regenerateDockerfile($this->projectRoot);
 
         // Build Docker image without cache
-        $builder = new DockerImageBuilder($projectRoot, $config->php->version);
+        $builder = new DockerImageBuilder($this->projectRoot, $config->php->version);
         $buildResult = $builder->build(noCache: true);
 
         if (!$buildResult->isSuccessful()) {
@@ -57,6 +64,11 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         $restartResult = $this->dockerManager->restart();
 
         if ($restartResult->isSuccessful()) {
+            $this->lifecycleDispatcher->dispatch('after:rebuild', new LifecycleEventData(
+                event: 'after:rebuild',
+                projectRoot: $this->projectRoot,
+            ));
+
             return Command::SUCCESS;
         }
 

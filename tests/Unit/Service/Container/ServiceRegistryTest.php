@@ -9,6 +9,7 @@ namespace Seaman\Tests\Unit\Service\Container;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
@@ -71,7 +72,7 @@ test('can register a service', function () {
     $service = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -92,9 +93,9 @@ test('can register a service', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -124,7 +125,7 @@ test('can register a service', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -141,11 +142,16 @@ test('can register a service', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $registry->register($service);
 
-    expect($registry->get(Service::None))->toBe($service);
+    expect($registry->get(Service::Custom))->toBe($service);
 });
 
 test('throws exception when getting non-existent service', function () {
@@ -185,7 +191,7 @@ test('returns all registered services', function () {
             return new ServiceConfig(
                 name: 'service1',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8001,
                 additionalPorts: [],
@@ -215,7 +221,7 @@ test('returns all registered services', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -231,6 +237,11 @@ test('returns all registered services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 
@@ -306,6 +317,11 @@ test('returns all registered services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
 
     };
@@ -402,6 +418,11 @@ test('returns only enabled services', function () {
             return 'info';
         }
 
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
+
     };
 
     $redisService = new class implements ServiceInterface {
@@ -476,6 +497,11 @@ test('returns only enabled services', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 
@@ -568,6 +594,11 @@ test('returns only available services', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $redisService = new class implements ServiceInterface {
@@ -643,6 +674,11 @@ test('returns only available services', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $registry->register($mysqlService);
@@ -661,7 +697,7 @@ test('replaces service with same name on re-registration', function () {
     $service1 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -682,9 +718,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '1.0',
                 port: 8000,
                 additionalPorts: [],
@@ -714,7 +750,7 @@ test('replaces service with same name on re-registration', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -731,12 +767,17 @@ test('replaces service with same name on re-registration', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $service2 = new class implements ServiceInterface {
         public function getName(): string
         {
-            return 'none';
+            return 'custom';
         }
 
         public function getDisplayName(): string
@@ -757,9 +798,9 @@ test('replaces service with same name on re-registration', function () {
         public function getDefaultConfig(): ServiceConfig
         {
             return new ServiceConfig(
-                name: 'none',
+                name: 'custom',
                 enabled: false,
-                type: Service::None,
+                type: Service::Custom,
                 version: '2.0',
                 port: 8000,
                 additionalPorts: [],
@@ -789,7 +830,7 @@ test('replaces service with same name on re-registration', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -806,12 +847,98 @@ test('replaces service with same name on re-registration', function () {
         {
             return 'info';
         }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
+        }
     };
 
     $registry->register($service1);
     $registry->register($service2);
 
     expect($registry->all())->toHaveCount(1)
-        ->and($registry->get(Service::None))->toBe($service2)
-        ->and($registry->get(Service::None)->getDisplayName())->toBe('Test V2');
+        ->and($registry->get(Service::Custom))->toBe($service2)
+        ->and($registry->get(Service::Custom)->getDisplayName())->toBe('Test V2');
+});
+
+test('registerPluginServices registers all plugin services', function (): void {
+    $registry = new ServiceRegistry();
+
+    $plugin1 = new class implements \Seaman\Plugin\PluginInterface {
+        public function getName(): string
+        {
+            return 'test-plugin-1';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Test plugin 1';
+        }
+
+        #[\Seaman\Plugin\Attribute\ProvidesService]
+        public function provideTestService(): \Seaman\Plugin\ServiceDefinition
+        {
+            return new \Seaman\Plugin\ServiceDefinition(
+                name: 'custom-service-1',
+                template: '/path/to/template1.yaml',
+                displayName: 'Custom Service 1',
+                icon: '🚀',
+                ports: [9001],
+            );
+        }
+    };
+
+    $plugin2 = new class implements \Seaman\Plugin\PluginInterface {
+        public function getName(): string
+        {
+            return 'test-plugin-2';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Test plugin 2';
+        }
+
+        #[\Seaman\Plugin\Attribute\ProvidesService]
+        public function provideAnotherService(): \Seaman\Plugin\ServiceDefinition
+        {
+            return new \Seaman\Plugin\ServiceDefinition(
+                name: 'custom-service-2',
+                template: '/path/to/template2.yaml',
+                displayName: 'Custom Service 2',
+                icon: '🔥',
+                ports: [9002],
+            );
+        }
+    };
+
+    $pluginRegistry = new \Seaman\Plugin\PluginRegistry();
+    $pluginRegistry->register($plugin1, [], 'test');
+    $pluginRegistry->register($plugin2, [], 'test');
+
+    $registry->registerPluginServices($pluginRegistry);
+
+    $allServices = $registry->all();
+
+    expect($allServices)->toHaveKey('custom-service-1')
+        ->and($allServices)->toHaveKey('custom-service-2')
+        ->and($allServices['custom-service-1']->getName())->toBe('custom-service-1')
+        ->and($allServices['custom-service-1']->getDisplayName())->toBe('Custom Service 1')
+        ->and($allServices['custom-service-1']->getIcon())->toBe('🚀')
+        ->and($allServices['custom-service-1']->getType())->toBe(Service::Custom)
+        ->and($allServices['custom-service-2']->getName())->toBe('custom-service-2')
+        ->and($allServices['custom-service-2']->getDisplayName())->toBe('Custom Service 2')
+        ->and($allServices['custom-service-2']->getIcon())->toBe('🔥')
+        ->and($allServices['custom-service-2']->getType())->toBe(Service::Custom);
 });

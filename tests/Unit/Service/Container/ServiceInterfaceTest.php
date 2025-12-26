@@ -8,9 +8,10 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service\Container;
 
 use Seaman\Enum\Service;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Service\Container\ServiceInterface;
-use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\HealthCheck;
+use Seaman\ValueObject\ServiceConfig;
 
 test('mock service implements interface correctly', function () {
     $service = new class implements ServiceInterface {
@@ -32,7 +33,7 @@ test('mock service implements interface correctly', function () {
         }
         public function getDefaultConfig(): ServiceConfig
         {
-            return new ServiceConfig('test', true, Service::None, 'latest', 9999, [], []);
+            return new ServiceConfig('test', true, Service::Custom, 'latest', 9999, [], []);
         }
         public function generateComposeConfig(ServiceConfig $config): array
         {
@@ -54,7 +55,7 @@ test('mock service implements interface correctly', function () {
 
         public function getType(): Service
         {
-            return Service::None;
+            return Service::Custom;
         }
 
         public function getIcon(): string
@@ -71,6 +72,11 @@ test('mock service implements interface correctly', function () {
         public function getInspectInfo(ServiceConfig $config): string
         {
             return 'info';
+        }
+
+        public function getConfigSchema(): ?ConfigSchema
+        {
+            return null;
         }
     };
 

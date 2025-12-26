@@ -1,0 +1,25 @@
+{
+    "name": "seaman/clickhouse-plugin",
+    "type": "seaman-plugin",
+    "description": "ClickHouse OLAP database service for Seaman",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Diego Ninja",
+            "email": "diego@ninja.dev"
+        }
+    ],
+    "require": {
+        "php": "^8.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "Seaman\\Plugin\\ClickHouse\\": "src/"
+        }
+    },
+    "extra": {
+        "seaman": {
+            "plugin-class": "Seaman\\Plugin\\ClickHouse\\ClickHousePlugin"
+        }
+    }
+}

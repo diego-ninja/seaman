@@ -1,0 +1,119 @@
+<?php
+
+declare(strict_types=1);
+
+// ABOUTME: Soketi bundled plugin for Seaman.
+// ABOUTME: Provides Soketi WebSocket server (Pusher-compatible).
+
+namespace Seaman\Plugin\Soketi;
+
+use Seaman\Enum\ServiceCategory;
+use Seaman\Plugin\Attribute\AsSeamanPlugin;
+use Seaman\Plugin\Attribute\ProvidesService;
+use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Plugin\PluginInterface;
+use Seaman\Plugin\ServiceDefinition;
+use Seaman\ValueObject\HealthCheck;
+
+#[AsSeamanPlugin(
+    name: 'seaman/soketi',
+    version: '1.0.0',
+    description: 'Soketi WebSocket server for Seaman',
+)]
+final class SoketiPlugin implements PluginInterface
+{
+    private ConfigSchema $schema;
+
+    /** @var array<string, mixed> */
+    private array $config = [];
+
+    public function __construct()
+    {
+        $this->schema = ConfigSchema::create()
+            ->string('version', default: 'latest-16-alpine')
+                ->label('Soketi version')
+                ->description('Docker image tag to use')
+                ->enum(['latest-16-alpine', 'latest-18-alpine', 'latest'])
+            ->integer('port', default: 6001, min: 1, max: 65535)
+                ->label('WebSocket port')
+                ->description('Host port for WebSocket connections')
+            ->integer('metrics_port', default: 9601, min: 1, max: 65535)
+                ->label('Metrics port')
+                ->description('Host port for Prometheus metrics')
+            ->string('app_id', default: 'app-id')
+                ->label('App ID')
+                ->description('Pusher-compatible application ID')
+            ->string('app_key', default: 'app-key')
+                ->label('App key')
+                ->description('Pusher-compatible application key')
+            ->string('app_secret', default: 'app-secret')
+                ->label('App secret')
+                ->description('Pusher-compatible application secret')
+                ->secret();
+
+        $this->config = $this->schema->validate([]);
+    }
+
+    public function getName(): string
+    {
+        return 'seaman/soketi';
+    }
+
+    public function getVersion(): string
+    {
+        return '1.0.0';
+    }
+
+    public function getDescription(): string
+    {
+        return 'Soketi WebSocket server for Seaman';
+    }
+
+    public function configSchema(): ConfigSchema
+    {
+        return $this->schema;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    public function configure(array $values): void
+    {
+        $this->config = $this->schema->validate($values);
+    }
+
+    #[ProvidesService(name: 'soketi', category: ServiceCategory::Utility)]
+    public function soketiService(): ServiceDefinition
+    {
+        $port = $this->config['port'];
+        $metricsPort = $this->config['metrics_port'];
+        assert(is_int($port));
+        assert(is_int($metricsPort));
+
+        return new ServiceDefinition(
+            name: 'soketi',
+            template: __DIR__ . '/../templates/soketi.yaml.twig',
+            displayName: 'Soketi',
+            description: 'Pusher-compatible WebSocket server',
+            icon: '🔌',
+            category: ServiceCategory::Utility,
+            ports: [$port, $metricsPort],
+            internalPorts: [6001, 9601],
+            defaultConfig: [
+                'version' => $this->config['version'],
+                'port' => $this->config['port'],
+                'metrics_port' => $this->config['metrics_port'],
+                'app_id' => $this->config['app_id'],
+                'app_key' => $this->config['app_key'],
+                'app_secret' => $this->config['app_secret'],
+            ],
+            healthCheck: new HealthCheck(
+                test: ['CMD', 'wget', '--spider', '-q', 'http://localhost:6001'],
+                interval: '10s',
+                timeout: '5s',
+                retries: 5,
+            ),
+            configSchema: $this->schema,
+        );
+    }
+}

@@ -10,9 +10,6 @@ namespace Seaman\Tests\Integration\Command;
 use Seaman\Command\ServiceListCommand;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
-use Seaman\Service\Container\MysqlService;
-use Seaman\Service\Container\PostgresqlService;
-use Seaman\Service\Container\RedisService;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\UI\HeadlessMode;
 use Seaman\UI\Terminal;
@@ -59,10 +56,7 @@ YAML;
 
     file_put_contents($this->tempDir . '/.seaman/seaman.yaml', $yaml);
 
-    $this->registry = new ServiceRegistry();
-    $this->registry->register(new MysqlService());
-    $this->registry->register(new PostgresqlService());
-    $this->registry->register(new RedisService());
+    $this->registry = ServiceRegistry::create();
     $this->configManager = new ConfigManager($this->tempDir, $this->registry, new ConfigurationValidator());
 });
 

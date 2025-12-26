@@ -1,0 +1,26 @@
+{# ABOUTME: Docker Compose service template for MinIO. #}
+{# ABOUTME: Generates MinIO S3-compatible storage configuration. #}
+
+  minio:
+    image: minio/minio:{{ config.version | default('latest') }}
+    container_name: {{ project.name }}-minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-{{ config.port | default(9000) }}}:9000"
+      - "${MINIO_CONSOLE_PORT:-{{ config.console_port | default(9001) }}}:9001"
+    environment:
+      MINIO_ROOT_USER: {{ config.root_user | default('minioadmin') }}
+      MINIO_ROOT_PASSWORD: {{ config.root_password | default('minioadmin') }}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped
