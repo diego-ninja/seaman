@@ -195,6 +195,9 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         // PHP version
         $lines[] = "PHP:      {$config->php->version->value}";
 
+        // Server type
+        $lines[] = "Server:   {$config->php->server->getLabel()}";
+
         // Proxy (only if enabled)
         if ($proxy->enabled) {
             $lines[] = "Proxy:    Traefik";
