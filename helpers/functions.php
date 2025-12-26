@@ -7,7 +7,7 @@ use Seaman\UI\Widget\Box\Box;
 use Symfony\Component\Process\Process;
 use function Laravel\Prompts\confirm;
 
-if (!function_exists('Seaman\is_seaman')) {
+if (!function_exists('Seaman\is_cosmic')) {
     /**
      * Check if the current directory is a Cosmic project.
      *
