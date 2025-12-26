@@ -74,3 +74,27 @@ test('truncates long descriptions', function () {
     // The truncate method is private
     expect(true)->toBeTrue();
 });
+
+test('gets package by name', function () {
+    $client = new PackagistClient($this->cacheDir);
+    $package = $client->getPackage('seaman/redis');
+
+    expect($package)->not->toBeNull();
+    expect($package)->toHaveKeys(['name', 'description', 'url', 'downloads', 'favers']);
+    expect($package['name'])->toBe('seaman/redis');
+})->skip(getenv('CI') !== false, 'Skipping live API test in CI');
+
+test('returns null for non-existent package', function () {
+    $client = new PackagistClient($this->cacheDir);
+    $package = $client->getPackage('seaman/non-existent-package-12345');
+
+    expect($package)->toBeNull();
+})->skip(getenv('CI') !== false, 'Skipping live API test in CI');
+
+test('returns null for non-plugin package', function () {
+    $client = new PackagistClient($this->cacheDir);
+    // symfony/console is not a seaman-plugin type
+    $package = $client->getPackage('symfony/console');
+
+    expect($package)->toBeNull();
+})->skip(getenv('CI') !== false, 'Skipping live API test in CI');

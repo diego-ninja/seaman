@@ -13,9 +13,15 @@ final class PackagistClient
 {
     private const BASE_URL = 'https://packagist.org';
     private const SEARCH_ENDPOINT = '/search.json';
+    private const PACKAGE_ENDPOINT = '/packages/%s.json';
     private const PACKAGE_TYPE = 'seaman-plugin';
     private const CACHE_TTL = 3600; // 1 hour
     private const REQUEST_TIMEOUT = 10;
+
+    /** @var list<string> Known seaman plugin packages for direct lookup */
+    private const KNOWN_PLUGINS = [
+        'seaman/redis',
+    ];
 
     public function __construct(
         private readonly ?string $cacheDir = null,
@@ -38,7 +44,88 @@ final class PackagistClient
         }
 
         $results = $this->fetchAllPages($query);
+
+        // Also check known plugins via direct lookup (bypasses search index delay)
+        $results = $this->mergeKnownPlugins($results, $query);
+
         $this->saveToCache($cacheKey, $results);
+
+        return $results;
+    }
+
+    /**
+     * Get a specific package by name.
+     *
+     * @return array{name: string, description: string, url: string, downloads: int, favers: int}|null
+     *
+     * @throws PackagistException
+     */
+    public function getPackage(string $name): ?array
+    {
+        $url = self::BASE_URL . sprintf(self::PACKAGE_ENDPOINT, $name);
+
+        try {
+            $response = $this->request($url);
+        } catch (PackagistException) {
+            return null;
+        }
+
+        /** @var array<string, mixed>|null $package */
+        $package = $response['package'] ?? null;
+
+        if (!is_array($package)) {
+            return null;
+        }
+
+        $packageName = $package['name'] ?? null;
+        $packageType = $package['type'] ?? null;
+
+        if (!is_string($packageName) || $packageType !== self::PACKAGE_TYPE) {
+            return null;
+        }
+
+        /** @var mixed $downloads */
+        $downloads = $package['downloads'] ?? null;
+        $totalDownloads = 0;
+        if (is_array($downloads) && isset($downloads['total']) && is_int($downloads['total'])) {
+            $totalDownloads = $downloads['total'];
+        }
+
+        return [
+            'name' => $packageName,
+            'description' => is_string($package['description'] ?? null) ? $package['description'] : '',
+            'url' => is_string($package['repository'] ?? null) ? $package['repository'] : '',
+            'downloads' => $totalDownloads,
+            'favers' => is_int($package['favers'] ?? null) ? $package['favers'] : 0,
+        ];
+    }
+
+    /**
+     * Merge known plugins into results if not already present.
+     *
+     * @param list<array{name: string, description: string, url: string, downloads: int, favers: int}> $results
+     * @return list<array{name: string, description: string, url: string, downloads: int, favers: int}>
+     */
+    private function mergeKnownPlugins(array $results, ?string $query): array
+    {
+        $existingNames = array_column($results, 'name');
+
+        foreach (self::KNOWN_PLUGINS as $pluginName) {
+            // Skip if already in results
+            if (in_array($pluginName, $existingNames, true)) {
+                continue;
+            }
+
+            // Skip if query doesn't match
+            if ($query !== null && $query !== '' && !str_contains($pluginName, $query)) {
+                continue;
+            }
+
+            $package = $this->getPackage($pluginName);
+            if ($package !== null) {
+                $results[] = $package;
+            }
+        }
 
         return $results;
     }
