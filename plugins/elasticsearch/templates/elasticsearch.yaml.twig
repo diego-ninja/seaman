@@ -1,0 +1,25 @@
+{# ABOUTME: Docker Compose service template for Elasticsearch. #}
+{# ABOUTME: Generates Elasticsearch container configuration with health checks and volumes. #}
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:{{ config.version | default('8.12.0') }}
+    container_name: {{ project.name }}-elasticsearch
+    ports:
+      - "${ELASTICSEARCH_PORT:-{{ config.port | default(9200) }}}:9200"
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled={{ config.security_enabled | default(false) ? 'true' : 'false' }}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

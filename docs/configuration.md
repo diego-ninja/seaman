@@ -150,6 +150,48 @@ Services listed here will have Docker volumes created automatically. This ensure
 
 **Important**: `seaman destroy` removes these volumes permanently.
 
+## Plugin Configuration
+
+Configure installed plugins in the `plugins` section:
+
+```yaml
+plugins:
+  vendor/plugin-name:
+    enabled: true
+    option1: "value1"
+    option2: 42
+
+  local/my-plugin:
+    enabled: true
+    debug: false
+```
+
+### Plugin Options
+
+Each plugin defines its own configuration schema. Common patterns include:
+
+- `enabled`: Whether the plugin is active (implicit `true` if listed)
+- Plugin-specific options defined by the plugin author
+
+### Example with Multiple Plugins
+
+```yaml
+plugins:
+  vendor/clickhouse-plugin:
+    version: "24.3"
+    memory_limit: "4G"
+    enable_backups: true
+
+  vendor/monitoring-plugin:
+    prometheus_port: 9090
+    grafana_port: 3000
+
+  local/custom-scripts:
+    enabled: true
+```
+
+See [Plugins documentation](plugins.md) for more details on available plugins and their configuration options.
+
 ## Generated Files
 
 Seaman generates several files based on your configuration:

@@ -22,11 +22,12 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'service:remove',
     description: 'Remove services from configuration (requires init)',
 )]
-class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
+class ServiceRemoveCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
+        private readonly \Seaman\Service\ComposeRegenerator $regenerator,
     ) {
         parent::__construct();
     }
@@ -85,8 +86,12 @@ class ServiceRemoveCommand extends AbstractServiceCommand implements Decorable
         }
 
         $this->configManager->save($newConfig);
-        $this->regenerate($newConfig);
 
-        return $this->restartServices();
+        $projectRoot = (string) getcwd();
+        $this->regenerator->regenerate($newConfig, $projectRoot);
+
+        $result = $this->regenerator->restartIfConfirmed();
+
+        return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
     }
 }

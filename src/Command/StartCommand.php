@@ -9,6 +9,8 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Exception\PortAllocationException;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
 use Seaman\Service\PortAllocator;
@@ -30,6 +32,8 @@ class StartCommand extends ModeAwareCommand implements Decorable
         private readonly PortAllocator $portAllocator,
         private readonly ConfigManager $configManager,
         private readonly DockerManager $dockerManager,
+        private readonly PluginLifecycleDispatcher $lifecycleDispatcher,
+        private readonly string $projectRoot,
     ) {
         parent::__construct();
     }
@@ -50,6 +54,12 @@ class StartCommand extends ModeAwareCommand implements Decorable
         /** @var ?string $service */
         $service = $input->getArgument('service');
 
+        $this->lifecycleDispatcher->dispatch('before:start', new LifecycleEventData(
+            event: 'before:start',
+            projectRoot: $this->projectRoot,
+            service: $service,
+        ));
+
         // Allocate ports (prompts user if conflicts found)
         try {
             $this->allocatePorts();
@@ -66,6 +76,12 @@ class StartCommand extends ModeAwareCommand implements Decorable
         }
 
         if ($result->isSuccessful()) {
+            $this->lifecycleDispatcher->dispatch('after:start', new LifecycleEventData(
+                event: 'after:start',
+                projectRoot: $this->projectRoot,
+                service: $service,
+            ));
+
             return Command::SUCCESS;
         }
 

@@ -10,6 +10,8 @@ namespace Tests\Unit\Service;
 use PHPUnit\Framework\Attributes\Test;
 use Seaman\Enum\Confidence;
 use Seaman\Enum\Service;
+use Seaman\Exception\FileNotFoundException;
+use Seaman\Exception\YamlParseException;
 use Seaman\Service\ComposeImporter;
 use Seaman\Service\Detector\ServiceDetector;
 use Seaman\Tests\TestCase;
@@ -167,7 +169,7 @@ YAML;
     #[Test]
     public function it_throws_exception_for_missing_file(): void
     {
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(FileNotFoundException::class);
         $this->expectExceptionMessage('docker-compose file not found');
 
         $this->importer->import($this->tempDir . '/non-existent.yml');
@@ -179,7 +181,7 @@ YAML;
         $composePath = $this->tempDir . '/docker-compose.yml';
         file_put_contents($composePath, "invalid: yaml: :\n  bad content");
 
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(YamlParseException::class);
         $this->expectExceptionMessage('Failed to parse');
 
         $this->importer->import($composePath);

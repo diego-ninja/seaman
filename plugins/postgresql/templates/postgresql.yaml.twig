@@ -1,0 +1,25 @@
+{# ABOUTME: Docker Compose service template for PostgreSQL. #}
+{# ABOUTME: Generates PostgreSQL container configuration with health checks and volumes. #}
+
+  postgresql:
+    image: postgres:{{ config.version | default('16') }}
+    container_name: {{ project.name }}-postgresql
+    ports:
+      - "${POSTGRESQL_PORT:-{{ config.port | default(5432) }}}:5432"
+    environment:
+      POSTGRES_DB: {{ config.database | default('seaman') }}
+      POSTGRES_USER: {{ config.user | default('seaman') }}
+      POSTGRES_PASSWORD: {{ config.password | default('seaman') }}
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

@@ -36,16 +36,33 @@
   },
   "autoload": {
     "psr-4": {
-      "Seaman\\": "src/"
+      "Seaman\\": "src/",
+      "Seaman\\Plugin\\Dozzle\\": "plugins/dozzle/src/",
+      "Seaman\\Plugin\\Elasticsearch\\": "plugins/elasticsearch/src/",
+      "Seaman\\Plugin\\Kafka\\": "plugins/kafka/src/",
+      "Seaman\\Plugin\\Mailpit\\": "plugins/mailpit/src/",
+      "Seaman\\Plugin\\Mariadb\\": "plugins/mariadb/src/",
+      "Seaman\\Plugin\\Memcached\\": "plugins/memcached/src/",
+      "Seaman\\Plugin\\Mercure\\": "plugins/mercure/src/",
+      "Seaman\\Plugin\\Minio\\": "plugins/minio/src/",
+      "Seaman\\Plugin\\Mongodb\\": "plugins/mongodb/src/",
+      "Seaman\\Plugin\\Mysql\\": "plugins/mysql/src/",
+      "Seaman\\Plugin\\Opensearch\\": "plugins/opensearch/src/",
+      "Seaman\\Plugin\\Postgresql\\": "plugins/postgresql/src/",
+      "Seaman\\Plugin\\Rabbitmq\\": "plugins/rabbitmq/src/",
+      "Seaman\\Plugin\\Redis\\": "plugins/redis/src/",
+      "Seaman\\Plugin\\Soketi\\": "plugins/soketi/src/",
+      "Seaman\\Plugin\\Sqlite\\": "plugins/sqlite/src/",
+      "Seaman\\Plugin\\Valkey\\": "plugins/valkey/src/"
     },
     "files": [
       "helpers/functions.php"
     ]
-
   },
   "autoload-dev": {
     "psr-4": {
-      "Seaman\\Tests\\": "tests/"
+      "Seaman\\Tests\\": "tests/",
+      "Seaman\\Tests\\Fixtures\\Plugins\\ValidPlugin\\": "tests/Fixtures/Plugins/ValidPlugin/src/"
     }
   },
   "config": {

@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Command\Concern;
 
 use Seaman\Enum\Service;
+use Seaman\Exception\SeamanException;
 use Seaman\Service\ConfigManager;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
@@ -29,7 +30,7 @@ trait SelectsDatabaseService
     {
         try {
             $config = $this->getConfigManager()->load();
-        } catch (\RuntimeException $e) {
+        } catch (SeamanException|\RuntimeException $e) {
             Terminal::error('Failed to load configuration: ' . $e->getMessage());
             return Command::FAILURE;
         }

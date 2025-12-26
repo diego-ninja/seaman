@@ -1,0 +1,19 @@
+{# ABOUTME: Docker Compose service template for Redis. #}
+{# ABOUTME: Generates Redis container configuration with health checks. #}
+
+  redis:
+    image: redis:{{ config.version | default('7-alpine') }}
+    container_name: {{ project.name }}-redis
+    ports:
+      - "${REDIS_PORT:-{{ config.port | default(6379) }}}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

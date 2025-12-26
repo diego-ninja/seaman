@@ -30,6 +30,7 @@ use Seaman\Command\StartCommand;
 use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
+use Seaman\Service\ComposeRegenerator;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\ConfigurationValidator;
@@ -39,6 +40,8 @@ use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
+use Seaman\Service\Generator\DockerComposeGenerator;
+use Seaman\Service\Generator\TraefikLabelGenerator;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
 use Seaman\Service\PortAllocator;
@@ -47,6 +50,21 @@ use Seaman\Service\PrivilegedExecutor;
 use Seaman\Service\Process\RealCommandExecutor;
 use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
+use Seaman\Service\TemplateRenderer;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\PluginLifecycleDispatcher;
+use Seaman\Plugin\PluginTemplateLoader;
+use Seaman\Plugin\Extractor\TemplateExtractor;
+use Seaman\Command\Plugin\PluginListCommand;
+use Seaman\Command\Plugin\PluginInfoCommand;
+use Seaman\Command\Plugin\PluginCreateCommand;
+use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\Plugin\PluginExportCommand;
+use Seaman\Command\ConfigureCommand;
+use Seaman\Service\ConfigurationService;
+use Seaman\Service\PackagistClient;
+use Seaman\Plugin\Export\NamespaceTransformer;
+use Seaman\Plugin\Export\PluginExporter;
 
 use function DI\create;
 use function DI\factory;
@@ -58,8 +76,16 @@ return function (ContainerBuilder $builder): void {
         'projectRoot' => factory(fn (): string => (string) getcwd()),
 
         // Core services
-        ServiceRegistry::class => factory(fn(): ServiceRegistry => ServiceRegistry::create()),
+        ServiceRegistry::class => factory(
+            function (ContainerInterface $c): ServiceRegistry {
+                $registry = ServiceRegistry::create();
+                $registry->registerPluginServices($c->get(PluginRegistry::class));
+
+                return $registry;
+            },
+        ),
         ConfigurationValidator::class => create(ConfigurationValidator::class),
+        ConfigurationService::class => create(ConfigurationService::class),
         SymfonyDetector::class => create(SymfonyDetector::class),
         PhpVersionDetector::class => create(PhpVersionDetector::class),
         PortChecker::class => create(PortChecker::class),
@@ -88,6 +114,26 @@ return function (ContainerBuilder $builder): void {
 
         DockerManager::class => factory(
             fn(ContainerInterface $c): DockerManager => new DockerManager($c->get('projectRoot')),
+        ),
+
+        TemplateRenderer::class => factory(
+            fn(): TemplateRenderer => new TemplateRenderer(__DIR__ . '/../src/Template'),
+        ),
+
+        TraefikLabelGenerator::class => create(TraefikLabelGenerator::class),
+
+        DockerComposeGenerator::class => factory(
+            fn(ContainerInterface $c): DockerComposeGenerator => new DockerComposeGenerator(
+                $c->get(TemplateRenderer::class),
+                $c->get(TraefikLabelGenerator::class),
+            ),
+        ),
+
+        ComposeRegenerator::class => factory(
+            fn(ContainerInterface $c): ComposeRegenerator => new ComposeRegenerator(
+                $c->get(DockerComposeGenerator::class),
+                $c->get(DockerManager::class),
+            ),
         ),
 
         ConfigManager::class => factory(
@@ -166,6 +212,7 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): ServiceAddCommand => new ServiceAddCommand(
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
+                $c->get(ComposeRegenerator::class),
             ),
         ),
 
@@ -173,6 +220,16 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): ServiceRemoveCommand => new ServiceRemoveCommand(
                 $c->get(ConfigManager::class),
                 $c->get(ServiceRegistry::class),
+                $c->get(ComposeRegenerator::class),
+            ),
+        ),
+
+        ConfigureCommand::class => factory(
+            fn(ContainerInterface $c): ConfigureCommand => new ConfigureCommand(
+                $c->get(ConfigManager::class),
+                $c->get(ServiceRegistry::class),
+                $c->get(ConfigurationService::class),
+                $c->get(ComposeRegenerator::class),
             ),
         ),
 
@@ -186,6 +243,8 @@ return function (ContainerBuilder $builder): void {
                 $c->get(InitializationWizard::class),
                 $c->get(ProjectInitializer::class),
                 $c->get(DnsManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -200,12 +259,16 @@ return function (ContainerBuilder $builder): void {
                 $c->get(PortAllocator::class),
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
         StopCommand::class => factory(
             fn(ContainerInterface $c): StopCommand => new StopCommand(
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -225,6 +288,8 @@ return function (ContainerBuilder $builder): void {
             fn(ContainerInterface $c): RebuildCommand => new RebuildCommand(
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -233,6 +298,8 @@ return function (ContainerBuilder $builder): void {
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
                 $c->get(DnsManager::class),
+                $c->get(PluginLifecycleDispatcher::class),
+                $c->get('projectRoot'),
             ),
         ),
 
@@ -310,6 +377,107 @@ return function (ContainerBuilder $builder): void {
                 $c->get(ConfigManager::class),
                 $c->get(DockerManager::class),
                 $c->get(ServiceRegistry::class),
+            ),
+        ),
+
+        // Plugin system
+        PluginRegistry::class => factory(
+            function (ContainerInterface $c): PluginRegistry {
+                $projectRoot = $c->get('projectRoot');
+                $pluginConfig = [];
+
+                // Determine bundled plugins directory
+                // When running from PHAR, it's inside the archive
+                // When running from source, it's at repo root
+                // Use Phar::running(true) to get path WITH phar:// prefix
+                $pharPath = \Phar::running(true);
+                $bundledPluginsDir = $pharPath !== ''
+                    ? $pharPath . '/plugins'
+                    : dirname(__DIR__) . '/plugins';
+
+                // Load plugin config directly from YAML to avoid circular dependency
+                // (PluginRegistry <- ServiceRegistry <- ConfigManager <- PluginRegistry)
+                $yamlPath = $projectRoot . '/.seaman/seaman.yaml';
+                if (file_exists($yamlPath)) {
+                    try {
+                        $content = file_get_contents($yamlPath);
+                        if ($content !== false) {
+                            /** @var array{plugins?: array<string, array<string, mixed>>} $config */
+                            $config = \Symfony\Component\Yaml\Yaml::parse($content);
+                            $pluginConfig = $config['plugins'] ?? [];
+                        }
+                    } catch (\Exception $e) {
+                        // Project not initialized or invalid config, use empty config
+                    }
+                }
+
+                return PluginRegistry::discover(
+                    projectRoot: $projectRoot,
+                    localPluginsDir: $projectRoot . '/.seaman/plugins',
+                    pluginConfig: $pluginConfig,
+                    bundledPluginsDir: $bundledPluginsDir,
+                );
+            },
+        ),
+
+        PluginLifecycleDispatcher::class => factory(
+            fn(ContainerInterface $c): PluginLifecycleDispatcher => new PluginLifecycleDispatcher(
+                $c->get(PluginRegistry::class),
+            ),
+        ),
+
+        PluginTemplateLoader::class => factory(
+            fn(ContainerInterface $c): PluginTemplateLoader => new PluginTemplateLoader(
+                $c->get(PluginRegistry::class),
+                new TemplateExtractor(),
+            ),
+        ),
+
+        PackagistClient::class => factory(
+            fn(ContainerInterface $c): PackagistClient => new PackagistClient(
+                $c->get('projectRoot') . '/.seaman/cache',
+            ),
+        ),
+
+        PluginListCommand::class => factory(
+            fn(ContainerInterface $c): PluginListCommand => new PluginListCommand(
+                $c->get(PluginRegistry::class),
+                $c->get(PackagistClient::class),
+            ),
+        ),
+
+        PluginInstallCommand::class => factory(
+            fn(ContainerInterface $c): PluginInstallCommand => new PluginInstallCommand(
+                $c->get(PackagistClient::class),
+                $c->get(PluginRegistry::class),
+                $c->get('projectRoot'),
+            ),
+        ),
+
+        PluginInfoCommand::class => factory(
+            fn(ContainerInterface $c): PluginInfoCommand => new PluginInfoCommand(
+                $c->get(PluginRegistry::class),
+            ),
+        ),
+
+        PluginCreateCommand::class => factory(
+            fn(ContainerInterface $c): PluginCreateCommand => new PluginCreateCommand(
+                $c->get('projectRoot'),
+            ),
+        ),
+
+        NamespaceTransformer::class => create(NamespaceTransformer::class),
+
+        PluginExporter::class => factory(
+            fn(ContainerInterface $c): PluginExporter => new PluginExporter(
+                $c->get(NamespaceTransformer::class),
+            ),
+        ),
+
+        PluginExportCommand::class => factory(
+            fn(ContainerInterface $c): PluginExportCommand => new PluginExportCommand(
+                $c->get('projectRoot'),
+                $c->get(PluginExporter::class),
             ),
         ),
     ]);

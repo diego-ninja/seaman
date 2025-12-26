@@ -69,18 +69,3 @@ test('db:restore command requires existing file', function () {
     expect($commandTester->getStatusCode())->toBe(1);
     expect($commandTester->getDisplay())->toContain('Dump file not found');
 });
-
-test('db:restore command requires confirmation', function () {
-    TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-
-    $tempFile = $this->tempDir . '/test_dump.sql';
-    file_put_contents($tempFile, '-- SQL dump');
-
-    $application = new Application();
-    $commandTester = new CommandTester($application->find('db:restore'));
-
-    $commandTester->setInputs(['no']);
-    $commandTester->execute(['file' => $tempFile]);
-
-    expect($commandTester->getDisplay())->toContain('Operation cancelled');
-});

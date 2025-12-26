@@ -24,11 +24,12 @@ use Symfony\Component\Console\Output\OutputInterface;
     name: 'service:add',
     description: 'Interactively add services to configuration (requires init)',
 )]
-class ServiceAddCommand extends AbstractServiceCommand implements Decorable
+class ServiceAddCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
         private readonly ConfigManager $configManager,
         private readonly ServiceRegistry $registry,
+        private readonly \Seaman\Service\ComposeRegenerator $regenerator,
     ) {
         parent::__construct();
     }
@@ -94,8 +95,12 @@ class ServiceAddCommand extends AbstractServiceCommand implements Decorable
         }
 
         $this->configManager->save($newConfig);
-        $this->regenerate($newConfig);
 
-        return $this->restartServices();
+        $projectRoot = (string) getcwd();
+        $this->regenerator->regenerate($newConfig, $projectRoot);
+
+        $result = $this->regenerator->restartIfConfirmed();
+
+        return $result->isSuccessful() ? Command::SUCCESS : Command::FAILURE;
     }
 }

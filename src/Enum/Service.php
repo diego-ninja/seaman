@@ -31,11 +31,8 @@ enum Service: string
     case Soketi = 'soketi';
     case Dozzle = 'dozzle';
 
-    case None = 'none';
+    case Custom = 'custom';
 
-    /**
-     * @throws \Exception
-     */
     public function description(): string
     {
         return match ($this) {
@@ -58,7 +55,7 @@ enum Service: string
             self::Kafka => 'Apache Kafka distributed event streaming platform',
             self::Mercure => 'Mercure real-time updates hub for Symfony',
             self::Soketi => 'Soketi WebSocket server (Pusher compatible)',
-            self::None => throw new \Exception('To be implemented'),
+            self::Custom => 'Custom plugin-provided service',
         };
     }
 
@@ -68,7 +65,7 @@ enum Service: string
             self::App => 8000,
             self::Traefik => 443,
             self::MySQL, self::MariaDB => 3306,
-            self::SQLite, self::None => 0,
+            self::SQLite, self::Custom => 0,
             self::PostgreSQL => 5432,
             self::MongoDB => 27017,
             self::Redis, self::Valkey => 6379,
@@ -120,7 +117,6 @@ enum Service: string
             self::Mercure->value,
             self::Soketi->value,
             self::Dozzle->value,
-            self::None->value,
         ];
     }
 

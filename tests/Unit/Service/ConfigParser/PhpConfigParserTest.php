@@ -55,7 +55,7 @@ test('throws exception for invalid PHP configuration', function () {
     $this->parser->parse($data);
 })->throws(RuntimeException::class, 'Invalid PHP configuration');
 
-test('throws exception for invalid xdebug enabled value', function () {
+test('uses default when xdebug enabled value is invalid type', function () {
     $data = [
         'php' => [
             'xdebug' => [
@@ -64,8 +64,11 @@ test('throws exception for invalid xdebug enabled value', function () {
         ],
     ];
 
-    $this->parser->parse($data);
-})->throws(RuntimeException::class, 'Xdebug enabled must be a boolean');
+    $result = $this->parser->parse($data);
+
+    // When invalid type provided, falls back to default (false)
+    expect($result->xdebug->enabled)->toBeFalse();
+});
 
 test('merges PHP configuration preserving base values', function () {
     $base = new PhpConfig(

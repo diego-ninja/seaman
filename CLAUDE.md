@@ -268,3 +268,35 @@ YOU MUST NOT proceed to the next task until ALL items are checked.
 - Document architectural decisions and their outcomes for future reference
 - Track patterns in user feedback to improve collaboration over time
 - When you notice something that should be fixed but is unrelated to your current task, document it in your journal rather than fixing it immediately
+
+
+## Available Tools and Skills
+
+YOU MUST leverage all available tools to work efficiently:
+
+### MCP Servers
+- **jetbrains-index**: Use for code intelligence operations:
+  - `ide_find_symbol`: Search symbols by name across the codebase
+  - `ide_find_definition`: Navigate to where a symbol is defined
+  - `ide_find_references`: Find all references to a symbol
+  - `ide_find_implementations`: Find implementations of interfaces/abstract classes
+  - `ide_type_hierarchy`: Get inheritance hierarchy for classes
+  - `ide_call_hierarchy`: Build call hierarchy (callers/callees)
+  - `ide_diagnostics`: Get code problems and available quick fixes
+  - `ide_refactor_rename`: Safely rename symbols across the project
+
+- **jetbrains-debugger**: Use for debugging sessions:
+  - `start_debug_session`: Start debugging a run configuration
+  - `set_breakpoint`: Set breakpoints with conditions or logging
+  - `get_debug_session_status`: Get current execution state and variables
+  - `step_over`, `step_into`, `step_out`: Step through code
+  - `evaluate_expression`: Evaluate expressions in debug context
+  - `get_variables`: Inspect variables in current frame
+
+- ALWAYS use context7 when I need code generation, setup or configuration steps, or
+  library/API documentation. This means you should automatically use the Context7 MCP
+  tools to resolve library id and get library docs without me having to explicitly ask.
+
+### Skills
+- USE available skills when they match the task at hand
+- Skills provide specialized capabilities - check what's available before starting complex tasks

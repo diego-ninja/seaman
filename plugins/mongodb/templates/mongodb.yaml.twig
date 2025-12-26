@@ -1,0 +1,25 @@
+{# ABOUTME: Docker Compose service template for MongoDB. #}
+{# ABOUTME: Generates MongoDB container configuration with health checks and volumes. #}
+
+  mongodb:
+    image: mongo:{{ config.version | default('7') }}
+    container_name: {{ project.name }}-mongodb
+    ports:
+      - "${MONGODB_PORT:-{{ config.port | default(27017) }}}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: {{ config.user | default('seaman') }}
+      MONGO_INITDB_ROOT_PASSWORD: {{ config.password | default('seaman') }}
+      MONGO_INITDB_DATABASE: {{ config.database | default('seaman') }}
+    volumes:
+      - mongodb_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

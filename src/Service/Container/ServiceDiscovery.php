@@ -86,11 +86,11 @@ final readonly class ServiceDiscovery
         // Require the file to load the class
         require_once $filePath;
 
-        try {
-            if (!class_exists($className)) {
-                return null;
-            }
+        if (!class_exists($className)) {
+            return null;
+        }
 
+        try {
             $reflection = new ReflectionClass($className);
 
             // Skip if doesn't implement ServiceInterface
@@ -105,7 +105,13 @@ final readonly class ServiceDiscovery
 
             /** @var ServiceInterface */
             return $reflection->newInstance();
-        } catch (\Throwable) {
+        } catch (\ReflectionException $e) {
+            // Log reflection errors for debugging purposes
+            error_log("ServiceDiscovery: Failed to reflect class {$className}: " . $e->getMessage());
+            return null;
+        } catch (\Error $e) {
+            // Log instantiation errors (e.g., constructor failures)
+            error_log("ServiceDiscovery: Failed to instantiate {$className}: " . $e->getMessage());
             return null;
         }
     }

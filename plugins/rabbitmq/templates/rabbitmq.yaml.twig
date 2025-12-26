@@ -1,0 +1,25 @@
+{# ABOUTME: Docker Compose service template for RabbitMQ. #}
+{# ABOUTME: Generates RabbitMQ container configuration with management UI. #}
+
+  rabbitmq:
+    image: rabbitmq:{{ config.version | default('3-management') }}
+    container_name: {{ project.name }}-rabbitmq
+    ports:
+      - "${RABBITMQ_PORT:-{{ config.port | default(5672) }}}:5672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-{{ config.management_port | default(15672) }}}:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: {{ config.user | default('seaman') }}
+      RABBITMQ_DEFAULT_PASS: {{ config.password | default('seaman') }}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

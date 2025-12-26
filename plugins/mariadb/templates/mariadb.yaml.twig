@@ -1,0 +1,26 @@
+{# ABOUTME: Docker Compose service template for MariaDB. #}
+{# ABOUTME: Generates MariaDB container configuration with health checks and volumes. #}
+
+  mariadb:
+    image: mariadb:{{ config.version | default('11') }}
+    container_name: {{ project.name }}-mariadb
+    ports:
+      - "${MARIADB_PORT:-{{ config.port | default(3306) }}}:3306"
+    environment:
+      MARIADB_DATABASE: {{ config.database | default('seaman') }}
+      MARIADB_USER: {{ config.user | default('seaman') }}
+      MARIADB_PASSWORD: {{ config.password | default('seaman') }}
+      MARIADB_ROOT_PASSWORD: {{ config.root_password | default('root') }}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

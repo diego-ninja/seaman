@@ -1,4 +1,5 @@
 {
+    "check-requirements": false,
     "output": "dist/seaman.phar",
     "directories": [
         "src",
@@ -7,7 +8,8 @@
         "assets",
         "config",
         "docker",
-        "resources"
+        "resources",
+        "plugins"
     ],
     "files": [
         "composer.json"

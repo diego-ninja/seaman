@@ -8,6 +8,7 @@ Seaman generates and manages Docker development environments for Symfony project
 2. **Manages the environment** with simple commands (`start`, `stop`, `status`)
 3. **Provides shortcuts** to run commands inside containers
 4. **Handles common tasks** like Xdebug toggling and database backups
+5. **Extensible via plugins** for custom services, commands, and behaviors
 
 ## How It Works
 
@@ -36,6 +37,7 @@ You can inspect and understand all generated files. They're standard Docker Comp
 | [Commands](commands.md) | Complete command reference |
 | [Services](services.md) | Available databases, caches, and tools |
 | [Configuration](configuration.md) | The seaman.yaml format |
+| [Plugins](plugins.md) | Extend Seaman with custom plugins |
 | [DevContainers](devcontainers.md) | VS Code integration |
 | [Troubleshooting](troubleshooting.md) | Common issues and solutions |
 | [Development](development.md) | Building from source |

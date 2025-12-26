@@ -1,0 +1,26 @@
+{# ABOUTME: Docker Compose service template for MySQL. #}
+{# ABOUTME: Generates MySQL container configuration with health checks and volumes. #}
+
+  mysql:
+    image: mysql:{{ config.version | default('8.0') }}
+    container_name: {{ project.name }}-mysql
+    ports:
+      - "${MYSQL_PORT:-{{ config.port | default(3306) }}}:3306"
+    environment:
+      MYSQL_DATABASE: {{ config.database | default('seaman') }}
+      MYSQL_USER: {{ config.user | default('seaman') }}
+      MYSQL_PASSWORD: {{ config.password | default('seaman') }}
+      MYSQL_ROOT_PASSWORD: {{ config.root_password | default('root') }}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

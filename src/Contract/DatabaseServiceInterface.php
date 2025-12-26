@@ -12,6 +12,12 @@ use Seaman\ValueObject\ServiceConfig;
 interface DatabaseServiceInterface
 {
     /**
+     * Indicates whether this service supports database operations.
+     * Used by adapters that conditionally implement database functionality.
+     */
+    public function supportsDatabaseOperations(): bool;
+
+    /**
      * Returns the command to dump the database to stdout.
      *
      * @return list<string>

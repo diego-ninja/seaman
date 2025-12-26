@@ -1,0 +1,19 @@
+{# ABOUTME: Docker Compose service template for Valkey. #}
+{# ABOUTME: Generates Valkey container configuration with health checks. #}
+
+  valkey:
+    image: valkey/valkey:{{ config.version | default('8-alpine') }}
+    container_name: {{ project.name }}-valkey
+    ports:
+      - "${VALKEY_PORT:-{{ config.port | default(6379) }}}:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    labels:
+      - "traefik.enable=false"
+    networks:
+      - {{ project.name }}-network
+    restart: unless-stopped

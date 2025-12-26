@@ -13,7 +13,9 @@ use DI\DependencyException;
 use DI\NotFoundException;
 use RuntimeException;
 use Seaman\Command\BuildCommand;
+use Seaman\Exception\FileNotFoundException;
 use Seaman\Command\CleanCommand;
+use Seaman\Command\ConfigureCommand;
 use Seaman\Command\Database\DbDumpCommand;
 use Seaman\Command\Database\DbRestoreCommand;
 use Seaman\Command\Database\DbShellCommand;
@@ -36,11 +38,18 @@ use Seaman\Command\StartCommand;
 use Seaman\Command\StatusCommand;
 use Seaman\Command\StopCommand;
 use Seaman\Command\XdebugCommand;
+use Seaman\Command\Plugin\PluginListCommand;
+use Seaman\Command\Plugin\PluginInfoCommand;
+use Seaman\Command\Plugin\PluginCreateCommand;
+use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\Plugin\PluginExportCommand;
 use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
 use Seaman\EventListener\EventListenerMetadata;
 use Seaman\EventListener\ListenerDiscovery;
 use Seaman\Exception\CommandNotAvailableException;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Plugin\Extractor\CommandExtractor;
 use Seaman\Service\Detector\ModeDetector;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Application as BaseApplication;
@@ -87,7 +96,7 @@ class Application extends BaseApplication
 
         $configFile = __DIR__ . '/../config/container.php';
         if (!file_exists($configFile)) {
-            throw new RuntimeException('Container configuration file not found: ' . $configFile);
+            throw FileNotFoundException::create($configFile, 'Container configuration file not found');
         }
 
         /** @var callable(ContainerBuilder<Container>): void $configurator */
@@ -110,6 +119,7 @@ class Application extends BaseApplication
             $container->get(ServiceListCommand::class),
             $container->get(ServiceAddCommand::class),
             $container->get(ServiceRemoveCommand::class),
+            $container->get(ConfigureCommand::class),
             $container->get(InitCommand::class),
             $container->get(DevContainerGenerateCommand::class),
             $container->get(StartCommand::class),
@@ -132,11 +142,28 @@ class Application extends BaseApplication
             $container->get(ProxyEnableCommand::class),
             $container->get(ProxyDisableCommand::class),
             $container->get(InspectCommand::class),
+            $container->get(PluginListCommand::class),
+            $container->get(PluginInfoCommand::class),
+            $container->get(PluginCreateCommand::class),
+            $container->get(PluginInstallCommand::class),
+            $container->get(PluginExportCommand::class),
         ];
 
         // Only register build command when not running from PHAR
         if (!\Phar::running()) {
             $commands[] = new BuildCommand();
+        }
+
+        // Register commands from plugins
+        /** @var PluginRegistry $pluginRegistry */
+        $pluginRegistry = $container->get(PluginRegistry::class);
+        $commandExtractor = new CommandExtractor();
+
+        foreach ($pluginRegistry->all() as $loaded) {
+            $pluginCommands = $commandExtractor->extract($loaded->instance);
+            foreach ($pluginCommands as $command) {
+                $commands[] = $command;
+            }
         }
 
         return $commands;
