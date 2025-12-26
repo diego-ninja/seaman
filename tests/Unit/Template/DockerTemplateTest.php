@@ -65,7 +65,7 @@ describe('Caddyfile.twig', function (): void {
         expect($content)
             ->toContain('frankenphp')
             ->toContain('worker {')
-            ->toContain('file ./public/index.php')
+            ->toContain('file ./index.php')
             ->toContain('num {$PHP_WORKERS:2}');
     });
 
