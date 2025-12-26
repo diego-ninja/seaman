@@ -69,7 +69,7 @@ EXPOSE 80
 CMD ["symfony", "server:start", "--port=80", "--allow-all-ip"]
 
 {% else %}
-FROM dunglas/frankenphp:latest-php{{ php_version }}-bookworm
+FROM dunglas/frankenphp:1-php{{ php_version }}
 
 LABEL maintainer="Diego Rin Martín"
 

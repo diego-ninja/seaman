@@ -34,7 +34,7 @@ final readonly class InitializationWizard
     {
         $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
-        $server = $this->selectServer();
+        $server = $this->selectServer($phpVersion);
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
         $xdebug = $this->enableXdebug($server);
@@ -92,15 +92,28 @@ final readonly class InitializationWizard
         return PhpVersion::from($choice);
     }
 
-    public function selectServer(): ServerType
+    public function selectServer(PhpVersion $phpVersion): ServerType
     {
         $options = [];
+        $frankenPhpSupported = $this->isFrankenPhpSupported($phpVersion);
+
         foreach (ServerType::cases() as $server) {
+            // Skip FrankenPHP options if not supported for this PHP version
+            if ($server->isFrankenPhp() && !$frankenPhpSupported) {
+                continue;
+            }
+
             $options[$server->value] = sprintf(
                 '%s - %s',
                 $server->getLabel(),
                 $server->getDescription(),
             );
+        }
+
+        // If only Symfony Server is available, show info and return it
+        if (count($options) === 1) {
+            Prompts::info("FrankenPHP is not available for PHP {$phpVersion->value}. Using Symfony Server.");
+            return ServerType::SymfonyServer;
         }
 
         $choice = Prompts::select(
@@ -110,6 +123,15 @@ final readonly class InitializationWizard
         );
 
         return ServerType::from($choice);
+    }
+
+    /**
+     * Check if FrankenPHP has Docker images available for the given PHP version.
+     */
+    private function isFrankenPhpSupported(PhpVersion $phpVersion): bool
+    {
+        // FrankenPHP currently has images for PHP 8.3 and 8.5, but NOT 8.4
+        return $phpVersion !== PhpVersion::Php84;
     }
 
     public function selectDatabase(): Service

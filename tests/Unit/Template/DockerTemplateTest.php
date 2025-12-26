@@ -27,11 +27,11 @@ describe('Dockerfile.twig', function (): void {
     test('renders frankenphp classic dockerfile', function (): void {
         $content = $this->renderer->render('docker/Dockerfile.twig', [
             'server' => 'frankenphp',
-            'php_version' => '8.4',
+            'php_version' => '8.3',
         ]);
 
         expect($content)
-            ->toContain('FROM dunglas/frankenphp:latest-php8.4-bookworm')
+            ->toContain('FROM dunglas/frankenphp:1-php8.3')
             ->toContain('frankenphp", "php-server"')
             ->not->toContain('Caddyfile');
     });
@@ -39,11 +39,11 @@ describe('Dockerfile.twig', function (): void {
     test('renders frankenphp worker dockerfile', function (): void {
         $content = $this->renderer->render('docker/Dockerfile.twig', [
             'server' => 'frankenphp-worker',
-            'php_version' => '8.4',
+            'php_version' => '8.3',
         ]);
 
         expect($content)
-            ->toContain('FROM dunglas/frankenphp:latest-php8.4-bookworm')
+            ->toContain('FROM dunglas/frankenphp:1-php8.3')
             ->toContain('COPY .seaman/Caddyfile')
             ->toContain('frankenphp", "run", "--config"');
     });
@@ -54,7 +54,7 @@ describe('Dockerfile.twig', function (): void {
             'php_version' => '8.5',
         ]);
 
-        expect($content)->toContain('dunglas/frankenphp:latest-php8.5-bookworm');
+        expect($content)->toContain('dunglas/frankenphp:1-php8.5');
     });
 });
 
