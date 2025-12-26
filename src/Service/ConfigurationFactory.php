@@ -28,7 +28,7 @@ class ConfigurationFactory
         InitializationChoices $choices,
         ProjectType $projectType,
     ): Configuration {
-        $php = new PhpConfig($choices->phpVersion, $choices->xdebug);
+        $php = new PhpConfig($choices->phpVersion, $choices->xdebug, $choices->server);
 
         $serviceConfigs = $this->buildServiceConfigs($choices->database, $choices->services, $choices->useProxy);
         $persistVolumes = $this->determinePersistVolumes($choices->database, $choices->services);
