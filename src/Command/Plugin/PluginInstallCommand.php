@@ -199,13 +199,17 @@ final class PluginInstallCommand extends AbstractSeamanCommand
     }
 
     /**
+     * Get names of Composer-installed plugins only (not bundled).
+     *
      * @return list<string>
      */
     private function getInstalledPluginNames(): array
     {
         $names = [];
         foreach ($this->registry->all() as $loaded) {
-            $names[] = $loaded->instance->getName();
+            if ($loaded->source === 'composer') {
+                $names[] = $loaded->instance->getName();
+            }
         }
         return $names;
     }
