@@ -59,7 +59,7 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class Application extends BaseApplication
 {
-    private const string VERSION = '1.1.2';
+    private const string VERSION = '1.1.3';
 
     public EventDispatcher $eventDispatcher {
         get {
