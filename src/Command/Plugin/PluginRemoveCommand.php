@@ -11,6 +11,7 @@ use Seaman\Command\AbstractSeamanCommand;
 use Seaman\Plugin\PluginRegistry;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
+use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -131,19 +132,14 @@ final class PluginRemoveCommand extends AbstractSeamanCommand
             return Command::FAILURE;
         }
 
-        Terminal::info(sprintf('Removing plugin: %s', $package));
-
         $command = ['composer', 'remove', $package];
 
         $process = new Process($command, $this->projectRoot);
         $process->setTimeout(300); // 5 minutes
-        $process->setTty(Process::isTtySupported());
 
-        $exitCode = $process->run(function (string $type, string $buffer): void {
-            Terminal::output()->write($buffer);
-        });
+        SpinnerFactory::for($process, sprintf('Removing plugin: %s', $package));
 
-        if ($exitCode !== 0) {
+        if (!$process->isSuccessful()) {
             Terminal::error(sprintf('Failed to remove plugin: %s', $package));
             return Command::FAILURE;
         }
