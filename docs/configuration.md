@@ -9,6 +9,7 @@ version: "1.0"
 
 php:
   version: "8.4"
+  server: "symfony"
   xdebug:
     enabled: false
     ide_key: "PHPSTORM"
@@ -51,6 +52,29 @@ php:
 **Supported versions**: `8.3`, `8.4`, `8.5`
 
 The version is auto-detected from your `composer.json` during initialization.
+
+### Application Server
+
+Choose the application server for your PHP container.
+
+```yaml
+php:
+  server: "symfony"
+```
+
+**Available servers**:
+
+| Server | Value | Description |
+|--------|-------|-------------|
+| Symfony Server | `symfony` | Development server with hot reload (default) |
+| FrankenPHP | `frankenphp` | Modern PHP app server with native HTTP/2 |
+| FrankenPHP Worker | `frankenphp-worker` | FrankenPHP with worker mode for persistent processes |
+
+**Symfony Server** is the default, ideal for most development scenarios with automatic hot reload and zero configuration.
+
+**FrankenPHP** is a modern application server built on Caddy with native HTTP/2 support. Use `frankenphp-worker` for applications that benefit from persistent workers (reduced request overhead).
+
+> **Note**: FrankenPHP worker mode requires Xdebug toggle to restart the container.
 
 ### Xdebug
 

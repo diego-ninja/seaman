@@ -9,6 +9,8 @@ seaman start
 ```
 
 The interactive wizard will ask about:
+- PHP version
+- Application server (Symfony Server, FrankenPHP, or FrankenPHP Worker)
 - Database (PostgreSQL, MySQL, MariaDB, MongoDB, SQLite, or none)
 - Cache (Redis, Valkey, Memcached, or none)
 - Additional services (Mailpit, Elasticsearch, RabbitMQ, etc.)
