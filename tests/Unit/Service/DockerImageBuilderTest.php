@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ServerType;
 use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\ValueObject\ProcessResult;
 
@@ -34,14 +35,14 @@ afterEach(function (): void {
 });
 
 test('build returns ProcessResult', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84, ServerType::SymfonyServer);
     $result = $builder->build();
 
     expect($result)->toBeInstanceOf(ProcessResult::class);
 });
 
 test('build uses correct docker command', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84, ServerType::SymfonyServer);
     $result = $builder->build();
 
     // Build should complete (tag may not appear in output with buildx)
@@ -50,7 +51,7 @@ test('build uses correct docker command', function (): void {
 });
 
 test('build completes successfully', function (): void {
-    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84);
+    $builder = new DockerImageBuilder($this->projectRoot, PhpVersion::Php84, ServerType::SymfonyServer);
     $result = $builder->build();
 
     // Build should complete successfully with Docker available

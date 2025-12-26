@@ -55,7 +55,7 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         $this->regenerateDockerfile($this->projectRoot, $config);
 
         // Build Docker image without cache
-        $builder = new DockerImageBuilder($this->projectRoot, $config->php->version);
+        $builder = new DockerImageBuilder($this->projectRoot, $config->php->version, $config->php->server);
         $buildResult = $builder->build(noCache: true);
 
         if (!$buildResult->isSuccessful()) {

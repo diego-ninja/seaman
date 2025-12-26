@@ -79,7 +79,7 @@ class ProjectInitializer
         }
 
         // Build Docker image
-        $builder = new DockerImageBuilder($projectRoot, $config->php->version);
+        $builder = new DockerImageBuilder($projectRoot, $config->php->version, $config->php->server);
         $result = $builder->build();
 
         if (!$result->isSuccessful()) {

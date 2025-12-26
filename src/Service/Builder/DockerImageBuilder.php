@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service\Builder;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ServerType;
 use Seaman\UI\Widget\Spinner\SpinnerFactory;
 use Seaman\ValueObject\ProcessResult;
 use Symfony\Component\Process\Process;
@@ -17,10 +18,11 @@ readonly class DockerImageBuilder
     public function __construct(
         private string $projectRoot,
         private PhpVersion $phpVersion,
+        private ServerType $serverType,
     ) {}
 
     /**
-     * Builds Docker image and tags it as seaman/seaman:latest.
+     * Builds Docker image and tags it.
      *
      * @param bool $noCache When true, builds without using Docker cache
      * @return ProcessResult The result of the build operation
@@ -29,7 +31,11 @@ readonly class DockerImageBuilder
     public function build(bool $noCache = false): ProcessResult
     {
         $wwwgroup = (string) posix_getgid();
-        $image = sprintf('seaman/seaman-php%s:latest', $this->phpVersion->value);
+        $image = sprintf(
+            'seaman/seaman-php%s-%s:latest',
+            $this->phpVersion->value,
+            $this->serverType->value,
+        );
 
         $command = [
             'docker',
