@@ -10,6 +10,7 @@ namespace Seaman\Service;
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 use Seaman\Service\Detector\PhpVersionDetector;
 use Seaman\Service\Process\CommandExecutorInterface;
@@ -33,6 +34,7 @@ final readonly class InitializationWizard
     {
         $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
+        $server = ServerType::SymfonyServer;
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
         $xdebug = $this->enableXdebug();
@@ -49,6 +51,7 @@ final readonly class InitializationWizard
         return new InitializationChoices(
             projectName: $projectName,
             phpVersion: $phpVersion,
+            server: $server,
             database: $database,
             services: $services,
             xdebug: $xdebug,

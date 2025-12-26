@@ -9,6 +9,7 @@ namespace Seaman\ValueObject;
 
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 
 final readonly class InitializationChoices
@@ -19,6 +20,7 @@ final readonly class InitializationChoices
     public function __construct(
         public string $projectName,
         public PhpVersion $phpVersion,
+        public ServerType $server,
         public ?Service $database,
         public array $services,
         public XdebugConfig $xdebug,

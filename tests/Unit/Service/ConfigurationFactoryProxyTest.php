@@ -9,6 +9,7 @@ namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ProjectType;
+use Seaman\Enum\ServerType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Container\ServiceRegistry;
@@ -22,6 +23,7 @@ test('creates Configuration with enabled proxy when useProxy is true', function 
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [],
         xdebug: XdebugConfig::default(),
@@ -42,6 +44,7 @@ test('creates Configuration with disabled proxy when useProxy is false', functio
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [],
         xdebug: XdebugConfig::default(),
@@ -61,6 +64,7 @@ test('includes Traefik service when proxy is enabled', function () {
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [Service::Redis],
         xdebug: XdebugConfig::default(),
@@ -81,6 +85,7 @@ test('does not include Traefik service when proxy is disabled', function () {
     $choices = new InitializationChoices(
         projectName: 'myproject',
         phpVersion: PhpVersion::Php84,
+        server: ServerType::SymfonyServer,
         database: Service::PostgreSQL,
         services: [Service::Redis],
         xdebug: XdebugConfig::default(),
