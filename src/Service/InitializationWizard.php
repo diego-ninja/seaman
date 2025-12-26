@@ -34,7 +34,7 @@ final readonly class InitializationWizard
     {
         $projectName = basename($projectRoot);
         $phpVersion = $this->selectPhpVersion($projectRoot);
-        $server = $this->selectServer($phpVersion);
+        $server = $this->selectServer();
         $database = $this->selectDatabase();
         $services = $this->selectServices($projectType);
         $xdebug = $this->enableXdebug($server);
@@ -92,7 +92,7 @@ final readonly class InitializationWizard
         return PhpVersion::from($choice);
     }
 
-    public function selectServer(PhpVersion $phpVersion): ServerType
+    public function selectServer(): ServerType
     {
         $options = [];
 
