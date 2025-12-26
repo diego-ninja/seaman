@@ -115,33 +115,36 @@ final class PluginListCommand extends AbstractSeamanCommand
             return;
         }
 
-        // Get installed plugin names to mark them
-        $installedNames = [];
+        // Get Composer-installed plugin names (not bundled)
+        $composerInstalledNames = [];
         foreach ($this->registry->all() as $loaded) {
-            $installedNames[] = $loaded->instance->getName();
+            if ($loaded->source === 'composer') {
+                $composerInstalledNames[] = $loaded->instance->getName();
+            }
         }
 
         foreach ($packages as $package) {
-            $isInstalled = in_array($package['name'], $installedNames, true);
+            $isInstalled = in_array($package['name'], $composerInstalledNames, true);
+            $downloads = $package['downloads'] > 0 ? sprintf(' · %s downloads', $this->formatNumber($package['downloads'])) : '';
 
             if ($isInstalled) {
                 Terminal::output()->writeln(sprintf(
-                    '  <fg=gray>✓ %s - %s (installed)</>',
+                    '  <fg=green>✓</> <fg=green>%s</> - %s <fg=gray>(installed)</>',
                     $package['name'],
                     $this->truncate($package['description'], 50),
                 ));
             } else {
                 Terminal::output()->writeln(sprintf(
-                    '  ⬇️  <fg=cyan>%s</> - %s <fg=gray>(%s downloads)</>',
+                    '  📦 <fg=cyan>%s</> - %s<fg=gray>%s</>',
                     $package['name'],
                     $this->truncate($package['description'], 50),
-                    $this->formatNumber($package['downloads']),
+                    $downloads,
                 ));
             }
         }
 
         Terminal::output()->writeln('');
-        Terminal::output()->writeln('  <fg=gray>Install with: seaman plugin:install <package-name></>');
+        Terminal::output()->writeln('  <fg=gray>Install with:</> seaman plugin:install <fg=cyan><package-name></>');
         Terminal::output()->writeln('');
     }
 
