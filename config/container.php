@@ -59,6 +59,7 @@ use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
 use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\Plugin\PluginRemoveCommand;
 use Seaman\Command\Plugin\PluginExportCommand;
 use Seaman\Command\ConfigureCommand;
 use Seaman\Service\ConfigurationService;
@@ -449,6 +450,13 @@ return function (ContainerBuilder $builder): void {
         PluginInstallCommand::class => factory(
             fn(ContainerInterface $c): PluginInstallCommand => new PluginInstallCommand(
                 $c->get(PackagistClient::class),
+                $c->get(PluginRegistry::class),
+                $c->get('projectRoot'),
+            ),
+        ),
+
+        PluginRemoveCommand::class => factory(
+            fn(ContainerInterface $c): PluginRemoveCommand => new PluginRemoveCommand(
                 $c->get(PluginRegistry::class),
                 $c->get('projectRoot'),
             ),

@@ -42,6 +42,7 @@ use Seaman\Command\Plugin\PluginListCommand;
 use Seaman\Command\Plugin\PluginInfoCommand;
 use Seaman\Command\Plugin\PluginCreateCommand;
 use Seaman\Command\Plugin\PluginInstallCommand;
+use Seaman\Command\Plugin\PluginRemoveCommand;
 use Seaman\Command\Plugin\PluginExportCommand;
 use Seaman\Contract\ModeAwareInterface;
 use Seaman\Enum\OperatingMode;
@@ -146,6 +147,7 @@ class Application extends BaseApplication
             $container->get(PluginInfoCommand::class),
             $container->get(PluginCreateCommand::class),
             $container->get(PluginInstallCommand::class),
+            $container->get(PluginRemoveCommand::class),
             $container->get(PluginExportCommand::class),
         ];
 
