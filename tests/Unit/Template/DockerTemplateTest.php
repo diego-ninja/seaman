@@ -56,6 +56,17 @@ describe('Dockerfile.twig', function (): void {
 
         expect($content)->toContain('dunglas/frankenphp:1-php8.5');
     });
+
+    test('frankenphp includes maxminddb extension', function (): void {
+        $content = $this->renderer->render('docker/Dockerfile.twig', [
+            'server' => 'frankenphp',
+            'php_version' => '8.3',
+        ]);
+
+        expect($content)
+            ->toContain('libmaxminddb-dev')
+            ->toContain('maxminddb');
+    });
 });
 
 describe('Caddyfile.twig', function (): void {
