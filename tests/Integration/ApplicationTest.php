@@ -23,7 +23,7 @@ test('Application has correct name', function (): void {
 test('Application has correct version', function (): void {
     $application = new Application();
 
-    expect($application->getVersion())->toBe('1.0.0');
+    expect($application->getVersion())->toBe('1.1.4');
 });
 
 test('bin/seaman is executable and runs', function (): void {
@@ -38,5 +38,5 @@ test('bin/seaman is executable and runs', function (): void {
 
     expect($exitCode)->toBe(0, 'Should exit with code 0');
     expect($outputString)->toContain('Seaman');
-    expect($outputString)->toContain('1.0.0');
+    expect($outputString)->toContain('1.1.4');
 });

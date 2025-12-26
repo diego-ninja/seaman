@@ -135,7 +135,7 @@ final readonly class PluginServiceAdapter implements ServiceInterface, DatabaseS
 
     public function getInspectInfo(ServiceConfig $config): string
     {
-        return "v{$config->version}";
+        return $config->version;
     }
 
     public function getConfigSchema(): ?ConfigSchema

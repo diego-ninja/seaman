@@ -98,6 +98,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                     $dbUrls,
                     $service->getInspectInfo($serviceConfig),
                     $dozzleAvailable,
+                    $service->getIcon(),
                 ));
             }
         }
@@ -122,6 +123,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 $serviceUrls,
                 $service->getInspectInfo($serviceConfig),
                 $dozzleAvailable,
+                $service->getIcon(),
             ));
         }
 
@@ -139,6 +141,7 @@ class InspectCommand extends ModeAwareCommand implements Decorable
                 $traefikUrls,
                 $traefikService->getInspectInfo($traefikConfig),
                 $dozzleAvailable,
+                $traefikService->getIcon(),
             ));
         }
 
@@ -239,14 +242,16 @@ class InspectCommand extends ModeAwareCommand implements Decorable
         string|array $url,
         string $info,
         bool $dozzleAvailable = false,
+        ?string $serviceIcon = null,
     ): array {
-        $serviceName = sprintf('%s %s', $type->icon(), $name);
+        $icon = $serviceIcon ?? $type->icon();
+        $serviceName = sprintf('%s %s', $icon, $name);
 
         // Add dozzle link if available and service is running
         if ($dozzleAvailable && $status !== null && $status['containerId'] !== '') {
             $serviceName = sprintf(
                 '%s <href=http://localhost:9080/container/%s>%s</>',
-                $type->icon(),
+                $icon,
                 $status['containerId'],
                 $name,
             );
