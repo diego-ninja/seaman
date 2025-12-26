@@ -65,13 +65,18 @@ class ProjectInitializer
         file_put_contents($seamanScriptDir . '/xdebug-toggle.sh', $xdebugScript);
         chmod($seamanScriptDir . '/xdebug-toggle.sh', 0755);
 
-        // Copy Dockerfile template to .seaman/
-        $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
-        if (!file_exists($templateDockerfile)) {
-            Terminal::error('Seaman Dockerfile template not found.');
-            throw new \RuntimeException('Template Dockerfile missing');
+        // Render Dockerfile from Twig template
+        $dockerfileContent = $renderer->render('docker/Dockerfile.twig', [
+            'server' => $config->php->server->value,
+            'php_version' => $config->php->version->value,
+        ]);
+        file_put_contents($seamanDir . '/Dockerfile', $dockerfileContent);
+
+        // Generate Caddyfile for worker mode
+        if ($config->php->server->isWorkerMode()) {
+            $caddyfileContent = $renderer->render('docker/Caddyfile.twig', []);
+            file_put_contents($seamanDir . '/Caddyfile', $caddyfileContent);
         }
-        copy($templateDockerfile, $seamanDir . '/Dockerfile');
 
         // Build Docker image
         $builder = new DockerImageBuilder($projectRoot, $config->php->version);

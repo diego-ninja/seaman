@@ -13,6 +13,7 @@ use Seaman\Plugin\PluginLifecycleDispatcher;
 use Seaman\Service\Builder\DockerImageBuilder;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DockerManager;
+use Seaman\Service\TemplateRenderer;
 use Seaman\UI\Terminal;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -51,7 +52,7 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         $config = $this->configManager->load();
 
         // Regenerate Dockerfile from template
-        $this->regenerateDockerfile($this->projectRoot);
+        $this->regenerateDockerfile($this->projectRoot, $config);
 
         // Build Docker image without cache
         $builder = new DockerImageBuilder($this->projectRoot, $config->php->version);
@@ -76,21 +77,29 @@ class RebuildCommand extends ModeAwareCommand implements Decorable
         return Command::FAILURE;
     }
 
-    private function regenerateDockerfile(string $projectRoot): void
+    private function regenerateDockerfile(string $projectRoot, \Seaman\ValueObject\Configuration $config): void
     {
-        $templateDockerfile = __DIR__ . '/../../docker/Dockerfile.template';
-        $targetDockerfile = $projectRoot . '/.seaman/Dockerfile';
-
-        if (!file_exists($templateDockerfile)) {
-            throw new \RuntimeException('Seaman Dockerfile template not found');
-        }
-
         $seamanDir = $projectRoot . '/.seaman';
         if (!is_dir($seamanDir)) {
             mkdir($seamanDir, 0755, true);
         }
 
-        copy($templateDockerfile, $targetDockerfile);
+        // Render Dockerfile from Twig template
+        $templateDir = __DIR__ . '/../Template';
+        $renderer = new TemplateRenderer($templateDir);
+
+        $dockerfileContent = $renderer->render('docker/Dockerfile.twig', [
+            'server' => $config->php->server->value,
+            'php_version' => $config->php->version->value,
+        ]);
+        file_put_contents($seamanDir . '/Dockerfile', $dockerfileContent);
+
+        // Generate Caddyfile for worker mode
+        if ($config->php->server->isWorkerMode()) {
+            $caddyfileContent = $renderer->render('docker/Caddyfile.twig', []);
+            file_put_contents($seamanDir . '/Caddyfile', $caddyfileContent);
+        }
+
         Terminal::output()->writeln('  Dockerfile regenerated from template');
     }
 }
