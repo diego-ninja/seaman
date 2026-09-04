@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service\Detector;
 
 use Seaman\Enum\OperatingMode;
+use Seaman\Service\ComposeFileLocator;
 
 final readonly class ModeDetector
 {
@@ -18,7 +19,6 @@ final readonly class ModeDetector
     public function detect(): OperatingMode
     {
         $seamanConfigPath = $this->projectRoot . '/.seaman/seaman.yaml';
-        $dockerComposePath = $this->projectRoot . '/docker-compose.yaml';
 
         // Check for seaman.yaml first (managed mode)
         if (file_exists($seamanConfigPath)) {
@@ -26,7 +26,7 @@ final readonly class ModeDetector
         }
 
         // Check for docker-compose.yaml (unmanaged mode)
-        if (file_exists($dockerComposePath)) {
+        if ((new ComposeFileLocator($this->projectRoot))->find() !== null) {
             return OperatingMode::Unmanaged;
         }
 

@@ -268,3 +268,84 @@ test('destroy returns ProcessResult', function () {
     expect($result)->toBeInstanceOf(ProcessResult::class);
     expect($result->exitCode)->toBeInt();
 });
+
+test('accepts docker compose yaml extension', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    rename($tempDir . '/docker-compose.yml', $tempDir . '/docker-compose.yaml');
+
+    $manager = new DockerManager($tempDir);
+
+    expect($manager->start())->toBeInstanceOf(ProcessResult::class);
+});
+
+test('uses Docker Compose V2 command', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $binDir = $tempDir . '/bin';
+    $argumentsFile = $tempDir . '/arguments';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nprintf '%s' \"\$*\" > " . escapeshellarg($argumentsFile) . "\n");
+    chmod($binDir . '/docker', 0755);
+
+    $originalPath = getenv('PATH');
+    putenv('PATH=' . $binDir . ':' . ($originalPath === false ? '' : $originalPath));
+
+    try {
+        $manager = new DockerManager($tempDir);
+        $result = $manager->start('web');
+    } finally {
+        $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
+    }
+
+    expect($result->isSuccessful())->toBeTrue()
+        ->and(file_get_contents($argumentsFile))->toBe(
+            'compose -f ' . $tempDir . '/docker-compose.yml up -d web',
+        );
+});
+
+test('keeps the final status record without a trailing newline', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $binDir = $tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents(
+        $binDir . '/docker',
+        "#!/bin/sh\nprintf '%s' '{\"Service\":\"web\",\"State\":\"running\"}'\n",
+    );
+    chmod($binDir . '/docker', 0755);
+
+    $originalPath = getenv('PATH');
+    putenv('PATH=' . $binDir . ':' . ($originalPath === false ? '' : $originalPath));
+
+    try {
+        $manager = new DockerManager($tempDir);
+        $status = $manager->status();
+    } finally {
+        $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
+    }
+
+    expect($status)->toBe([['Service' => 'web', 'State' => 'running']]);
+});
+
+test('reports non-follow process timeouts as failures', function () {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $binDir = $tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nsleep 1\n");
+    chmod($binDir . '/docker', 0755);
+
+    $originalPath = getenv('PATH');
+    putenv('PATH=' . $binDir . ':' . ($originalPath === false ? '' : $originalPath));
+
+    try {
+        $manager = new DockerManager($tempDir);
+        $result = $manager->executeInService('web', ['true'], timeout: 0.01);
+    } finally {
+        $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
+    }
+
+    expect($result->isSuccessful())->toBeFalse()
+        ->and($result->exitCode)->toBe(124);
+});
