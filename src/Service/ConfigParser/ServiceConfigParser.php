@@ -115,16 +115,19 @@ final readonly class ServiceConfigParser
 
     /**
      * @param array<string, mixed> $serviceData
-     * @return array<string, string>
+     * @return array<string, string|null>
      */
     private function parseEnvironmentVariables(array $serviceData): array
     {
         $environmentVariables = $this->getArray($serviceData, 'environment');
 
-        /** @var array<string, string> $envVars */
-        $envVars = array_filter($environmentVariables, function ($value, $key) {
-            return is_string($key) && is_string($value);
-        }, ARRAY_FILTER_USE_BOTH);
+        /** @var array<string, string|null> $envVars */
+        $envVars = [];
+        foreach ($environmentVariables as $key => $value) {
+            if (is_string($key) && (is_string($value) || $value === null)) {
+                $envVars[$key] = $value;
+            }
+        }
 
         return $envVars;
     }

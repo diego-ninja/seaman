@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Service\ConfigParser\ServiceConfigParser;
 use Seaman\Service\ConfigurationService;
 
 test('ConfigurationService loads current config for service', function () {
@@ -119,6 +120,58 @@ test('ConfigurationService materializes configured values for the runtime', func
             'POSTGRES_USER' => 'developer',
             'POSTGRES_PASSWORD' => 'secret',
         ]);
+});
+
+test('ConfigurationService normalizes Compose list environment and replaces managed variables', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => [
+            'postgresql' => [
+                'environment' => [
+                    'CUSTOM_OPTION=preserved',
+                    'INHERITED_FROM_HOST',
+                    'POSTGRES_DB=legacy',
+                    'DB_NAME=legacy',
+                    'POSTGRES_DB=duplicate',
+                ],
+            ],
+        ],
+    ], 'postgresql', [
+        'database' => 'application',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+
+    expect($services['postgresql']['environment'])->toBe([
+        'CUSTOM_OPTION' => 'preserved',
+        'INHERITED_FROM_HOST' => null,
+        'POSTGRES_DB' => 'application',
+        'DB_NAME' => 'application',
+    ]);
+});
+
+test('ServiceConfigParser reloads canonical environment without losing null values', function () {
+    $services = (new ServiceConfigParser())->parse([
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'environment' => [
+                    'CUSTOM_OPTION' => 'preserved',
+                    'INHERITED_FROM_HOST' => null,
+                    'POSTGRES_DB' => 'application',
+                ],
+            ],
+        ],
+    ]);
+
+    expect($services->get('postgresql')->environmentVariables)->toBe([
+        'CUSTOM_OPTION' => 'preserved',
+        'INHERITED_FROM_HOST' => null,
+        'POSTGRES_DB' => 'application',
+    ]);
 });
 
 test('ConfigurationService maps additional ports and plugin-specific variables', function () {

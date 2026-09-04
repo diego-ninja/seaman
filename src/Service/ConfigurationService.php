@@ -221,7 +221,7 @@ final readonly class ConfigurationService
 
     /**
      * @param array<string, mixed> $service
-     * @return array<string, string>
+     * @return array<string, bool|float|int|string|null>
      */
     private function existingEnvironment(array $service): array
     {
@@ -232,8 +232,14 @@ final readonly class ConfigurationService
 
         $environment = [];
         foreach ($rawEnvironment as $key => $value) {
-            if (is_string($key) && is_string($value)) {
+            if (is_string($key) && (is_scalar($value) || $value === null)) {
                 $environment[$key] = $value;
+            } elseif (is_int($key) && is_string($value)) {
+                $separator = strpos($value, '=');
+                $name = $separator === false ? $value : substr($value, 0, $separator);
+                if ($name !== '') {
+                    $environment[$name] = $separator === false ? null : substr($value, $separator + 1);
+                }
             }
         }
 

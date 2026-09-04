@@ -13,7 +13,7 @@ final readonly class ServiceConfig
 {
     /**
      * @param list<int> $additionalPorts
-     * @param array<string, string> $environmentVariables
+     * @param array<string, string|null> $environmentVariables
      * @param array<string, mixed> $config
      */
     public function __construct(
