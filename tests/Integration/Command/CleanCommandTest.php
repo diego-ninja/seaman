@@ -91,6 +91,56 @@ test('clean command removes all seaman files when confirmed', function () {
     expect(is_dir($this->tempDir . '/.devcontainer'))->toBeFalse();
 });
 
+test('clean command rejects a symlinked Compose file without touching project artifacts', function () {
+    $dockerMarker = $this->tempDir . '/docker-invoked';
+    $dockerBinary = $this->tempDir . '/bin/docker';
+    file_put_contents($dockerBinary, "#!/bin/sh\ntouch " . escapeshellarg($dockerMarker) . "\nexit 0\n");
+
+    $externalDir = sys_get_temp_dir() . '/seaman-compose-target-' . uniqid();
+    mkdir($externalDir, 0755, true);
+    $target = $externalDir . '/docker-compose.yml';
+    $targetContent = "services:\n  external:\n    image: alpine\n";
+    file_put_contents($target, $targetContent);
+
+    $link = $this->tempDir . '/docker-compose.yml';
+    symlink($target, $link);
+    file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');
+    file_put_contents($this->tempDir . '/.seaman/keep.txt', 'managed artifact');
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    try {
+        $application = new Application();
+        $commandTester = new CommandTester($application->find('clean'));
+        $commandTester->execute([]);
+
+        expect([
+            'status' => $commandTester->getStatusCode(),
+            'docker_invoked' => file_exists($dockerMarker),
+            'link_preserved' => is_link($link),
+            'target_preserved' => file_get_contents($target),
+            'config_preserved' => file_exists($this->tempDir . '/seaman.yaml'),
+            'artifact_preserved' => file_exists($this->tempDir . '/.seaman/keep.txt'),
+        ])->toBe([
+            'status' => 1,
+            'docker_invoked' => false,
+            'link_preserved' => true,
+            'target_preserved' => $targetContent,
+            'config_preserved' => true,
+            'artifact_preserved' => true,
+        ]);
+    } finally {
+        if (file_exists($target)) {
+            unlink($target);
+        }
+        if (is_dir($externalDir)) {
+            rmdir($externalDir);
+        }
+    }
+});
+
 test('clean command shows files to be removed before confirmation', function () {
     TestHelper::createMinimalDockerCompose($this->tempDir);
     file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');

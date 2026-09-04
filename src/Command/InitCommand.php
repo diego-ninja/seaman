@@ -46,6 +46,9 @@ use Symfony\Component\Console\Output\OutputInterface;
 )]
 class InitCommand extends ModeAwareCommand implements Decorable
 {
+    /** @var \Closure(string, string): bool */
+    private readonly \Closure $fileCopier;
+
     public function __construct(
         private readonly ProjectDetector            $projectDetector,
         private readonly SymfonyProjectBootstrapper $bootstrapper,
@@ -56,7 +59,9 @@ class InitCommand extends ModeAwareCommand implements Decorable
         private readonly DnsManager                 $dnsManager,
         private readonly PluginLifecycleDispatcher  $lifecycleDispatcher,
         private readonly string                     $projectRoot,
+        ?\Closure                                    $fileCopier = null,
     ) {
+        $this->fileCopier = $fileCopier ?? static fn(string $source, string $target): bool => @copy($source, $target);
         parent::__construct();
     }
 
@@ -94,11 +99,15 @@ class InitCommand extends ModeAwareCommand implements Decorable
 
         // Check for the existing docker-compose.yml-offer import
         if ($this->projectDetector->hasDockerCompose($projectRoot) && !$this->projectDetector->hasSeamanConfig($projectRoot)) {
-            $importResult = $this->handleExistingDockerCompose($projectRoot);
+            $import = $this->handleExistingDockerCompose($projectRoot);
 
-            if ($importResult !== null) {
+            if ($import !== null) {
                 $this->dispatchLifecycleEvent('before:init', $projectRoot);
-                $result = $this->executeImportFlow($input, $projectRoot, $importResult);
+                if (!$this->backupDockerCompose($import['composePath'])) {
+                    return Command::FAILURE;
+                }
+
+                $result = $this->executeImportFlow($input, $projectRoot, $import['result']);
                 if ($result === Command::SUCCESS) {
                     $this->dispatchLifecycleEvent('after:init', $projectRoot);
                 }
@@ -190,7 +199,10 @@ class InitCommand extends ModeAwareCommand implements Decorable
         return Command::SUCCESS;
     }
 
-    private function handleExistingDockerCompose(string $projectRoot): ?ImportResult
+    /**
+     * @return array{result: ImportResult, composePath: string}|null
+     */
+    private function handleExistingDockerCompose(string $projectRoot): ?array
     {
         Terminal::output()->writeln('');
         Terminal::output()->writeln('  <fg=cyan>Existing docker-compose file detected</>');
@@ -231,13 +243,26 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return null;
         }
 
-        // Backup original file
+        return [
+            'result' => $result,
+            'composePath' => $composePath,
+        ];
+    }
+
+    private function backupDockerCompose(string $composePath): bool
+    {
         $backupPath = $composePath . '.backup-' . date('Y-m-d-His');
-        copy($composePath, $backupPath);
+        $copied = ($this->fileCopier)($composePath, $backupPath);
+        if (!$copied) {
+            Terminal::error('Failed to create a backup of the existing Docker Compose file.');
+
+            return false;
+        }
+
         Terminal::output()->writeln('');
         Terminal::output()->writeln("  <fg=gray>Original backed up to: {$backupPath}</>");
 
-        return $result;
+        return true;
     }
 
     private function displayImportSummary(ImportResult $result): void

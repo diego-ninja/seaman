@@ -64,6 +64,12 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $hasSeamanEnvSection = $this->hasSeamanEnvSection($projectRoot);
         $dnsInfo = $this->getDnsCleanupInfo($projectRoot);
 
+        if ($composeFile !== null && is_link($composeFile)) {
+            Terminal::error('Cannot clean a project whose Docker Compose file is a symbolic link.');
+
+            return Command::FAILURE;
+        }
+
         if ($backupFile !== null && $this->backupWouldOverwriteComposeFile($backupFile, $composeFile)) {
             $target = $this->getBackupTarget($backupFile);
             Terminal::error(sprintf(

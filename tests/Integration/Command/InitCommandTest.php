@@ -8,8 +8,24 @@ declare(strict_types=1);
 namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
+use Seaman\Command\InitCommand;
 use Seaman\Enum\ProjectType;
+use Seaman\Plugin\Attribute\AsSeamanPlugin;
+use Seaman\Plugin\Attribute\OnLifecycle;
+use Seaman\Plugin\LifecycleEventData;
+use Seaman\Plugin\PluginInterface;
+use Seaman\Plugin\PluginLifecycleDispatcher;
+use Seaman\Plugin\PluginRegistry;
+use Seaman\Service\ConfigurationFactory;
+use Seaman\Service\Container\ServiceRegistry;
 use Seaman\Service\Detector\SymfonyDetector;
+use Seaman\Service\Detector\PhpVersionDetector;
+use Seaman\Service\Detector\ProjectDetector;
+use Seaman\Service\DnsManager;
+use Seaman\Service\InitializationSummary;
+use Seaman\Service\InitializationWizard;
+use Seaman\Service\Process\RealCommandExecutor;
+use Seaman\Service\ProjectInitializer;
 use Seaman\Service\SymfonyProjectBootstrapper;
 use Seaman\UI\HeadlessMode;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -43,6 +59,119 @@ test('init command has correct aliases', function (): void {
     $command = $app->find('init');
 
     expect($command->getAliases())->toContain('init');
+});
+
+test('import dispatches before init before creating the Compose backup', function (): void {
+    assert(is_string($this->tempDir));
+    mkdir($this->tempDir, 0755, true);
+    chdir($this->tempDir);
+    file_put_contents($this->tempDir . '/docker-compose.yml', <<<'YAML'
+services:
+  redis:
+    image: redis:7-alpine
+YAML);
+
+    $backupExistsWhenHookRan = null;
+    $plugin = new #[AsSeamanPlugin(name: 'backup-order-test')] class ($backupExistsWhenHookRan) implements PluginInterface {
+        public function __construct(private ?bool &$backupExistsWhenHookRan) {}
+
+        public function getName(): string
+        {
+            return 'backup-order-test';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Observes backup creation order';
+        }
+
+        #[OnLifecycle('before:init')]
+        public function observeBackupState(LifecycleEventData $data): void
+        {
+            $backups = glob($data->projectRoot . '/docker-compose.yml.backup-*');
+            $this->backupExistsWhenHookRan = $backups !== false && $backups !== [];
+
+            throw new \RuntimeException('stop-after-before-init');
+        }
+    };
+
+    $pluginRegistry = new PluginRegistry();
+    $pluginRegistry->register($plugin, []);
+    $serviceRegistry = ServiceRegistry::create();
+    $executor = new RealCommandExecutor();
+    $command = new InitCommand(
+        projectDetector: new ProjectDetector(new SymfonyDetector()),
+        bootstrapper: new SymfonyProjectBootstrapper(),
+        configFactory: new ConfigurationFactory($serviceRegistry),
+        summary: new InitializationSummary(),
+        wizard: new InitializationWizard(new PhpVersionDetector()),
+        initializer: new ProjectInitializer($serviceRegistry),
+        dnsManager: new DnsManager($executor),
+        lifecycleDispatcher: new PluginLifecycleDispatcher($pluginRegistry),
+        projectRoot: $this->tempDir,
+    );
+
+    HeadlessMode::enable();
+    HeadlessMode::preset([
+        'How would you like to proceed?' => 'import',
+        'Import these services?' => true,
+    ]);
+
+    $tester = new CommandTester($command);
+
+    expect(fn(): int => $tester->execute([]))
+        ->toThrow(\RuntimeException::class, 'stop-after-before-init');
+    expect($backupExistsWhenHookRan)->toBeFalse();
+});
+
+test('import fails safely when the Compose backup cannot be created', function (): void {
+    assert(is_string($this->tempDir));
+    mkdir($this->tempDir, 0755, true);
+    chdir($this->tempDir);
+    $composePath = $this->tempDir . '/docker-compose.yml';
+    $originalCompose = <<<'YAML'
+services:
+  redis:
+    image: redis:7-alpine
+YAML;
+    file_put_contents($composePath, $originalCompose);
+
+    $pluginRegistry = new PluginRegistry();
+    $serviceRegistry = ServiceRegistry::create();
+    $executor = new RealCommandExecutor();
+    $command = new InitCommand(
+        projectDetector: new ProjectDetector(new SymfonyDetector()),
+        bootstrapper: new SymfonyProjectBootstrapper(),
+        configFactory: new ConfigurationFactory($serviceRegistry),
+        summary: new InitializationSummary(),
+        wizard: new InitializationWizard(new PhpVersionDetector()),
+        initializer: new ProjectInitializer($serviceRegistry),
+        dnsManager: new DnsManager($executor),
+        lifecycleDispatcher: new PluginLifecycleDispatcher($pluginRegistry),
+        projectRoot: $this->tempDir,
+        fileCopier: static fn(string $source, string $target): bool => false,
+    );
+
+    HeadlessMode::enable();
+    HeadlessMode::preset([
+        'How would you like to proceed?' => 'import',
+        'Import these services?' => true,
+    ]);
+
+    $tester = new CommandTester($command);
+    $status = $tester->execute([]);
+    $backups = glob($composePath . '.backup-*');
+
+    expect($status)->toBe(1)
+        ->and(strtolower($tester->getDisplay()))->toContain('backup')
+        ->and(file_get_contents($composePath))->toBe($originalCompose)
+        ->and($backups)->toBe([])
+        ->and(is_dir($this->tempDir . '/.seaman'))->toBeFalse();
 });
 
 test('symfony detector works correctly', function (): void {
