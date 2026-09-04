@@ -81,11 +81,116 @@ final readonly class ConfigurationService
             $service = [];
         }
 
-        $service['config'] = $newServiceConfig;
-        $services[$serviceName] = $service;
+        $normalizedService = [];
+        foreach ($service as $key => $value) {
+            if (is_string($key)) {
+                $normalizedService[$key] = $value;
+            }
+        }
+
+        $normalizedService['config'] = $newServiceConfig;
+        $normalizedService = $this->materializeRuntimeConfig($serviceName, $normalizedService, $newServiceConfig);
+        $services[$serviceName] = $normalizedService;
         $existingConfig['services'] = $services;
 
         return $existingConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $service
+     * @param array<string, mixed> $config
+     * @return array<string, mixed>
+     */
+    private function materializeRuntimeConfig(string $serviceName, array $service, array $config): array
+    {
+        if (isset($config['version']) && is_string($config['version'])) {
+            $service['version'] = $config['version'];
+        }
+
+        if (isset($config['port']) && is_int($config['port'])) {
+            $service['port'] = $config['port'];
+        }
+
+        $additionalPorts = [];
+        foreach ($config as $key => $value) {
+            if ($key !== 'port' && str_ends_with($key, '_port') && is_int($value)) {
+                $additionalPorts[] = $value;
+            }
+        }
+        if ($additionalPorts !== []) {
+            $service['additional_ports'] = $additionalPorts;
+        }
+
+        $environment = $this->existingEnvironment($service);
+        foreach ($config as $key => $value) {
+            if ($key === 'version' || !is_string($value) && !is_int($value) && !is_bool($value)) {
+                continue;
+            }
+
+            $environmentValue = is_bool($value) ? ($value ? 'true' : 'false') : (string) $value;
+            foreach ($this->environmentVariableNames($serviceName, $key) as $variable) {
+                $environment[$variable] = $environmentValue;
+            }
+        }
+
+        if ($environment !== []) {
+            $service['environment'] = $environment;
+        }
+
+        return $service;
+    }
+
+    /**
+     * @param array<string, mixed> $service
+     * @return array<string, string>
+     */
+    private function existingEnvironment(array $service): array
+    {
+        $rawEnvironment = $service['environment'] ?? [];
+        if (!is_array($rawEnvironment)) {
+            return [];
+        }
+
+        $environment = [];
+        foreach ($rawEnvironment as $key => $value) {
+            if (is_string($key) && is_string($value)) {
+                $environment[$key] = $value;
+            }
+        }
+
+        return $environment;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function environmentVariableNames(string $serviceName, string $configKey): array
+    {
+        $mapping = match ($serviceName . ':' . $configKey) {
+            'mysql:port', 'mariadb:port', 'postgresql:port' => ['DB_PORT'],
+            'mysql:database' => ['MYSQL_DATABASE', 'DB_NAME'],
+            'mysql:user' => ['MYSQL_USER', 'DB_USER'],
+            'mysql:password' => ['MYSQL_PASSWORD', 'DB_PASSWORD'],
+            'mysql:root_password' => ['MYSQL_ROOT_PASSWORD', 'DB_ROOT_PASSWORD'],
+            'mariadb:database' => ['MARIADB_DATABASE', 'DB_NAME'],
+            'mariadb:user' => ['MARIADB_USER', 'DB_USER'],
+            'mariadb:password' => ['MARIADB_PASSWORD', 'DB_PASSWORD'],
+            'mariadb:root_password' => ['MARIADB_ROOT_PASSWORD', 'DB_ROOT_PASSWORD'],
+            'postgresql:database' => ['POSTGRES_DB', 'DB_NAME'],
+            'postgresql:user' => ['POSTGRES_USER', 'DB_USER'],
+            'postgresql:password' => ['POSTGRES_PASSWORD', 'DB_PASSWORD'],
+            'mongodb:port' => ['MONGO_PORT'],
+            'mongodb:database' => ['MONGO_INITDB_DATABASE', 'MONGO_DB'],
+            'mongodb:user' => ['MONGO_INITDB_ROOT_USERNAME', 'MONGO_USER'],
+            'mongodb:password' => ['MONGO_INITDB_ROOT_PASSWORD', 'MONGO_PASSWORD'],
+            'soketi:app_id' => ['PUSHER_APP_ID'],
+            'soketi:app_key' => ['PUSHER_APP_KEY'],
+            'soketi:app_secret' => ['PUSHER_APP_SECRET'],
+            'sqlite:database_path' => ['DATABASE_PATH'],
+            default => [strtoupper(str_replace('-', '_', $serviceName . '_' . $configKey))],
+        };
+
+        return $mapping;
     }
 
     /**

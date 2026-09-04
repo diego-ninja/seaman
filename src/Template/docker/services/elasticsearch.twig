@@ -3,7 +3,7 @@
     container_name: seaman-{{ project_name }}-{{ name }}
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=${ELASTICSEARCH_SECURITY_ENABLED:-false}
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTICSEARCH_PORT}:9200"

@@ -10,6 +10,7 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Plugin\Config\BooleanField;
+use Seaman\Plugin\Config\ConfigValidationException;
 use Seaman\Plugin\Config\IntegerField;
 use Seaman\Service\ComposeRegenerator;
 use Seaman\Service\ConfigManager;
@@ -129,6 +130,13 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
             } else {
                 $newConfig[$name] = $value;
             }
+        }
+
+        try {
+            $newConfig = $schema->validate($newConfig);
+        } catch (ConfigValidationException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
         }
 
         $updatedRawConfig = $this->configService->mergeConfig($rawConfig, $serviceName, $newConfig);

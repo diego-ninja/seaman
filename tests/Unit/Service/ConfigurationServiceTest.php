@@ -83,6 +83,70 @@ test('ConfigurationService merges new config with existing', function () {
     ]);
 });
 
+test('ConfigurationService materializes configured values for the runtime', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'version' => '16',
+                'port' => 5432,
+                'environment' => ['CUSTOM_OPTION' => 'preserved'],
+            ],
+        ],
+    ], 'postgresql', [
+        'version' => '17',
+        'port' => 55432,
+        'database' => 'application',
+        'user' => 'developer',
+        'password' => 'secret',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+    $postgresql = $services['postgresql'];
+
+    expect($postgresql['version'])->toBe('17')
+        ->and($postgresql['port'])->toBe(55432)
+        ->and($postgresql['environment'])->toMatchArray([
+            'CUSTOM_OPTION' => 'preserved',
+            'DB_NAME' => 'application',
+            'DB_USER' => 'developer',
+            'DB_PASSWORD' => 'secret',
+            'POSTGRES_DB' => 'application',
+            'POSTGRES_USER' => 'developer',
+            'POSTGRES_PASSWORD' => 'secret',
+        ]);
+});
+
+test('ConfigurationService maps additional ports and plugin-specific variables', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => ['soketi' => ['enabled' => true, 'type' => 'soketi']],
+    ], 'soketi', [
+        'version' => '1.6',
+        'port' => 6002,
+        'metrics_port' => 9602,
+        'app_id' => 'configured-id',
+        'app_key' => 'configured-key',
+        'app_secret' => 'configured-secret',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+    $soketi = $services['soketi'];
+
+    expect($soketi['additional_ports'])->toBe([9602])
+        ->and($soketi['environment'])->toMatchArray([
+            'PUSHER_APP_ID' => 'configured-id',
+            'PUSHER_APP_KEY' => 'configured-key',
+            'PUSHER_APP_SECRET' => 'configured-secret',
+        ]);
+});
+
 test('ConfigurationService renders text field config', function () {
     $service = new ConfigurationService();
 

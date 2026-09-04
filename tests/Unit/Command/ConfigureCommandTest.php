@@ -79,8 +79,8 @@ test('configure command updates service configuration', function () {
         'Database name' => 'new_database',
         'Database user' => 'new_user',
         'Database password' => 'new_password',
-        'PostgreSQL version' => '16',
-        'Port' => '5432',
+        'PostgreSQL version' => '17',
+        'Port' => '55432',
         'What would you like to do?' => 'none',
     ]);
 
@@ -97,9 +97,19 @@ test('configure command updates service configuration', function () {
     expect(file_exists($yamlPath))->toBeTrue();
 
     $content = file_get_contents($yamlPath);
-    expect($content)->toContain('new_database');
-    expect($content)->toContain('new_user');
-    expect($content)->toContain('new_password');
+    expect($content)->toContain("version: '17'")
+        ->and($content)->toContain('port: 55432')
+        ->and($content)->toContain('new_database')
+        ->and($content)->toContain('new_user')
+        ->and($content)->toContain('new_password');
+
+    /** @phpstan-ignore property.notFound, binaryOp.invalid */
+    $envPath = $this->tempDir . '/.env';
+    $env = file_get_contents($envPath);
+    expect($env)->toContain('DB_PORT=55432')
+        ->and($env)->toContain('DB_NAME=new_database')
+        ->and($env)->toContain('DB_USER=new_user')
+        ->and($env)->toContain('DB_PASSWORD=new_password');
 
     /** @phpstan-ignore property.notFound, binaryOp.invalid */
     $composePath = $this->tempDir . '/docker-compose.yml';

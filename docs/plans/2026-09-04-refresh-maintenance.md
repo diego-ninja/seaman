@@ -134,4 +134,3 @@
 3. Run `composer validate --strict`, `composer audit --locked`, PHPStan, CS Fixer, deterministic tests and PHAR smoke.
 4. Document any Docker-only checks not executable in the current environment.
 5. Commit as `chore: remove unused dependencies`.
-
