@@ -19,7 +19,6 @@
     "nunomaduro/termwind": "^2.3",
     "php-di/php-di": "^7.1",
     "phpoption/phpoption": "^1.9",
-    "ramsey/collection": "^2.1",
     "symfony/console": "^7",
     "symfony/event-dispatcher": "^8.0",
     "symfony/process": "^7",
@@ -31,7 +30,6 @@
     "friendsofphp/php-cs-fixer": "^3.64",
     "mockery/mockery": "^1.6",
     "pestphp/pest": "^4.0",
-    "pestphp/pest-plugin-arch": "^4.0",
     "phpstan/phpstan": "^2.0"
   },
   "autoload": {
