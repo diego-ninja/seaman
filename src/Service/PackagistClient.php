@@ -23,9 +23,18 @@ final class PackagistClient
         'seaman/redis',
     ];
 
+    /** @var \Closure(string): array{body: string|false, statusCode: int} */
+    private readonly \Closure $httpGet;
+
+    /**
+     * @param null|\Closure(string): array{body: string|false, statusCode: int} $httpGet
+     */
     public function __construct(
         private readonly ?string $cacheDir = null,
-    ) {}
+        ?\Closure $httpGet = null,
+    ) {
+        $this->httpGet = $httpGet ?? self::createHttpGet();
+    }
 
     /**
      * Search for seaman-plugin packages on Packagist.
@@ -200,25 +209,9 @@ final class PackagistClient
      */
     private function request(string $url): array
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => self::REQUEST_TIMEOUT,
-                'header' => [
-                    'User-Agent: Seaman/1.0',
-                    'Accept: application/json',
-                ],
-                'ignore_errors' => true,
-            ],
-        ]);
-
-        $response = @file_get_contents($url, false, $context);
-
-        $statusCode = 0;
-        if (isset($http_response_header[0])) {
-            preg_match('/\s(\d{3})\s/', $http_response_header[0], $matches);
-            $statusCode = isset($matches[1]) ? (int) $matches[1] : 0;
-        }
+        $result = ($this->httpGet)($url);
+        $response = $result['body'];
+        $statusCode = $result['statusCode'];
 
         if ($response === false) {
             throw new PackagistException('Failed to connect to Packagist API');
@@ -239,6 +232,35 @@ final class PackagistClient
         }
 
         return $data;
+    }
+
+    /**
+     * @return \Closure(string): array{body: string|false, statusCode: int}
+     */
+    private static function createHttpGet(): \Closure
+    {
+        return static function (string $url): array {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => self::REQUEST_TIMEOUT,
+                    'header' => [
+                        'User-Agent: Seaman/1.0',
+                        'Accept: application/json',
+                    ],
+                    'ignore_errors' => true,
+                ],
+            ]);
+
+            $body = @file_get_contents($url, false, $context);
+            $statusCode = 0;
+            if (isset($http_response_header[0])) {
+                preg_match('/\s(\d{3})\s/', $http_response_header[0], $matches);
+                $statusCode = isset($matches[1]) ? (int) $matches[1] : 0;
+            }
+
+            return ['body' => $body, 'statusCode' => $statusCode];
+        };
     }
 
     /**
