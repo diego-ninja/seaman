@@ -18,7 +18,6 @@ use Seaman\Service\ComposeImporter;
 use Seaman\Service\ConfigurationFactory;
 use Seaman\Service\Detector\ProjectDetector;
 use Seaman\Service\Detector\ServiceDetector;
-use Seaman\Service\Detector\SymfonyDetector;
 use Seaman\Service\DnsManager;
 use Seaman\Service\InitializationSummary;
 use Seaman\Service\InitializationWizard;
@@ -48,7 +47,6 @@ use Symfony\Component\Console\Output\OutputInterface;
 class InitCommand extends ModeAwareCommand implements Decorable
 {
     public function __construct(
-        private readonly SymfonyDetector            $detector,
         private readonly ProjectDetector            $projectDetector,
         private readonly SymfonyProjectBootstrapper $bootstrapper,
         private readonly ConfigurationFactory       $configFactory,
@@ -82,12 +80,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
      */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $this->lifecycleDispatcher->dispatch('before:init', new LifecycleEventData(
-            event: 'before:init',
-            projectRoot: $this->projectRoot,
-        ));
-
-        $projectRoot = (string) getcwd();
+        $projectRoot = $this->projectRoot;
 
         // Check if seaman.yaml already exists
         if ($this->projectDetector->hasSeamanConfig($projectRoot)) {
@@ -104,24 +97,30 @@ class InitCommand extends ModeAwareCommand implements Decorable
             $importResult = $this->handleExistingDockerCompose($projectRoot);
 
             if ($importResult !== null) {
+                $this->dispatchLifecycleEvent('before:init', $projectRoot);
                 $result = $this->executeImportFlow($input, $projectRoot, $importResult);
                 if ($result === Command::SUCCESS) {
-                    $this->lifecycleDispatcher->dispatch('after:init', new LifecycleEventData(
-                        event: 'after:init',
-                        projectRoot: $this->projectRoot,
-                    ));
+                    $this->dispatchLifecycleEvent('after:init', $projectRoot);
                 }
                 return $result;
             }
         }
 
         // Standard initialization flow
-        $result = $this->executeStandardFlow($input, $projectRoot);
+        $target = $this->resolveStandardTarget($projectRoot);
+        if ($target === null) {
+            return Command::FAILURE;
+        }
+
+        $this->dispatchLifecycleEvent('before:init', $target['projectRoot']);
+        $result = $this->executeStandardFlow(
+            $input,
+            $target['projectRoot'],
+            $target['projectType'],
+            $target['requiresBootstrap'],
+        );
         if ($result === Command::SUCCESS) {
-            $this->lifecycleDispatcher->dispatch('after:init', new LifecycleEventData(
-                event: 'after:init',
-                projectRoot: $this->projectRoot,
-            ));
+            $this->dispatchLifecycleEvent('after:init', $target['projectRoot']);
         }
         return $result;
     }
@@ -129,11 +128,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     /**
      * @throws \Exception
      */
-    private function executeStandardFlow(InputInterface $input, string $projectRoot): int
-    {
-        // Bootstrap Symfony project if needed
-        $projectType = $this->enableSymfonyProject($projectRoot);
-
+    private function executeStandardFlow(
+        InputInterface $input,
+        string $projectRoot,
+        ProjectType $projectType,
+        bool $requiresBootstrap,
+    ): int {
         // Run the initialization wizard to collect all choices (including DNS)
         $choices = $this->wizard->run($input, $projectType, $projectRoot);
 
@@ -157,7 +157,7 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        if ($projectType !== ProjectType::Existing) {
+        if ($requiresBootstrap) {
             $this->bootstrapSymfonyProject($projectType, $projectRoot);
         }
 
@@ -352,25 +352,40 @@ class InitCommand extends ModeAwareCommand implements Decorable
         return Command::SUCCESS;
     }
 
-    private function enableSymfonyProject(string $projectRoot): ProjectType
+    /**
+     * @return array{projectType: ProjectType, projectRoot: string, requiresBootstrap: bool}|null
+     */
+    private function resolveStandardTarget(string $projectRoot): ?array
     {
-        // Check if Symfony project exists
-        if (!$this->projectDetector->isSymfonyProject($projectRoot)) {
-            $shouldBootstrap = Prompts::confirm(
-                label: 'No Symfony application detected. Create new project?',
-            );
-
-            if (!$shouldBootstrap) {
-                Prompts::info('Please create a Symfony project first, then run init again.');
-                exit(Command::FAILURE);
-            }
-
-            // Bootstrap new Symfony project - user selects type
-            return $this->wizard->selectProjectType();
+        if ($this->projectDetector->isSymfonyProject($projectRoot)) {
+            return [
+                'projectType' => $this->projectDetector->detectProjectType($projectRoot),
+                'projectRoot' => $projectRoot,
+                'requiresBootstrap' => false,
+            ];
         }
 
-        // Existing Symfony project - auto-detect type for intelligent defaults
-        return $this->projectDetector->detectProjectType($projectRoot);
+        if (!Prompts::confirm(label: 'No Symfony application detected. Create new project?')) {
+            Prompts::info('Please create a Symfony project first, then run init again.');
+            return null;
+        }
+
+        $projectType = $this->wizard->selectProjectType();
+        $projectName = $this->wizard->getProjectName($projectRoot);
+        $targetRoot = $this->isDirectoryEmpty($projectRoot)
+            ? $projectRoot
+            : $projectRoot . '/' . $projectName;
+
+        if ($targetRoot !== $projectRoot && file_exists($targetRoot)) {
+            Terminal::error("Target directory already exists: {$targetRoot}");
+            return null;
+        }
+
+        return [
+            'projectType' => $projectType,
+            'projectRoot' => $targetRoot,
+            'requiresBootstrap' => true,
+        ];
     }
 
     /**
@@ -378,25 +393,29 @@ class InitCommand extends ModeAwareCommand implements Decorable
      */
     private function bootstrapSymfonyProject(ProjectType $projectType, string $projectRoot): void
     {
-        $detection = $this->detector->detect($projectRoot);
-        if (!$detection->isSymfonyProject) {
-            // Ensure Symfony CLI is installed before attempting bootstrap
-            if (!$this->bootstrapper->ensureCliInstalled()) {
-                Terminal::error('Cannot create Symfony project without Symfony CLI.');
-                exit(Command::FAILURE);
-            }
-
-            $projectName = $this->wizard->getProjectName($projectRoot);
-
-            if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
-                Terminal::error('Failed to create Symfony project.');
-                exit(Command::FAILURE);
-            }
-
-            // Change to a new project directory
-            $projectRoot = dirname($projectRoot) . '/' . $projectName;
-            chdir($projectRoot);
+        if (!$this->bootstrapper->ensureCliInstalled()) {
+            throw new \RuntimeException('Cannot create Symfony project without Symfony CLI.');
         }
+
+        $projectName = basename($projectRoot);
+        if (!$this->bootstrapper->bootstrap($projectType, $projectName, dirname($projectRoot))) {
+            throw new \RuntimeException('Failed to create Symfony project.');
+        }
+
+        chdir($projectRoot);
+    }
+
+    private function isDirectoryEmpty(string $directory): bool
+    {
+        return array_diff(scandir($directory) ?: [], ['.', '..']) === [];
+    }
+
+    private function dispatchLifecycleEvent(string $event, string $projectRoot): void
+    {
+        $this->lifecycleDispatcher->dispatch($event, new LifecycleEventData(
+            event: $event,
+            projectRoot: $projectRoot,
+        ));
     }
 
     /**

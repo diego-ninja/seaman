@@ -236,7 +236,6 @@ return function (ContainerBuilder $builder): void {
 
         InitCommand::class => factory(
             fn(ContainerInterface $c): InitCommand => new InitCommand(
-                $c->get(SymfonyDetector::class),
                 $c->get(ProjectDetector::class),
                 $c->get(SymfonyProjectBootstrapper::class),
                 $c->get(ConfigurationFactory::class),
