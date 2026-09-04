@@ -47,24 +47,16 @@ test('xdebug command is not available without seaman.yaml', function () {
 });
 
 test('xdebug command is available with seaman.yaml', function () {
-    // Set up managed mode by creating seaman.yaml
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
-    $commandTester = new CommandTester($application->find('xdebug'));
+    $command = $application->find('xdebug');
 
-    // Command should be available but will fail due to no running container
-    $commandTester->execute(['mode' => 'on']);
-
-    // Should not throw CommandNotAvailableException - command runs but fails
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
+    expect($command->getName())->toBe('seaman:xdebug');
 });
 
 test('xdebug command validates mode argument', function () {
-    // Set up managed mode
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
-    file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
     $application = new Application();
     $commandTester = new CommandTester($application->find('xdebug'));

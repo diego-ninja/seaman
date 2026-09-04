@@ -106,26 +106,22 @@ beforeEach(function () {
     HeadlessMode::reset();
     HeadlessMode::enable();
 
-    /** @phpstan-ignore property.notFound */
     $this->projectRoot = TestHelper::createTempDir();
 });
 
 afterEach(function () {
     HeadlessMode::reset();
 
-    /** @phpstan-ignore property.notFound, argument.type */
     TestHelper::removeTempDir($this->projectRoot);
 });
 
 test('selects an explicitly requested database from multiple candidates', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql'),
         'mongodb' => databaseService('mongodb'),
         'redis' => databaseService('redis'),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute(['--service' => 'mongodb']);
 
@@ -134,13 +130,11 @@ test('selects an explicitly requested database from multiple candidates', functi
 });
 
 test('selects the only configured database without prompting', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql'),
         'redis' => databaseService('redis'),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute([]);
 
@@ -149,14 +143,12 @@ test('selects the only configured database without prompting', function () {
 });
 
 test('uses the interactive choice when multiple databases are configured', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql'),
         'mysql' => databaseService('mysql'),
     ]);
     HeadlessMode::preset(['Select database service:' => 'mysql']);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute([]);
 
@@ -165,12 +157,10 @@ test('uses the interactive choice when multiple databases are configured', funct
 });
 
 test('fails when the explicitly requested database does not exist', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql'),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute(['--service' => 'mysql']);
 
@@ -179,12 +169,10 @@ test('fails when the explicitly requested database does not exist', function () 
 });
 
 test('fails when the service option is not a string', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql'),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute(['--service' => ['postgresql']]);
 
@@ -193,12 +181,10 @@ test('fails when the service option is not a string', function () {
 });
 
 test('fails when no database is configured and the option is absent', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'redis' => databaseService('redis'),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute([]);
 
@@ -209,12 +195,10 @@ test('fails when no database is configured and the option is absent', function (
 });
 
 test('fails when the selected database is disabled', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     writeDatabaseSelectionConfig($this->projectRoot, [
         'postgresql' => databaseService('postgresql', false),
     ]);
 
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute([]);
 
@@ -223,7 +207,6 @@ test('fails when the selected database is disabled', function () {
 });
 
 test('fails when the configuration cannot be loaded', function () {
-    /** @phpstan-ignore property.notFound, argument.type */
     $tester = createDatabaseSelectionTester($this->projectRoot);
     $tester->execute([]);
 

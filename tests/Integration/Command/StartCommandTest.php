@@ -54,8 +54,5 @@ test('start command works in unmanaged mode without seaman.yaml', function () {
 
     $commandTester->execute([]);
 
-    // The command might fail if docker-compose cannot actually start containers
-    // (e.g., docker daemon not running, network issues, etc.), but it should
-    // not fail due to missing seaman.yaml.
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
-});
+    expect($commandTester->getDisplay())->not->toContain('seaman.yaml not found');
+})->group('docker');

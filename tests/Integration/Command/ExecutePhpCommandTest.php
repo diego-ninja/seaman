@@ -58,4 +58,4 @@ test('php command works in unmanaged mode without seaman.yaml', function () {
 
     // Should not fail because of missing seaman.yaml
     expect($commandTester->getDisplay())->not->toContain('seaman.yaml not found');
-});
+})->group('docker');
