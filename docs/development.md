@@ -67,7 +67,7 @@ This suite requires a running Docker daemon and Docker Compose V2.
 ### Run with Coverage
 
 ```bash
-vendor/bin/pest --coverage
+XDEBUG_MODE=coverage vendor/bin/pest --exclude-group=docker --coverage
 ```
 
 Enforce the current coverage floor:
