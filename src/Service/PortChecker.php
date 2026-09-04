@@ -19,14 +19,21 @@ final class PortChecker
      */
     public function isPortAvailable(int $port): bool
     {
-        // Try connecting to the port - if connection succeeds, something is listening
-        $connection = @fsockopen('127.0.0.1', $port, $errno, $errstr, 1);
-        if ($connection !== false) {
-            fclose($connection);
-            return false; // Something is listening - port not available
+        set_error_handler(static fn(): bool => true);
+
+        try {
+            $socket = stream_socket_server("tcp://127.0.0.1:{$port}", $errorCode, $errorMessage);
+        } finally {
+            restore_error_handler();
         }
 
-        return true; // Connection refused - port is available
+        if ($socket === false) {
+            return false;
+        }
+
+        fclose($socket);
+
+        return true;
     }
 
     /**
