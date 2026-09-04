@@ -135,6 +135,10 @@ readonly class ConfigManager
             if (!empty($service->environmentVariables)) {
                 $data['services'][$name]['environment'] = $service->environmentVariables;
             }
+
+            if (!empty($service->config)) {
+                $data['services'][$name]['config'] = $service->config;
+            }
         }
 
         // Add proxy configuration
@@ -195,13 +199,26 @@ readonly class ConfigManager
         $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
         $projectType = $projectType ?? $base->projectType;
 
-        return new Configuration(
+        $proxy = array_key_exists('proxy', $overrides)
+            ? $this->proxyParser->parse($overrides, $projectName)
+            : $base->proxy();
+        $customServices = array_key_exists('custom_services', $overrides)
+            ? $this->customServiceParser->parse($overrides)
+            : $base->customServices;
+        $plugins = array_key_exists('plugins', $overrides)
+            ? $this->pluginParser->parse($overrides)
+            : $base->plugins;
+
+        return $base->with(
             projectName: $projectName,
             version: $version,
             php: $this->phpParser->merge($overrides, $base->php),
             services: $this->serviceParser->merge($overrides, $base->services->all()),
             volumes: $this->volumeParser->merge($overrides, $base->volumes->persist),
             projectType: $projectType,
+            proxy: $proxy,
+            customServices: $customServices,
+            plugins: $plugins,
         );
     }
 

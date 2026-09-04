@@ -72,7 +72,26 @@ final readonly class ServiceConfigParser
             port: $this->getInt($serviceData, 'port', 0),
             additionalPorts: $this->parseAdditionalPorts($serviceData),
             environmentVariables: $this->parseEnvironmentVariables($serviceData),
+            config: $this->parseConfig($serviceData),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $serviceData
+     * @return array<string, mixed>
+     */
+    private function parseConfig(array $serviceData): array
+    {
+        $config = $this->getArray($serviceData, 'config');
+        $normalized = [];
+
+        foreach ($config as $key => $value) {
+            if (is_string($key)) {
+                $normalized[$key] = $value;
+            }
+        }
+
+        return $normalized;
     }
 
     /**

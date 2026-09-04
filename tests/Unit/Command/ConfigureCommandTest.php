@@ -100,4 +100,8 @@ test('configure command updates service configuration', function () {
     expect($content)->toContain('new_database');
     expect($content)->toContain('new_user');
     expect($content)->toContain('new_password');
+
+    /** @phpstan-ignore property.notFound, binaryOp.invalid */
+    $composePath = $this->tempDir . '/docker-compose.yml';
+    expect(file_exists($composePath))->toBeTrue();
 });

@@ -14,6 +14,7 @@ final readonly class ServiceConfig
     /**
      * @param list<int> $additionalPorts
      * @param array<string, string> $environmentVariables
+     * @param array<string, mixed> $config
      */
     public function __construct(
         public string $name,
@@ -23,6 +24,7 @@ final readonly class ServiceConfig
         public int $port,
         public array $additionalPorts,
         public array $environmentVariables,
+        public array $config = [],
     ) {}
 
     /**

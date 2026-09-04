@@ -12,7 +12,6 @@ use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -76,13 +75,7 @@ class ServiceRemoveCommand extends ModeAwareCommand implements Decorable
 
         foreach ($selected as $serviceName) {
             $services = $newConfig->services->remove($serviceName);
-            $newConfig = new Configuration(
-                projectName: $newConfig->projectName,
-                version: $newConfig->version,
-                php: $newConfig->php,
-                services: $services,
-                volumes: $newConfig->volumes,
-            );
+            $newConfig = $newConfig->with(services: $services);
         }
 
         $this->configManager->save($newConfig);

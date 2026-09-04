@@ -134,6 +134,10 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
         $updatedRawConfig = $this->configService->mergeConfig($rawConfig, $serviceName, $newConfig);
         $this->saveRawConfig($updatedRawConfig);
 
+        $updatedConfig = $this->configManager->load();
+        $this->configManager->save($updatedConfig);
+        $this->regenerator->regenerate($updatedConfig, (string) getcwd());
+
         Terminal::success("Configuration saved for '{$serviceName}'");
 
         $restartChoice = Prompts::select(
