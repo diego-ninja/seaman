@@ -63,7 +63,13 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $hasSeamanEnvSection = $this->hasSeamanEnvSection($projectRoot);
         $dnsInfo = $this->getDnsCleanupInfo($projectRoot);
 
-        if (empty($filesToRemove) && empty($directoriesToRemove)) {
+        if (
+            empty($filesToRemove)
+            && empty($directoriesToRemove)
+            && $backupFile === null
+            && !$hasSeamanEnvSection
+            && $dnsInfo === null
+        ) {
             Terminal::success('No Seaman files found to clean.');
             return Command::SUCCESS;
         }
@@ -77,12 +83,16 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         // Stop containers first if docker-compose.yml exists
         if (in_array($projectRoot . '/docker-compose.yml', $filesToRemove, true)) {
-            $this->stopContainers();
+            if (!$this->stopContainers()) {
+                return Command::FAILURE;
+            }
         }
 
         // Clean DNS configuration before removing config files
         if ($dnsInfo !== null) {
-            $this->cleanDnsConfiguration($dnsInfo['projectName'], $dnsInfo['provider']);
+            if (!$this->cleanDnsConfiguration($dnsInfo['projectName'], $dnsInfo['provider'])) {
+                return Command::FAILURE;
+            }
         }
 
         // Remove files and directories
@@ -111,7 +121,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $files = [];
         foreach (self::FILES_TO_REMOVE as $file) {
             $path = $projectRoot . '/' . $file;
-            if (file_exists($path)) {
+            if (file_exists($path) || is_link($path)) {
                 $files[] = $path;
             }
         }
@@ -126,7 +136,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $directories = [];
         foreach (self::DIRECTORIES_TO_REMOVE as $dir) {
             $path = $projectRoot . '/' . $dir;
-            if (is_dir($path)) {
+            if (is_dir($path) || is_link($path)) {
                 $directories[] = $path;
             }
         }
@@ -177,17 +187,22 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         )->display();
     }
 
-    private function stopContainers(): void
+    private function stopContainers(): bool
     {
         try {
             $result = $this->dockerManager->destroy();
             if ($result->isSuccessful()) {
                 Terminal::success('Containers stopped and removed');
+                return true;
             }
-        } catch (\RuntimeException) {
-            // Docker compose file might be invalid or containers not running
-            Terminal::info('No containers to stop');
+
+            Terminal::error('Failed to stop and remove containers');
+            Terminal::output()->writeln($result->errorOutput);
+        } catch (\RuntimeException $exception) {
+            Terminal::error($exception->getMessage());
         }
+
+        return false;
     }
 
     /**
@@ -196,7 +211,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     private function removeFiles(array $files): void
     {
         foreach ($files as $file) {
-            if (file_exists($file)) {
+            if (file_exists($file) || is_link($file)) {
                 unlink($file);
             }
         }
@@ -208,7 +223,9 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     private function removeDirectories(array $directories): void
     {
         foreach ($directories as $dir) {
-            if (is_dir($dir)) {
+            if (is_link($dir)) {
+                unlink($dir);
+            } elseif (is_dir($dir)) {
                 $this->removeDirectoryRecursively($dir);
             }
         }
@@ -223,10 +240,13 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         foreach ($files as $file) {
             /** @var \SplFileInfo $file */
-            if ($file->isDir()) {
-                rmdir($file->getRealPath());
+            $path = $file->getPathname();
+            if ($file->isLink()) {
+                unlink($path);
+            } elseif ($file->isDir()) {
+                rmdir($path);
             } else {
-                unlink($file->getRealPath());
+                unlink($path);
             }
         }
 
@@ -385,7 +405,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     /**
      * Clean DNS configuration based on the provider used.
      */
-    private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): void
+    private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): bool
     {
         $result = $this->dnsHelper->executeDnsCleanup($projectName, $provider);
 
@@ -396,5 +416,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
                 Terminal::error($message);
             }
         }
+
+        return $result['success'];
     }
 }

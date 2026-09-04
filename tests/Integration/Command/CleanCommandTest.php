@@ -26,6 +26,12 @@ beforeEach(function () {
         throw new \RuntimeException('Failed to get current working directory');
     }
     $this->originalDir = $originalDir;
+    $this->originalPath = getenv('PATH');
+    $binDir = $this->tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
     chdir($this->tempDir);
 });
 
@@ -33,6 +39,7 @@ afterEach(function () {
     HeadlessMode::reset();
     chdir($this->originalDir);
     TestHelper::cleanupDocker($this->tempDir);
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     TestHelper::removeTempDir($this->tempDir);
 });
 
@@ -115,7 +122,6 @@ test('clean command restores docker-compose backup when available', function () 
     // Create seaman-generated docker-compose
     TestHelper::createMinimalDockerCompose($this->tempDir);
     file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');
-    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     HeadlessMode::preset([
         'This will remove all Seaman files. Are you sure?' => true,
@@ -160,7 +166,6 @@ ENV;
     file_put_contents($this->tempDir . '/.env', $envContent);
     TestHelper::createMinimalDockerCompose($this->tempDir);
     file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');
-    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     HeadlessMode::preset([
         'This will remove all Seaman files. Are you sure?' => true,
@@ -193,7 +198,6 @@ ENV;
     file_put_contents($this->tempDir . '/.env', $envContent);
     TestHelper::createMinimalDockerCompose($this->tempDir);
     file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');
-    mkdir($this->tempDir . '/.seaman', 0755, true);
 
     HeadlessMode::preset([
         'This will remove all Seaman files. Are you sure?' => true,
@@ -226,4 +230,87 @@ test('clean command shows restore info in preview', function () {
     // Command should succeed (cancelled via headless mode default)
     expect($commandTester->getStatusCode())->toBe(0);
     expect($commandTester->getDisplay())->toContain('Operation cancelled');
+});
+
+test('clean command does not dereference symlinks outside the project', function () {
+    $externalDir = sys_get_temp_dir() . '/seaman-external-' . uniqid();
+    mkdir($externalDir, 0755, true);
+    file_put_contents($externalDir . '/keep.txt', 'keep');
+    file_put_contents($externalDir . '/linked-file.txt', 'keep');
+
+    symlink($externalDir, $this->tempDir . '/.seaman/external-dir');
+    symlink($externalDir . '/linked-file.txt', $this->tempDir . '/.seaman/external-file');
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and(file_exists($externalDir . '/keep.txt'))->toBeTrue()
+        ->and(file_exists($externalDir . '/linked-file.txt'))->toBeTrue()
+        ->and(is_dir($this->tempDir . '/.seaman'))->toBeFalse();
+
+    unlink($externalDir . '/keep.txt');
+    unlink($externalDir . '/linked-file.txt');
+    rmdir($externalDir);
+});
+
+test('clean command restores a backup when it is the only artifact', function () {
+    rmdir($this->tempDir . '/.seaman');
+    $backup = $this->tempDir . '/docker-compose.yml.backup-2024-01-01-120000';
+    file_put_contents($backup, "services:\n  app:\n    image: php:8.4-cli\n");
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and(file_exists($this->tempDir . '/docker-compose.yml'))->toBeTrue()
+        ->and(file_exists($backup))->toBeFalse();
+});
+
+test('clean command removes a managed env section when it is the only artifact', function () {
+    rmdir($this->tempDir . '/.seaman');
+    file_put_contents(
+        $this->tempDir . '/.env',
+        "# ---- SEAMAN MANAGED ----\nAPP_PORT=8000\n# ---- END SEAMAN MANAGED ----\n",
+    );
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and(file_exists($this->tempDir . '/.env'))->toBeFalse();
+});
+
+test('clean command preserves local files when Docker cleanup fails', function () {
+    file_put_contents($this->tempDir . '/docker-compose.yml', 'invalid: [');
+    file_put_contents($this->tempDir . '/seaman.yaml', 'project_name: test');
+    file_put_contents($this->tempDir . '/bin/docker', "#!/bin/sh\nexit 1\n");
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(1)
+        ->and(file_exists($this->tempDir . '/docker-compose.yml'))->toBeTrue()
+        ->and(file_exists($this->tempDir . '/seaman.yaml'))->toBeTrue()
+        ->and(is_dir($this->tempDir . '/.seaman'))->toBeTrue();
 });
