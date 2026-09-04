@@ -120,6 +120,8 @@ YAML);
     HeadlessMode::preset([
         'How would you like to proceed?' => 'import',
         'Import these services?' => true,
+        'Configure DNS for local development?' => false,
+        'Continue with this configuration?' => true,
     ]);
 
     $tester = new CommandTester($command);
@@ -161,6 +163,8 @@ YAML;
     HeadlessMode::preset([
         'How would you like to proceed?' => 'import',
         'Import these services?' => true,
+        'Configure DNS for local development?' => false,
+        'Continue with this configuration?' => true,
     ]);
 
     $tester = new CommandTester($command);
@@ -172,6 +176,138 @@ YAML;
         ->and(file_get_contents($composePath))->toBe($originalCompose)
         ->and($backups)->toBe([])
         ->and(is_dir($this->tempDir . '/.seaman'))->toBeFalse();
+});
+
+test('standard initialization does not dispatch after init when confirmation is declined', function (): void {
+    assert(is_string($this->tempDir));
+    mkdir($this->tempDir, 0755, true);
+    mkdir($this->tempDir . '/config');
+    file_put_contents($this->tempDir . '/composer.json', json_encode([
+        'require' => ['symfony/framework-bundle' => '^7.0'],
+    ], JSON_THROW_ON_ERROR));
+    chdir($this->tempDir);
+
+    $afterInitCalls = 0;
+    $plugin = new #[AsSeamanPlugin(name: 'cancelled-standard-test')] class ($afterInitCalls) implements PluginInterface {
+        public function __construct(private int &$afterInitCalls) {}
+
+        public function getName(): string
+        {
+            return 'cancelled-standard-test';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Observes standard initialization cancellation';
+        }
+
+        #[OnLifecycle('after:init')]
+        public function recordAfterInit(): void
+        {
+            ++$this->afterInitCalls;
+        }
+    };
+
+    $pluginRegistry = new PluginRegistry();
+    $pluginRegistry->register($plugin, []);
+    $serviceRegistry = ServiceRegistry::create();
+    $command = new InitCommand(
+        projectDetector: new ProjectDetector(new SymfonyDetector()),
+        bootstrapper: new SymfonyProjectBootstrapper(),
+        configFactory: new ConfigurationFactory($serviceRegistry),
+        summary: new InitializationSummary(),
+        wizard: new InitializationWizard(new PhpVersionDetector()),
+        initializer: new ProjectInitializer($serviceRegistry),
+        dnsManager: new DnsManager(new RealCommandExecutor()),
+        lifecycleDispatcher: new PluginLifecycleDispatcher($pluginRegistry),
+        projectRoot: $this->tempDir,
+    );
+
+    HeadlessMode::enable();
+    HeadlessMode::preset([
+        'Use Traefik as reverse proxy?' => false,
+        'Continue with this configuration?' => false,
+    ]);
+
+    $tester = new CommandTester($command);
+    $status = $tester->execute([]);
+
+    expect($status)->toBe(0)
+        ->and($tester->getDisplay())->toContain('Initialization cancelled')
+        ->and($afterInitCalls)->toBe(0);
+});
+
+test('import initialization does not dispatch after init when confirmation is declined', function (): void {
+    assert(is_string($this->tempDir));
+    mkdir($this->tempDir, 0755, true);
+    file_put_contents($this->tempDir . '/docker-compose.yml', <<<'YAML'
+services:
+  redis:
+    image: redis:7-alpine
+YAML);
+    chdir($this->tempDir);
+
+    $afterInitCalls = 0;
+    $plugin = new #[AsSeamanPlugin(name: 'cancelled-import-test')] class ($afterInitCalls) implements PluginInterface {
+        public function __construct(private int &$afterInitCalls) {}
+
+        public function getName(): string
+        {
+            return 'cancelled-import-test';
+        }
+
+        public function getVersion(): string
+        {
+            return '1.0.0';
+        }
+
+        public function getDescription(): string
+        {
+            return 'Observes import initialization cancellation';
+        }
+
+        #[OnLifecycle('after:init')]
+        public function recordAfterInit(): void
+        {
+            ++$this->afterInitCalls;
+        }
+    };
+
+    $pluginRegistry = new PluginRegistry();
+    $pluginRegistry->register($plugin, []);
+    $serviceRegistry = ServiceRegistry::create();
+    $command = new InitCommand(
+        projectDetector: new ProjectDetector(new SymfonyDetector()),
+        bootstrapper: new SymfonyProjectBootstrapper(),
+        configFactory: new ConfigurationFactory($serviceRegistry),
+        summary: new InitializationSummary(),
+        wizard: new InitializationWizard(new PhpVersionDetector()),
+        initializer: new ProjectInitializer($serviceRegistry),
+        dnsManager: new DnsManager(new RealCommandExecutor()),
+        lifecycleDispatcher: new PluginLifecycleDispatcher($pluginRegistry),
+        projectRoot: $this->tempDir,
+    );
+
+    HeadlessMode::enable();
+    HeadlessMode::preset([
+        'How would you like to proceed?' => 'import',
+        'Import these services?' => true,
+        'Configure DNS for local development?' => false,
+        'Continue with this configuration?' => false,
+    ]);
+
+    $tester = new CommandTester($command);
+    $status = $tester->execute([]);
+
+    expect($status)->toBe(0)
+        ->and($tester->getDisplay())->toContain('Initialization cancelled')
+        ->and($afterInitCalls)->toBe(0)
+        ->and(glob($this->tempDir . '/docker-compose.yml.backup-*'))->toBe([]);
 });
 
 test('symfony detector works correctly', function (): void {

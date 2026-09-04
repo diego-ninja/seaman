@@ -57,6 +57,12 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     {
         $projectRoot = (string) getcwd();
 
+        if ($this->hasMultipleComposeBackupTargets($projectRoot)) {
+            Terminal::error('Cannot clean safely: found multiple Compose backup targets.');
+
+            return Command::FAILURE;
+        }
+
         $composeFile = $this->findManagedComposeFile($projectRoot);
         $filesToRemove = $this->findFilesToRemove($projectRoot, $composeFile);
         $directoriesToRemove = $this->findDirectoriesToRemove($projectRoot);
@@ -300,13 +306,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
      */
     private function findDockerComposeBackup(string $projectRoot): ?string
     {
-        $backups = [];
-        foreach (ComposeFileLocator::supportedFilenames() as $filename) {
-            $matches = glob($projectRoot . '/' . $filename . '.backup-*');
-            if ($matches !== false) {
-                $backups = array_merge($backups, $matches);
-            }
-        }
+        $backups = $this->findDockerComposeBackups($projectRoot);
 
         if (empty($backups)) {
             return null;
@@ -316,6 +316,35 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         usort($backups, fn(string $a, string $b): int => filemtime($b) <=> filemtime($a));
 
         return $backups[0];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function findDockerComposeBackups(string $projectRoot): array
+    {
+        $backups = [];
+        foreach (ComposeFileLocator::supportedFilenames() as $filename) {
+            $matches = glob($projectRoot . '/' . $filename . '.backup-*');
+            if ($matches !== false) {
+                $backups = [...$backups, ...$matches];
+            }
+        }
+
+        return $backups;
+    }
+
+    private function hasMultipleComposeBackupTargets(string $projectRoot): bool
+    {
+        $targets = [];
+        foreach ($this->findDockerComposeBackups($projectRoot) as $backup) {
+            $target = $this->getBackupTarget($backup);
+            if ($target !== null) {
+                $targets[$target] = true;
+            }
+        }
+
+        return count($targets) > 1;
     }
 
     /**
@@ -338,7 +367,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * Restore the original Compose filename and remove all Compose backups.
+     * Restore the original Compose filename and remove its backups.
      */
     private function restoreDockerComposeBackup(string $projectRoot, string $backupFile): void
     {
@@ -356,12 +385,14 @@ class CleanCommand extends ModeAwareCommand implements Decorable
             return;
         }
 
-        // Remove all backup files
+        // Remove only backups for the restored Compose file.
         foreach (ComposeFileLocator::supportedFilenames() as $filename) {
             $backups = glob($projectRoot . '/' . $filename . '.backup-*');
             if ($backups !== false) {
                 foreach ($backups as $backup) {
-                    unlink($backup);
+                    if ($this->getBackupTarget($backup) === $targetPath) {
+                        unlink($backup);
+                    }
                 }
             }
         }

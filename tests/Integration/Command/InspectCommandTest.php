@@ -35,11 +35,11 @@ beforeEach(function () {
     chdir($this->tempDir);
 });
 
-afterEach(function () {
+afterEach(function (): void {
     HeadlessMode::reset();
     chdir($this->originalDir);
-    TestHelper::cleanupDocker($this->tempDir);
     $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
+    TestHelper::cleanupDocker($this->tempDir);
     TestHelper::removeTempDir($this->tempDir);
 });
 

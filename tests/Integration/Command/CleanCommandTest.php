@@ -196,6 +196,36 @@ test('clean command restores docker-compose backup when available', function () 
     expect(is_dir($this->tempDir . '/.seaman'))->toBeFalse();
 });
 
+test('clean command fails closed when backups exist for different Compose targets', function () {
+    $selectedBackup = $this->tempDir . '/docker-compose.yml.backup-2024-01-02-120000';
+    $otherBackup = $this->tempDir . '/compose.yaml.backup-2024-01-01-120000';
+    $selectedContent = "services:\n  selected:\n    image: postgres\n";
+    $otherContent = "services:\n  preserved:\n    image: redis\n";
+
+    file_put_contents($selectedBackup, $selectedContent);
+    file_put_contents($otherBackup, $otherContent);
+    touch($otherBackup, time() - 60);
+    touch($selectedBackup, time());
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+    $managedContent = file_get_contents($this->tempDir . '/docker-compose.yml');
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(1)
+        ->and($commandTester->getDisplay())->toContain('multiple Compose backup targets')
+        ->and(file_get_contents($this->tempDir . '/docker-compose.yml'))->toBe($managedContent)
+        ->and(file_exists($selectedBackup))->toBeTrue()
+        ->and(file_get_contents($selectedBackup))->toBe($selectedContent)
+        ->and(file_exists($otherBackup))->toBeTrue()
+        ->and(file_get_contents($otherBackup))->toBe($otherContent);
+});
+
 test('clean command removes a managed compose.yaml file', function () {
     file_put_contents($this->tempDir . '/compose.yaml', "services: {}\n");
 

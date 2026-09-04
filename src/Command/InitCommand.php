@@ -102,16 +102,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
             $import = $this->handleExistingDockerCompose($projectRoot);
 
             if ($import !== null) {
-                $this->dispatchLifecycleEvent('before:init', $projectRoot);
-                if (!$this->backupDockerCompose($import['composePath'])) {
-                    return Command::FAILURE;
-                }
-
-                $result = $this->executeImportFlow($input, $projectRoot, $import['result']);
-                if ($result === Command::SUCCESS) {
-                    $this->dispatchLifecycleEvent('after:init', $projectRoot);
-                }
-                return $result;
+                return $this->executeImportFlow(
+                    $input,
+                    $projectRoot,
+                    $import['composePath'],
+                    $import['result'],
+                );
             }
         }
 
@@ -121,17 +117,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $this->dispatchLifecycleEvent('before:init', $target['projectRoot']);
-        $result = $this->executeStandardFlow(
+        return $this->executeStandardFlow(
             $input,
             $target['projectRoot'],
             $target['projectType'],
             $target['requiresBootstrap'],
         );
-        if ($result === Command::SUCCESS) {
-            $this->dispatchLifecycleEvent('after:init', $target['projectRoot']);
-        }
-        return $result;
     }
 
     /**
@@ -166,6 +157,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
+        $this->dispatchLifecycleEvent('before:init', $projectRoot);
+
         if ($requiresBootstrap) {
             $this->bootstrapSymfonyProject($projectType, $projectRoot);
         }
@@ -195,6 +188,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
             '  ❤️  Happy coding!',
 
         ]);
+
+        $this->dispatchLifecycleEvent('after:init', $projectRoot);
 
         return Command::SUCCESS;
     }
@@ -296,8 +291,12 @@ class InitCommand extends ModeAwareCommand implements Decorable
     /**
      * @throws \Exception
      */
-    private function executeImportFlow(InputInterface $input, string $projectRoot, ImportResult $importResult): int
-    {
+    private function executeImportFlow(
+        InputInterface $input,
+        string $projectRoot,
+        string $composePath,
+        ImportResult $importResult,
+    ): int {
         $projectName = basename($projectRoot);
 
         // Convert recognized services to ServiceConfig
@@ -358,6 +357,11 @@ class InitCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
+        $this->dispatchLifecycleEvent('before:init', $projectRoot);
+        if (!$this->backupDockerCompose($composePath)) {
+            return Command::FAILURE;
+        }
+
         // Initialize Docker environment
         $this->initializer->initializeDockerEnvironment($config, $projectRoot);
 
@@ -373,6 +377,8 @@ class InitCommand extends ModeAwareCommand implements Decorable
             '',
             '  ❤️  Happy coding!',
         ]);
+
+        $this->dispatchLifecycleEvent('after:init', $projectRoot);
 
         return Command::SUCCESS;
     }
