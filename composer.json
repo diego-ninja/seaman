@@ -75,10 +75,10 @@
     "bin/seaman"
   ],
   "scripts": {
-    "test": "pest --exclude-group=docker",
-    "test:docker": "SEAMAN_DOCKER_TESTS=1 pest --group=docker",
-    "test:all": "SEAMAN_DOCKER_TESTS=1 pest",
-    "test:coverage": "XDEBUG_MODE=coverage pest --exclude-group=docker --coverage --min=64",
+    "test": "pest --exclude-group=docker --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:docker": "SEAMAN_DOCKER_TESTS=1 pest --group=docker --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:all": "SEAMAN_DOCKER_TESTS=1 pest --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:coverage": "XDEBUG_MODE=coverage pest --exclude-group=docker --coverage --min=67 --fail-on-deprecation --fail-on-phpunit-deprecation",
     "phpstan": "phpstan analyse --configuration=phpstan.neon --memory-limit=1G",
     "cs:check": "php-cs-fixer fix --dry-run --diff",
     "cs:fix": "php-cs-fixer fix",
