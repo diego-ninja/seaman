@@ -92,7 +92,7 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $currentServiceConfig = $this->configService->extractServiceConfig($serviceName, $rawConfig);
+        $currentServiceConfig = $this->configService->hydrateServiceConfig($serviceName, $schema, $rawConfig);
 
         /** @var array<string, mixed> */
         $newConfig = [];
@@ -123,6 +123,11 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
                 ),
             };
 
+            if ($promptConfig['type'] === 'password' && $value === '') {
+                $currentValue = $currentServiceConfig[$name] ?? $field->getDefault();
+                $value = is_string($currentValue) ? $currentValue : '';
+            }
+
             if ($field instanceof IntegerField) {
                 $newConfig[$name] = (int) $value;
             } elseif ($field instanceof BooleanField) {
@@ -143,7 +148,7 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
         $this->saveRawConfig($updatedRawConfig);
 
         $updatedConfig = $this->configManager->load();
-        $this->configManager->save($updatedConfig);
+        $this->configManager->generateEnv($updatedConfig);
         $this->regenerator->regenerate($updatedConfig, (string) getcwd());
 
         Terminal::success("Configuration saved for '{$serviceName}'");

@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service;
 
 use Seaman\Plugin\Config\BooleanField;
+use Seaman\Plugin\Config\ConfigSchema;
 use Seaman\Plugin\Config\FieldInterface;
 use Seaman\Plugin\Config\IntegerField;
 use Seaman\Plugin\Config\StringField;
@@ -47,6 +48,84 @@ final readonly class ConfigurationService
 
         /** @var array<string, mixed> */
         return $serviceConfig;
+    }
+
+    /**
+     * @param array<string, mixed> $rawConfig
+     * @return array<string, mixed>
+     */
+    public function hydrateServiceConfig(string $serviceName, ConfigSchema $schema, array $rawConfig): array
+    {
+        $currentConfig = $this->extractServiceConfig($serviceName, $rawConfig);
+        $services = $rawConfig['services'] ?? null;
+        if (!is_array($services)) {
+            return $currentConfig;
+        }
+
+        $service = $services[$serviceName] ?? null;
+        if (!is_array($service)) {
+            return $currentConfig;
+        }
+
+        $normalizedService = [];
+        foreach ($service as $key => $value) {
+            if (is_string($key)) {
+                $normalizedService[$key] = $value;
+            }
+        }
+
+        $additionalPorts = $normalizedService['additional_ports'] ?? [];
+        if (!is_array($additionalPorts)) {
+            $additionalPorts = [];
+        }
+
+        $environment = $this->existingEnvironment($normalizedService);
+        $additionalPortIndex = 0;
+
+        foreach ($schema->getFields() as $fieldName => $field) {
+            $isAdditionalPort = $fieldName !== 'port' && str_ends_with($fieldName, '_port');
+
+            if (array_key_exists($fieldName, $currentConfig)) {
+                if ($isAdditionalPort) {
+                    ++$additionalPortIndex;
+                }
+                continue;
+            }
+
+            $hasCandidate = false;
+            $candidate = null;
+
+            if (array_key_exists($fieldName, $normalizedService)) {
+                $candidate = $normalizedService[$fieldName];
+                $hasCandidate = true;
+            } elseif ($isAdditionalPort && array_key_exists($additionalPortIndex, $additionalPorts)) {
+                $candidate = $additionalPorts[$additionalPortIndex];
+                $hasCandidate = true;
+            } else {
+                foreach ($this->environmentVariableNamesForRead($serviceName, $fieldName) as $variable) {
+                    if (array_key_exists($variable, $environment)) {
+                        $candidate = $environment[$variable];
+                        $hasCandidate = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($isAdditionalPort) {
+                ++$additionalPortIndex;
+            }
+
+            if (!$hasCandidate) {
+                continue;
+            }
+
+            $value = $this->normalizeLegacyValue($field, $candidate);
+            if ($value !== null) {
+                $currentConfig[$fieldName] = $value;
+            }
+        }
+
+        return $currentConfig;
     }
 
     /**
@@ -191,6 +270,57 @@ final readonly class ConfigurationService
         };
 
         return $mapping;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function environmentVariableNamesForRead(string $serviceName, string $configKey): array
+    {
+        $legacyNames = match ($serviceName . ':' . $configKey) {
+            'elasticsearch:security_enabled' => ['xpack.security.enabled'],
+            'rabbitmq:user' => ['RABBITMQ_DEFAULT_USER'],
+            'rabbitmq:password' => ['RABBITMQ_DEFAULT_PASS'],
+            'mercure:jwt_secret' => ['MERCURE_PUBLISHER_JWT_KEY', 'MERCURE_SUBSCRIBER_JWT_KEY'],
+            'soketi:app_id' => ['SOKETI_DEFAULT_APP_ID'],
+            'soketi:app_key' => ['SOKETI_DEFAULT_APP_KEY'],
+            'soketi:app_secret' => ['SOKETI_DEFAULT_APP_SECRET'],
+            default => [],
+        };
+
+        return array_values(array_unique([
+            ...$this->environmentVariableNames($serviceName, $configKey),
+            ...$legacyNames,
+        ]));
+    }
+
+    private function normalizeLegacyValue(FieldInterface $field, mixed $value): string|int|bool|null
+    {
+        if ($field instanceof IntegerField) {
+            if (is_int($value)) {
+                return $value;
+            }
+
+            return is_string($value) && preg_match('/^-?\d+$/', $value) === 1 ? (int) $value : null;
+        }
+
+        if ($field instanceof BooleanField) {
+            if (is_bool($value)) {
+                return $value;
+            }
+
+            if (is_string($value)) {
+                return match (strtolower($value)) {
+                    '1', 'true', 'yes', 'on' => true,
+                    '0', 'false', 'no', 'off' => false,
+                    default => null,
+                };
+            }
+
+            return null;
+        }
+
+        return $field instanceof StringField && is_string($value) ? $value : null;
     }
 
     /**

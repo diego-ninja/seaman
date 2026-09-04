@@ -222,7 +222,7 @@ readonly class ConfigManager
         );
     }
 
-    private function generateEnv(Configuration $config): void
+    public function generateEnv(Configuration $config): void
     {
         $this->generateEnvWithAllocation($config, new PortAllocation());
     }

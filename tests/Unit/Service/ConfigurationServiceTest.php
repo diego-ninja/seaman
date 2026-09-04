@@ -147,6 +147,58 @@ test('ConfigurationService maps additional ports and plugin-specific variables',
         ]);
 });
 
+test('ConfigurationService hydrates typed legacy values without overriding modern config', function () {
+    $service = new ConfigurationService();
+    $schema = ConfigSchema::create()
+        ->string('version', default: '3-management')
+        ->integer('port', default: 5672)
+        ->integer('management_port', default: 15672)
+        ->string('user', default: 'seaman')
+        ->string('password', default: 'seaman')->secret()
+        ->boolean('tls', default: false);
+
+    $result = $service->hydrateServiceConfig('rabbitmq', $schema, [
+        'services' => [
+            'rabbitmq' => [
+                'version' => '4.0-management',
+                'port' => 5673,
+                'additional_ports' => [15673],
+                'environment' => [
+                    'RABBITMQ_DEFAULT_USER' => 'legacy-user',
+                    'RABBITMQ_DEFAULT_PASS' => 'legacy-secret',
+                    'RABBITMQ_TLS' => 'true',
+                ],
+                'config' => ['port' => 5674],
+            ],
+        ],
+    ]);
+
+    expect($result)->toMatchArray([
+        'version' => '4.0-management',
+        'port' => 5674,
+        'management_port' => 15673,
+        'user' => 'legacy-user',
+        'password' => 'legacy-secret',
+        'tls' => true,
+    ]);
+});
+
+test('ConfigurationService preserves legacy Elasticsearch security settings', function () {
+    $service = new ConfigurationService();
+    $schema = ConfigSchema::create()
+        ->boolean('security_enabled', default: false);
+
+    $result = $service->hydrateServiceConfig('elasticsearch', $schema, [
+        'services' => [
+            'elasticsearch' => [
+                'environment' => ['xpack.security.enabled' => 'true'],
+            ],
+        ],
+    ]);
+
+    expect($result['security_enabled'] ?? null)->toBeTrue();
+});
+
 test('ConfigurationService renders text field config', function () {
     $service = new ConfigurationService();
 

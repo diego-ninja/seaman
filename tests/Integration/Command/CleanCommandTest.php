@@ -146,6 +146,76 @@ test('clean command restores docker-compose backup when available', function () 
     expect(is_dir($this->tempDir . '/.seaman'))->toBeFalse();
 });
 
+test('clean command removes a managed compose.yaml file', function () {
+    file_put_contents($this->tempDir . '/compose.yaml', "services: {}\n");
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and(file_exists($this->tempDir . '/compose.yaml'))->toBeFalse();
+});
+
+test('clean command preserves an unmanaged Compose file', function () {
+    rmdir($this->tempDir . '/.seaman');
+    file_put_contents($this->tempDir . '/compose.yaml', "services: {}\n");
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and($commandTester->getDisplay())->toContain('No Seaman files found')
+        ->and(file_exists($this->tempDir . '/compose.yaml'))->toBeTrue();
+});
+
+test('clean command restores a docker-compose.yaml backup to its original name', function () {
+    $backup = $this->tempDir . '/docker-compose.yaml.backup-2024-01-01-120000';
+    $backupContent = "services:\n  legacy:\n    image: alpine\n";
+    file_put_contents($backup, $backupContent);
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and(file_exists($this->tempDir . '/docker-compose.yml'))->toBeFalse()
+        ->and(file_get_contents($this->tempDir . '/docker-compose.yaml'))->toBe($backupContent)
+        ->and(file_exists($backup))->toBeFalse();
+});
+
+test('clean command does not overwrite a Compose file when restoring a backup', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+    $userCompose = $this->tempDir . '/compose.yaml';
+    $backup = $userCompose . '.backup-2024-01-01-120000';
+    file_put_contents($userCompose, "services:\n  user-service:\n    image: alpine\n");
+    file_put_contents($backup, "services:\n  legacy-service:\n    image: busybox\n");
+
+    HeadlessMode::preset([
+        'This will remove all Seaman files. Are you sure?' => true,
+    ]);
+
+    $application = new Application();
+    $commandTester = new CommandTester($application->find('clean'));
+    $commandTester->execute([]);
+
+    expect($commandTester->getStatusCode())->toBe(1)
+        ->and($commandTester->getDisplay())->toContain('would overwrite')
+        ->and(file_exists($this->tempDir . '/docker-compose.yml'))->toBeTrue()
+        ->and(file_get_contents($userCompose))->toContain('user-service')
+        ->and(file_exists($backup))->toBeTrue();
+});
+
 test('clean command removes seaman section from env file', function () {
     $envContent = <<<'ENV'
 APP_NAME=MyApp

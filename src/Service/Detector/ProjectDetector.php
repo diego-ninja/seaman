@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Service\Detector;
 
 use Seaman\Enum\ProjectType;
+use Seaman\Service\ComposeFileLocator;
 
 final readonly class ProjectDetector
 {
@@ -23,21 +24,12 @@ final readonly class ProjectDetector
 
     public function hasDockerCompose(string $directory): bool
     {
-        return file_exists($directory . '/docker-compose.yml')
-            || file_exists($directory . '/docker-compose.yaml');
+        return $this->getDockerComposePath($directory) !== null;
     }
 
     public function getDockerComposePath(string $directory): ?string
     {
-        if (file_exists($directory . '/docker-compose.yml')) {
-            return $directory . '/docker-compose.yml';
-        }
-
-        if (file_exists($directory . '/docker-compose.yaml')) {
-            return $directory . '/docker-compose.yaml';
-        }
-
-        return null;
+        return (new ComposeFileLocator($directory))->find();
     }
 
     public function hasSeamanConfig(string $directory): bool

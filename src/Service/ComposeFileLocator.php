@@ -25,7 +25,7 @@ final readonly class ComposeFileLocator
     {
         foreach (self::FILENAMES as $filename) {
             $path = $this->projectPath . '/' . $filename;
-            if (file_exists($path)) {
+            if (file_exists($path) || is_link($path)) {
                 return $path;
             }
         }
@@ -38,5 +38,13 @@ final readonly class ComposeFileLocator
         return $this->find() ?? throw new \RuntimeException(
             "Docker Compose file not found in: {$this->projectPath}",
         );
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function supportedFilenames(): array
+    {
+        return self::FILENAMES;
     }
 }
