@@ -1,4 +1,4 @@
-name: Quality
+name: Docker Integration
 
 on:
   push:
@@ -14,9 +14,10 @@ permissions:
   contents: read
 
 jobs:
-  quality:
+  docker:
     runs-on: ubuntu-latest
-    name: PHP 8.5 quality gates
+    timeout-minutes: 20
+    name: PHP 8.5 Docker integration
 
     steps:
       - name: Checkout code
@@ -27,30 +28,16 @@ jobs:
         with:
           php-version: '8.5'
           extensions: dom, curl, libxml, mbstring, pcntl, posix, zip
-          coverage: xdebug
-          ini-values: phar.readonly=0
-          tools: composer, box
+          coverage: none
+          tools: composer
 
       - name: Install dependencies
         run: composer install --prefer-dist --no-interaction --no-progress
 
-      - name: Validate Composer metadata
-        run: composer validate --strict
+      - name: Verify Docker and Compose
+        run: |
+          docker info
+          docker compose version
 
-      - name: Audit locked dependencies
-        run: composer audit --locked
-
-      - name: Run PHPStan
-        run: composer phpstan
-
-      - name: Check code style
-        run: composer cs:check
-
-      - name: Run deterministic tests with coverage
-        run: composer test:coverage
-
-      - name: Build PHAR
-        run: composer build
-
-      - name: Smoke test PHAR
-        run: dist/seaman.phar --version
+      - name: Run Docker integration tests
+        run: composer test:docker -- --compact
