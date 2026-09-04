@@ -24,6 +24,7 @@ use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
 use Seaman\Exception\FileNotFoundException;
 use Seaman\Exception\YamlParseException;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * @property string $tempDir
@@ -241,6 +242,90 @@ test('round-trips the complete configuration without data loss', function () {
         ->and($loaded->customServices->all())->toBe($config->customServices->all())
         ->and($loaded->plugins)->toBe($config->plugins)
         ->and($loaded->services->get('postgresql')->config)->toBe($service->config);
+});
+
+test('preserves unmodelled YAML while saving an updated service collection', function () {
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $seamanDir = $tempDir . '/.seaman';
+    mkdir($seamanDir, 0755, true);
+
+    $yamlPath = $seamanDir . '/seaman.yaml';
+    file_put_contents($yamlPath, Yaml::dump([
+        'project_name' => 'preservation-test',
+        'version' => '1.0',
+        'project_type' => 'existing',
+        'deployment' => ['strategy' => 'blue-green'],
+        'php' => [
+            'version' => '8.4',
+            'server' => 'symfony',
+            'extensions' => ['intl', 'redis'],
+            'xdebug' => [
+                'enabled' => true,
+                'ide_key' => 'CUSTOM',
+                'client_host' => '127.0.0.1',
+            ],
+        ],
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'version' => '16',
+                'port' => 5432,
+                'healthcheck' => ['test' => ['CMD-SHELL', 'pg_isready']],
+            ],
+            'redis' => [
+                'enabled' => true,
+                'type' => 'redis',
+                'version' => '7-alpine',
+                'port' => 6379,
+            ],
+        ],
+        'volumes' => ['persist' => ['postgresql', 'redis']],
+    ], 5, 2));
+
+    $loaded = $manager->load();
+    $postgresql = $loaded->services->get('postgresql');
+    $updatedPostgresql = new ServiceConfig(
+        name: $postgresql->name,
+        enabled: $postgresql->enabled,
+        type: $postgresql->type,
+        version: $postgresql->version,
+        port: 55432,
+        additionalPorts: $postgresql->additionalPorts,
+        environmentVariables: $postgresql->environmentVariables,
+        config: $postgresql->config,
+    );
+
+    $manager->save($loaded->with(
+        services: new ServiceCollection(['postgresql' => $updatedPostgresql]),
+    ));
+
+    $saved = Yaml::parseFile($yamlPath);
+    expect($saved)->toBeArray();
+
+    /** @var array<string, mixed> $saved */
+    expect([
+        'top_level' => $saved['deployment'] ?? null,
+        'php_extensions' => $saved['php']['extensions'] ?? null,
+        'xdebug' => $saved['php']['xdebug'] ?? null,
+        'service_field' => $saved['services']['postgresql']['healthcheck'] ?? null,
+        'updated_port' => $saved['services']['postgresql']['port'] ?? null,
+        'removed_service_present' => array_key_exists('redis', $saved['services']),
+    ])->toBe([
+        'top_level' => ['strategy' => 'blue-green'],
+        'php_extensions' => ['intl', 'redis'],
+        'xdebug' => [
+            'enabled' => true,
+            'ide_key' => 'CUSTOM',
+            'client_host' => '127.0.0.1',
+        ],
+        'service_field' => ['test' => ['CMD-SHELL', 'pg_isready']],
+        'updated_port' => 55432,
+        'removed_service_present' => false,
+    ]);
 });
 
 test('generates .env file when saving', function () {
