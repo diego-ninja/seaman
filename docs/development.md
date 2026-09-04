@@ -340,7 +340,7 @@ services:
 
 ### Code Standards
 
-1. **PHP 8.4 Features**: Use modern PHP (property hooks, asymmetric visibility, etc.)
+1. **PHP 8.5 Features**: Use modern PHP features available in the supported runtime
 2. **Strict Types**: All files must have `declare(strict_types=1);`
 3. **Type Safety**: PHPStan level 10 compliance
 4. **Test Coverage**: 95%+ coverage for all new code

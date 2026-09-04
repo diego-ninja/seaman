@@ -1,6 +1,6 @@
 {
   "name": "seaman/seaman",
-  "description": "Docker development environment manager for Symfony 8+",
+  "description": "Docker development environment manager for Symfony 7+",
   "type": "project",
   "license": "MIT",
   "authors": [
