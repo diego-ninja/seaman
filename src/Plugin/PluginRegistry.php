@@ -18,8 +18,12 @@ final class PluginRegistry
     /**
      * @param array<string, mixed> $config
      */
-    public function register(PluginInterface $plugin, array $config, string $source = 'unknown'): void
-    {
+    public function register(
+        PluginInterface $plugin,
+        array $config,
+        string $source = 'unknown',
+        ?string $packageName = null,
+    ): void {
         $name = $plugin->getName();
 
         // Validate config if plugin defines a schema
@@ -29,6 +33,7 @@ final class PluginRegistry
             instance: $plugin,
             config: new PluginConfig($validatedConfig),
             source: $source,
+            packageName: $packageName,
         );
     }
 
@@ -76,9 +81,10 @@ final class PluginRegistry
 
         // 2. Load Composer plugins (can override bundled)
         $composerLoader = new Loader\ComposerPluginLoader($projectRoot);
-        foreach ($composerLoader->load() as $plugin) {
+        foreach ($composerLoader->loadWithPackageNames() as $candidate) {
+            $plugin = $candidate['plugin'];
             $config = $pluginConfig[$plugin->getName()] ?? [];
-            $registry->register($plugin, $config, 'composer');
+            $registry->register($plugin, $config, 'composer', $candidate['packageName']);
         }
 
         // 3. Load local plugins (highest priority, can override all)

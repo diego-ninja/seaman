@@ -29,9 +29,11 @@ test('LoadedPlugin stores plugin instance and metadata', function (): void {
         instance: $plugin,
         config: $config,
         source: 'composer',
+        packageName: 'acme/test-plugin',
     );
 
     expect($loaded->instance)->toBe($plugin);
     expect($loaded->config)->toBe($config);
     expect($loaded->source)->toBe('composer');
+    expect($loaded->packageName)->toBe('acme/test-plugin');
 });

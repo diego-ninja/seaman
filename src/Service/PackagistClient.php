@@ -66,8 +66,12 @@ final class PackagistClient
 
         try {
             $response = $this->request($url);
-        } catch (PackagistException) {
-            return null;
+        } catch (PackagistException $exception) {
+            if ($exception->getCode() === 404) {
+                return null;
+            }
+
+            throw $exception;
         }
 
         /** @var array<string, mixed>|null $package */
@@ -210,6 +214,12 @@ final class PackagistClient
 
         $response = @file_get_contents($url, false, $context);
 
+        $statusCode = 0;
+        if (isset($http_response_header[0])) {
+            preg_match('/\s(\d{3})\s/', $http_response_header[0], $matches);
+            $statusCode = isset($matches[1]) ? (int) $matches[1] : 0;
+        }
+
         if ($response === false) {
             throw new PackagistException('Failed to connect to Packagist API');
         }
@@ -225,7 +235,7 @@ final class PackagistClient
             $message = isset($data['message']) && is_string($data['message'])
                 ? $data['message']
                 : 'Packagist API error';
-            throw new PackagistException($message);
+            throw new PackagistException($message, $statusCode);
         }
 
         return $data;
