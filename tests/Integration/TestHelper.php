@@ -44,6 +44,10 @@ class TestHelper
      */
     public static function cleanupDocker(string $dir): void
     {
+        if (getenv('SEAMAN_DOCKER_TESTS') !== '1') {
+            return;
+        }
+
         // Extract project name from directory (matches Docker Compose naming)
         $projectName = basename($dir);
 
@@ -62,6 +66,10 @@ class TestHelper
      */
     public static function cleanupOrphanedNetworks(): void
     {
+        if (getenv('SEAMAN_DOCKER_TESTS') !== '1') {
+            return;
+        }
+
         // First remove containers matching seaman-test-* pattern
         exec("docker ps -a --filter 'name=seaman-test-' -q | xargs -r docker rm -f 2>/dev/null");
 

@@ -1,0 +1,53 @@
+name: Quality
+
+on:
+  push:
+    branches: [ main, master, develop, feature/*, codex/* ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    name: PHP 8.4 quality gates
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          extensions: dom, curl, libxml, mbstring, pcntl, posix, zip
+          coverage: xdebug
+          ini-values: phar.readonly=0
+          tools: composer, box
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Validate Composer metadata
+        run: composer validate --strict
+
+      - name: Audit locked dependencies
+        run: composer audit --locked
+
+      - name: Run PHPStan
+        run: composer phpstan
+
+      - name: Check code style
+        run: composer cs:check
+
+      - name: Run deterministic tests with coverage
+        run: composer test:coverage
+
+      - name: Build PHAR
+        run: composer build
+
+      - name: Smoke test PHAR
+        run: dist/seaman.phar --version

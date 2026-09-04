@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Tests for ComposeImporter service.
 // ABOUTME: Validates docker-compose.yaml import and service categorization.
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use PHPUnit\Framework\Attributes\Test;
 use Seaman\Enum\Confidence;

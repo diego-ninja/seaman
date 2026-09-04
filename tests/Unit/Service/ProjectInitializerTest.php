@@ -22,9 +22,16 @@ beforeEach(function () {
     $this->testDir = sys_get_temp_dir() . '/seaman-init-test-' . uniqid();
     mkdir($this->testDir);
     $this->registry = ServiceRegistry::create();
+    $this->originalPath = getenv('PATH');
+    $binDir = $this->testDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
 });
 
 afterEach(function () {
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     if (isset($this->testDir) && is_dir($this->testDir)) {
         exec("rm -rf {$this->testDir}");
     }

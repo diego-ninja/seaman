@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Tests for DockerComposeGenerator service.
 // ABOUTME: Validates docker-compose.yml generation from configuration.
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\Service;

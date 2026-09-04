@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Plugin;
+namespace Seaman\Tests\Unit\Plugin;
 
 use Seaman\Plugin\LifecycleEventData;
 

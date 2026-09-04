@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Integration tests for RebuildCommand.
 // ABOUTME: Validates image rebuilding functionality.
 
-namespace Tests\Integration\Command;
+namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Exception\FileNotFoundException;

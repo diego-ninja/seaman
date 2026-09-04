@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration\Command;
+namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Enum\ProjectType;
@@ -83,6 +83,13 @@ test('init command creates configuration with preset responses', function (): vo
     mkdir($this->tempDir . '/src');
     mkdir($this->tempDir . '/config');
 
+    $binDir = $this->tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    $originalPath = getenv('PATH');
+    putenv('PATH=' . $binDir . ':' . ($originalPath === false ? '' : $originalPath));
+
     HeadlessMode::enable();
     HeadlessMode::preset([
         'Select PHP version (default: 8.4)' => '8.4',
@@ -94,9 +101,13 @@ test('init command creates configuration with preset responses', function (): vo
         'Continue with this configuration?' => true,
     ]);
 
-    $app = new Application();
-    $tester = new CommandTester($app->find('init'));
-    $tester->execute([]);
+    try {
+        $app = new Application();
+        $tester = new CommandTester($app->find('init'));
+        $tester->execute([]);
+    } finally {
+        $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
+    }
 
     expect(file_exists($this->tempDir . '/.seaman/seaman.yaml'))->toBeTrue();
 });

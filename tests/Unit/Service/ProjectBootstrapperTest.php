@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\ProjectType;
 use Seaman\Service\SymfonyProjectBootstrapper;

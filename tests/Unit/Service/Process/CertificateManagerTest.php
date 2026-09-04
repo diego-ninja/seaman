@@ -7,31 +7,8 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service\Process;
 
-use Seaman\Contract\CommandExecutor;
 use Seaman\Service\Process\CertificateManager;
 use Seaman\ValueObject\CertificateResult;
-use Seaman\ValueObject\ProcessResult;
-
-// Fake CommandExecutor for testing
-final readonly class FakeCommandExecutor implements CommandExecutor
-{
-    public function __construct(
-        private bool $mkcertAvailable = true,
-    ) {}
-
-    public function execute(array $command): ProcessResult
-    {
-        // Simulate 'which mkcert' check
-        if ($command[0] === 'which' && $command[1] === 'mkcert') {
-            return new ProcessResult(
-                exitCode: $this->mkcertAvailable ? 0 : 1,
-            );
-        }
-
-        // All other commands succeed (mkcert, openssl)
-        return new ProcessResult(exitCode: 0);
-    }
-}
 
 test('generates certificates with mkcert when available', function () {
     $executor = new FakeCommandExecutor(mkcertAvailable: true);

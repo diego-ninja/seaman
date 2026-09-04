@@ -26,6 +26,12 @@ beforeEach(function () {
         throw new \RuntimeException('Failed to get current working directory');
     }
     $this->originalDir = $originalDir;
+    $this->originalPath = getenv('PATH');
+    $binDir = $this->tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
     chdir($this->tempDir);
 });
 
@@ -33,6 +39,7 @@ afterEach(function () {
     HeadlessMode::reset();
     chdir($this->originalDir);
     TestHelper::cleanupDocker($this->tempDir);
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     TestHelper::removeTempDir($this->tempDir);
 });
 

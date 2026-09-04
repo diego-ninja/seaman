@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\ProjectType;

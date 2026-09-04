@@ -9,7 +9,7 @@ declare(strict_types=1);
  * @property string $projectRoot
  */
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Enum\ServerType;
@@ -26,9 +26,17 @@ beforeEach(function (): void {
         $this->projectRoot . '/.seaman/Dockerfile',
         "FROM ubuntu:24.04\nRUN echo 'test'",
     );
+
+    $this->originalPath = getenv('PATH');
+    $binDir = $this->projectRoot . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
 });
 
 afterEach(function (): void {
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     if (is_dir($this->projectRoot)) {
         exec("rm -rf {$this->projectRoot}");
     }
@@ -56,5 +64,5 @@ test('build completes successfully', function (): void {
 
     // Build should complete successfully with Docker available
     expect($result)->toBeInstanceOf(ProcessResult::class)
-        ->and($result->exitCode)->toBeLessThanOrEqual(1);
+        ->and($result->isSuccessful())->toBeTrue();
 });

@@ -23,7 +23,7 @@ jobs:
           coverage: none
 
       - name: Install dependencies
-        run: composer update --prefer-stable --prefer-dist --no-interaction
+        run: composer install --prefer-dist --no-interaction --no-progress
 
       - name: Check code style
         run: vendor/bin/php-cs-fixer fix --dry-run --diff --verbose

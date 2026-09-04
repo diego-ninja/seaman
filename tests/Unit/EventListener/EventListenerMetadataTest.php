@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\EventListener;
+namespace Seaman\Tests\Unit\EventListener;
 
 use Seaman\EventListener\EventListenerMetadata;
 use Symfony\Component\Console\ConsoleEvents;

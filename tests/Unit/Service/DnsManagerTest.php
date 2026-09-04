@@ -7,60 +7,9 @@ declare(strict_types=1);
 
 namespace Seaman\Tests\Unit\Service;
 
-use Seaman\Contract\CommandExecutor;
 use Seaman\Enum\DnsProvider;
 use Seaman\Service\DnsManager;
 use Seaman\ValueObject\DnsConfigurationResult;
-use Seaman\ValueObject\ProcessResult;
-
-// Fake CommandExecutor for testing
-final readonly class FakeDnsCommandExecutor implements CommandExecutor
-{
-    public function __construct(
-        private bool $hasDnsmasq = false,
-        private bool $hasSystemdResolved = false,
-        private bool $hasNetworkManager = false,
-        private bool $isDnsmasqRunning = false,
-        private bool $isPort53Occupied = false,
-    ) {}
-
-    public function execute(array $command): ProcessResult
-    {
-        // Simulate 'which dnsmasq' check
-        if ($command[0] === 'which' && $command[1] === 'dnsmasq') {
-            return new ProcessResult(
-                exitCode: $this->hasDnsmasq ? 0 : 1,
-            );
-        }
-
-        // Simulate 'systemctl is-active' checks
-        if ($command[0] === 'systemctl' && $command[1] === 'is-active') {
-            if ($command[2] === 'systemd-resolved') {
-                return new ProcessResult(
-                    exitCode: $this->hasSystemdResolved ? 0 : 1,
-                );
-            }
-            if ($command[2] === 'NetworkManager') {
-                return new ProcessResult(
-                    exitCode: $this->hasNetworkManager ? 0 : 1,
-                );
-            }
-            if ($command[2] === 'dnsmasq') {
-                return new ProcessResult(
-                    exitCode: $this->isDnsmasqRunning ? 0 : 1,
-                );
-            }
-        }
-
-        // Simulate 'ss -tlnp' for port 53 check
-        if ($command[0] === 'ss' && in_array('-tlnp', $command, true)) {
-            $output = $this->isPort53Occupied ? '127.0.0.53:53' : '';
-            return new ProcessResult(exitCode: 0, output: $output);
-        }
-
-        return new ProcessResult(exitCode: 0);
-    }
-}
 
 test('detects dnsmasq and returns automatic configuration', function () {
     // dnsmasq available and running (port 53 can be used)

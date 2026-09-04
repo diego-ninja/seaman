@@ -5,6 +5,8 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  schedule:
+    - cron: '23 6 * * 1'
 
 jobs:
   security-audit:
@@ -30,7 +32,7 @@ jobs:
             ${{ runner.os }}-php-8.4-composer-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress --no-suggest
+        run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Security audit
-        run: composer audit
+        run: composer audit --locked

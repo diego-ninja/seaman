@@ -29,12 +29,19 @@ services:
 YAML;
 
     file_put_contents($this->tempDir . '/docker-compose.yml', $composeContent);
+    $this->originalPath = getenv('PATH');
+    $binDir = $this->tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 1\n");
+    chmod($binDir . '/docker', 0755);
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
     $this->manager = new DockerManager($this->tempDir);
 });
 
 afterEach(function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     if (is_dir($tempDir)) {
         // Remove all files recursively
         $files = new \RecursiveIteratorIterator(
@@ -284,7 +291,6 @@ test('uses Docker Compose V2 command', function () {
     $tempDir = $this->tempDir;
     $binDir = $tempDir . '/bin';
     $argumentsFile = $tempDir . '/arguments';
-    mkdir($binDir);
     file_put_contents($binDir . '/docker', "#!/bin/sh\nprintf '%s' \"\$*\" > " . escapeshellarg($argumentsFile) . "\n");
     chmod($binDir . '/docker', 0755);
 
@@ -308,7 +314,6 @@ test('keeps the final status record without a trailing newline', function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
     $binDir = $tempDir . '/bin';
-    mkdir($binDir);
     file_put_contents(
         $binDir . '/docker',
         "#!/bin/sh\nprintf '%s' '{\"Service\":\"web\",\"State\":\"running\"}'\n",
@@ -332,7 +337,6 @@ test('reports non-follow process timeouts as failures', function () {
     /** @var string $tempDir */
     $tempDir = $this->tempDir;
     $binDir = $tempDir . '/bin';
-    mkdir($binDir);
     file_put_contents($binDir . '/docker', "#!/bin/sh\nsleep 1\n");
     chmod($binDir . '/docker', 0755);
 
