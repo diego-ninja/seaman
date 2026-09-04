@@ -4,6 +4,7 @@
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=${ELASTICSEARCH_SECURITY_ENABLED:-false}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-seaman}
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     ports:
       - "${ELASTICSEARCH_PORT}:9200"
@@ -20,7 +21,7 @@
       - {{ name }}:/usr/share/elasticsearch/data
 {% endif %}
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -u \"elastic:$${ELASTIC_PASSWORD:-seaman}\" http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
