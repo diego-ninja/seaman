@@ -10,6 +10,7 @@ namespace Seaman\Command;
 use Seaman\Contract\Decorable;
 use Seaman\Enum\OperatingMode;
 use Seaman\Plugin\Config\BooleanField;
+use Seaman\Plugin\Config\ConfigValidationException;
 use Seaman\Plugin\Config\IntegerField;
 use Seaman\Service\ComposeRegenerator;
 use Seaman\Service\ConfigManager;
@@ -91,7 +92,7 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
             return Command::FAILURE;
         }
 
-        $currentServiceConfig = $this->configService->extractServiceConfig($serviceName, $rawConfig);
+        $currentServiceConfig = $this->configService->hydrateServiceConfig($serviceName, $schema, $rawConfig);
 
         /** @var array<string, mixed> */
         $newConfig = [];
@@ -122,6 +123,11 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
                 ),
             };
 
+            if ($promptConfig['type'] === 'password' && $value === '') {
+                $currentValue = $currentServiceConfig[$name] ?? $field->getDefault();
+                $value = is_string($currentValue) ? $currentValue : '';
+            }
+
             if ($field instanceof IntegerField) {
                 $newConfig[$name] = (int) $value;
             } elseif ($field instanceof BooleanField) {
@@ -131,8 +137,19 @@ final class ConfigureCommand extends ModeAwareCommand implements Decorable
             }
         }
 
+        try {
+            $newConfig = $schema->validate($newConfig);
+        } catch (ConfigValidationException $e) {
+            Terminal::error($e->getMessage());
+            return Command::FAILURE;
+        }
+
         $updatedRawConfig = $this->configService->mergeConfig($rawConfig, $serviceName, $newConfig);
         $this->saveRawConfig($updatedRawConfig);
+
+        $updatedConfig = $this->configManager->load();
+        $this->configManager->generateEnv($updatedConfig);
+        $this->regenerator->regenerate($updatedConfig, (string) getcwd());
 
         Terminal::success("Configuration saved for '{$serviceName}'");
 

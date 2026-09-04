@@ -39,7 +39,11 @@ final class ElasticsearchPlugin implements PluginInterface
                 ->description('Host port for HTTP API')
             ->boolean('security_enabled', default: false)
                 ->label('Enable security')
-                ->description('Enable authentication and TLS');
+                ->description('Enable authentication and TLS')
+            ->string('password', default: 'seaman')
+                ->label('Elastic user password')
+                ->description('Bootstrap password for the elastic user')
+                ->secret();
 
         $this->config = $this->schema->validate([]);
     }
@@ -91,9 +95,13 @@ final class ElasticsearchPlugin implements PluginInterface
                 'version' => $this->config['version'],
                 'port' => $this->config['port'],
                 'security_enabled' => $this->config['security_enabled'],
+                'password' => $this->config['password'],
             ],
             healthCheck: new HealthCheck(
-                test: ['CMD-SHELL', 'curl -f http://localhost:9200/_cluster/health || exit 1'],
+                test: [
+                    'CMD-SHELL',
+                    'curl -fsS -u "elastic:${ELASTIC_PASSWORD:-seaman}" http://localhost:9200/_cluster/health || exit 1',
+                ],
                 interval: '10s',
                 timeout: '5s',
                 retries: 5,

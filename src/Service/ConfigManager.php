@@ -96,6 +96,7 @@ readonly class ConfigManager
             proxy: $this->proxyParser->parse($data, $projectName),
             customServices: $this->customServiceParser->parse($data),
             plugins: $this->pluginParser->parse($data),
+            sourceData: $data,
         );
     }
 
@@ -135,6 +136,10 @@ readonly class ConfigManager
             if (!empty($service->environmentVariables)) {
                 $data['services'][$name]['environment'] = $service->environmentVariables;
             }
+
+            if (!empty($service->config)) {
+                $data['services'][$name]['config'] = $service->config;
+            }
         }
 
         // Add proxy configuration
@@ -159,6 +164,8 @@ readonly class ConfigManager
             $data['plugins'] = $config->plugins;
         }
 
+        $data = $this->preserveUnmodelledData($config->sourceData(), $data);
+
         $yamlContent = Yaml::dump($data, 4, 2);
 
         // Ensure .seaman directory exists
@@ -174,6 +181,110 @@ readonly class ConfigManager
         }
 
         $this->generateEnv($config);
+    }
+
+    /**
+     * @param array<string, mixed> $source
+     * @param array<string, mixed> $serialized
+     * @return array<string, mixed>
+     */
+    private function preserveUnmodelledData(array $source, array $serialized): array
+    {
+        $data = $this->withoutKeys($source, [
+            'project_name',
+            'version',
+            'project_type',
+            'php',
+            'services',
+            'volumes',
+            'proxy',
+            'custom_services',
+            'plugins',
+        ]);
+
+        $sourcePhp = $this->arrayValue($source, 'php');
+        $serializedPhp = $this->arrayValue($serialized, 'php');
+        $sourceXdebug = $this->arrayValue($sourcePhp, 'xdebug');
+        $serializedXdebug = $this->arrayValue($serializedPhp, 'xdebug');
+        $serializedPhp['xdebug'] = array_replace(
+            $this->withoutKeys($sourceXdebug, ['enabled', 'ide_key', 'client_host']),
+            $serializedXdebug,
+        );
+        $serialized['php'] = array_replace(
+            $this->withoutKeys($sourcePhp, ['version', 'server', 'xdebug']),
+            $serializedPhp,
+        );
+
+        $sourceServices = $this->arrayValue($source, 'services');
+        $serializedServices = $this->arrayValue($serialized, 'services');
+        foreach ($serializedServices as $name => $service) {
+            if (!is_array($service)) {
+                continue;
+            }
+
+            $sourceService = $this->arrayValue($sourceServices, $name);
+            $serializedServices[$name] = array_replace(
+                $this->withoutKeys($sourceService, [
+                    'enabled',
+                    'type',
+                    'version',
+                    'port',
+                    'additional_ports',
+                    'environment',
+                    'config',
+                ]),
+                $service,
+            );
+        }
+        $serialized['services'] = $serializedServices;
+
+        $serialized['volumes'] = array_replace(
+            $this->withoutKeys($this->arrayValue($source, 'volumes'), ['persist']),
+            $this->arrayValue($serialized, 'volumes'),
+        );
+        $serialized['proxy'] = array_replace(
+            $this->withoutKeys($this->arrayValue($source, 'proxy'), [
+                'enabled',
+                'domain_prefix',
+                'cert_resolver',
+                'dashboard',
+                'dns_provider',
+            ]),
+            $this->arrayValue($serialized, 'proxy'),
+        );
+
+        return array_replace($data, $serialized);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
+     */
+    private function arrayValue(array $data, string $key): array
+    {
+        $value = $data[$key] ?? [];
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($value as $itemKey => $item) {
+            if (is_string($itemKey)) {
+                $normalized[$itemKey] = $item;
+            }
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     * @param list<string> $keys
+     * @return array<string, mixed>
+     */
+    private function withoutKeys(array $data, array $keys): array
+    {
+        return array_diff_key($data, array_fill_keys($keys, true));
     }
 
     /**
@@ -195,17 +306,30 @@ readonly class ConfigManager
         $projectType = is_string($projectTypeString) ? ProjectType::tryFrom($projectTypeString) : null;
         $projectType = $projectType ?? $base->projectType;
 
-        return new Configuration(
+        $proxy = array_key_exists('proxy', $overrides)
+            ? $this->proxyParser->parse($overrides, $projectName)
+            : $base->proxy();
+        $customServices = array_key_exists('custom_services', $overrides)
+            ? $this->customServiceParser->parse($overrides)
+            : $base->customServices;
+        $plugins = array_key_exists('plugins', $overrides)
+            ? $this->pluginParser->parse($overrides)
+            : $base->plugins;
+
+        return $base->with(
             projectName: $projectName,
             version: $version,
             php: $this->phpParser->merge($overrides, $base->php),
             services: $this->serviceParser->merge($overrides, $base->services->all()),
             volumes: $this->volumeParser->merge($overrides, $base->volumes->persist),
             projectType: $projectType,
+            proxy: $proxy,
+            customServices: $customServices,
+            plugins: $plugins,
         );
     }
 
-    private function generateEnv(Configuration $config): void
+    public function generateEnv(Configuration $config): void
     {
         $this->generateEnvWithAllocation($config, new PortAllocation());
     }

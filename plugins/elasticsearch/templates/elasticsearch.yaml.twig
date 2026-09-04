@@ -9,11 +9,12 @@
     environment:
       - discovery.type=single-node
       - xpack.security.enabled={{ config.security_enabled | default(false) ? 'true' : 'false' }}
+      - 'ELASTIC_PASSWORD={{ config.password | default("seaman") | replace({"$": "$$", "'": "''"}) }}'
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
     volumes:
       - elasticsearch_data:/usr/share/elasticsearch/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS -u \"elastic:$${ELASTIC_PASSWORD:-seaman}\" http://localhost:9200/_cluster/health || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5

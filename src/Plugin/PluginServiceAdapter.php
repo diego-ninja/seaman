@@ -109,7 +109,12 @@ final readonly class PluginServiceAdapter implements ServiceInterface, DatabaseS
      */
     public function getEnvVariables(ServiceConfig $config): array
     {
-        $envVars = $config->environmentVariables;
+        $envVars = [];
+        foreach ($config->environmentVariables as $key => $value) {
+            if ($value !== null) {
+                $envVars[$key] = $value;
+            }
+        }
 
         // Add port variable using service-specific naming
         $portVarName = strtoupper($this->definition->name) . '_PORT';

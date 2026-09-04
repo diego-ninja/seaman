@@ -15,5 +15,6 @@ final readonly class LoadedPlugin
         public PluginInterface $instance,
         public PluginConfig $config,
         public string $source,
+        public ?string $packageName = null,
     ) {}
 }

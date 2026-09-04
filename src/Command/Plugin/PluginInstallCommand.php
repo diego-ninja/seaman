@@ -147,7 +147,18 @@ final class PluginInstallCommand extends AbstractSeamanCommand
         }
 
         // Validate that the package is a seaman-plugin
-        if (!$this->isValidPlugin($package)) {
+        try {
+            $isValidPlugin = $this->isValidPlugin($package);
+        } catch (PackagistException $exception) {
+            Terminal::error(sprintf(
+                'Could not verify plugin "%s" with Packagist: %s',
+                $package,
+                $exception->getMessage(),
+            ));
+            return Command::FAILURE;
+        }
+
+        if (!$isValidPlugin) {
             Terminal::error(sprintf(
                 'Package "%s" is not a valid seaman-plugin or does not exist on Packagist',
                 $package,
@@ -177,21 +188,7 @@ final class PluginInstallCommand extends AbstractSeamanCommand
 
     private function isValidPlugin(string $package): bool
     {
-        try {
-            $plugins = $this->packagist->searchPlugins();
-
-            foreach ($plugins as $plugin) {
-                if ($plugin['name'] === $package) {
-                    return true;
-                }
-            }
-
-            return false;
-        } catch (PackagistException) {
-            // If we can't verify, allow the install attempt
-            // Composer will fail if the package doesn't exist
-            return true;
-        }
+        return $this->packagist->getPackage($package) !== null;
     }
 
     /**
@@ -204,7 +201,7 @@ final class PluginInstallCommand extends AbstractSeamanCommand
         $names = [];
         foreach ($this->registry->all() as $loaded) {
             if ($loaded->source === 'composer') {
-                $names[] = $loaded->instance->getName();
+                $names[] = $loaded->packageName ?? $loaded->instance->getName();
             }
         }
         return $names;

@@ -13,6 +13,7 @@ final readonly class Configuration
 {
     /**
      * @param array<string, array<string, mixed>> $plugins
+     * @param array<string, mixed> $sourceData
      */
     public function __construct(
         public string $projectName,
@@ -24,6 +25,7 @@ final readonly class Configuration
         public ?ProxyConfig $proxy = null,
         public CustomServiceCollection $customServices = new CustomServiceCollection(),
         public array $plugins = [],
+        private array $sourceData = [],
     ) {}
 
     public function proxy(): ProxyConfig
@@ -35,6 +37,14 @@ final readonly class Configuration
     public function hasCustomServices(): bool
     {
         return !$this->customServices->isEmpty();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function sourceData(): array
+    {
+        return $this->sourceData;
     }
 
     /**
@@ -63,6 +73,7 @@ final readonly class Configuration
             proxy: $proxy ?? $this->proxy,
             customServices: $customServices ?? $this->customServices,
             plugins: $plugins ?? $this->plugins,
+            sourceData: $this->sourceData,
         );
     }
 }

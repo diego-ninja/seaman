@@ -152,7 +152,8 @@ final class PluginRemoveCommand extends AbstractSeamanCommand
     private function isComposerInstalled(string $package): bool
     {
         foreach ($this->registry->all() as $loaded) {
-            if ($loaded->source === 'composer' && $loaded->instance->getName() === $package) {
+            $packageName = $loaded->packageName ?? $loaded->instance->getName();
+            if ($loaded->source === 'composer' && $packageName === $package) {
                 return true;
             }
         }
@@ -170,7 +171,7 @@ final class PluginRemoveCommand extends AbstractSeamanCommand
         foreach ($this->registry->all() as $loaded) {
             if ($loaded->source === 'composer') {
                 $plugins[] = [
-                    'name' => $loaded->instance->getName(),
+                    'name' => $loaded->packageName ?? $loaded->instance->getName(),
                     'description' => $loaded->instance->getDescription(),
                 ];
             }

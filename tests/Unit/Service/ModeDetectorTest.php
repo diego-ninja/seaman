@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\OperatingMode;
@@ -57,6 +57,15 @@ final class ModeDetectorTest extends TestCase
         $this->assertSame(OperatingMode::Unmanaged, $mode);
         $this->assertFalse($detector->isManaged());
         $this->assertFalse($detector->requiresInitialization());
+    }
+
+    public function test_detects_unmanaged_mode_with_yml_extension(): void
+    {
+        file_put_contents($this->testRoot . '/docker-compose.yml', 'services: {}');
+
+        $detector = new ModeDetector($this->testRoot);
+
+        $this->assertSame(OperatingMode::Unmanaged, $detector->detect());
     }
 
     public function test_detects_uninitialized_mode_when_no_files_exist(): void

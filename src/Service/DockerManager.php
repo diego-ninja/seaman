@@ -15,12 +15,17 @@ use Symfony\Component\Process\Process;
 
 readonly class DockerManager
 {
-    private string $composeFile;
+    /** @var list<string> */
+    private const array COMPOSE_COMMAND = ['docker', 'compose'];
+
+    private const int TIMEOUT_EXIT_CODE = 124;
+
+    private ComposeFileLocator $composeFileLocator;
 
     public function __construct(
         private string $projectPath,
     ) {
-        $this->composeFile = $this->projectPath . '/docker-compose.yml';
+        $this->composeFileLocator = new ComposeFileLocator($this->projectPath);
     }
 
     /**
@@ -35,7 +40,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'up', '-d'];
+        $command = $this->composeCommand('up', '-d');
 
         if ($service !== null) {
             $command[] = $service;
@@ -55,7 +60,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'stop'];
+        $command = $this->composeCommand('stop');
 
         if ($service !== null) {
             $command[] = $service;
@@ -75,7 +80,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'restart'];
+        $command = $this->composeCommand('restart');
 
         if ($service !== null) {
             $command[] = $service;
@@ -100,7 +105,7 @@ readonly class DockerManager
     ): ProcessResult {
         $this->ensureComposeFileExists();
 
-        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', '-T', $service];
+        $fullCommand = $this->composeCommand('exec', '-T', $service);
         $fullCommand = array_merge($fullCommand, $command);
 
         return $this->runProcess($fullCommand, $message, $timeout);
@@ -125,7 +130,7 @@ readonly class DockerManager
     ): ProcessResult {
         $this->ensureComposeFileExists();
 
-        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', '-T', $service];
+        $fullCommand = $this->composeCommand('exec', '-T', $service);
         $fullCommand = array_merge($fullCommand, $command);
 
         $process = new Process($fullCommand);
@@ -157,7 +162,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec', $service];
+        $fullCommand = $this->composeCommand('exec', $service);
         $fullCommand = array_merge($fullCommand, $command);
 
         $process = new Process($fullCommand);
@@ -182,7 +187,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $fullCommand = ['docker-compose', '-f', $this->composeFile, 'exec'];
+        $fullCommand = $this->composeCommand('exec');
 
         // Use TTY if supported for full terminal emulation
         if (Process::isTtySupported()) {
@@ -226,7 +231,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'logs'];
+        $command = $this->composeCommand('logs');
 
         if ($options->follow) {
             $command[] = '--follow';
@@ -247,7 +252,7 @@ readonly class DockerManager
         // Use shorter timeout when following logs to prevent hanging
         $timeout = $options->follow ? 2.0 : 60.0;
 
-        return $this->runProcess($command, null, $timeout);
+        return $this->runProcess($command, null, $timeout, $options->follow);
     }
 
     /**
@@ -260,7 +265,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'ps', '--format', 'json'];
+        $command = $this->composeCommand('ps', '--format', 'json');
 
         $result = $this->runProcess($command);
 
@@ -273,13 +278,12 @@ readonly class DockerManager
             return [];
         }
 
-        $serviceInfos = array_map(function (string $json) {
-            /** @var array<string,string> $data*/
-            $data = json_decode($json, true);
-            return $data;
-        }, explode("\n", $result->output));
-
-        array_pop($serviceInfos);
+        $serviceInfos = [];
+        foreach (preg_split('/\R/', trim($result->output)) ?: [] as $json) {
+            /** @var array<string, string> $data */
+            $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+            $serviceInfos[] = $data;
+        }
 
         return $serviceInfos;
     }
@@ -295,7 +299,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'build', '--no-cache'];
+        $command = $this->composeCommand('build', '--no-cache');
 
         if ($service !== null) {
             $command[] = $service;
@@ -315,7 +319,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'down', '--remove-orphans'];
+        $command = $this->composeCommand('down', '--remove-orphans');
 
         return $this->runProcess($command, 'Stopping seaman stack...', 120.0);
     }
@@ -331,7 +335,7 @@ readonly class DockerManager
     {
         $this->ensureComposeFileExists();
 
-        $command = ['docker-compose', '-f', $this->composeFile, 'down', '-v', '--remove-orphans'];
+        $command = $this->composeCommand('down', '-v', '--remove-orphans');
 
         return $this->runProcess($command, 'Destroying seaman stack...', 300.0);
     }
@@ -343,11 +347,19 @@ readonly class DockerManager
      */
     private function ensureComposeFileExists(): void
     {
-        if (!file_exists($this->composeFile)) {
-            throw new \RuntimeException(
-                "Docker Compose file not found at: {$this->composeFile}",
-            );
-        }
+        $this->composeFileLocator->require();
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function composeCommand(string ...$arguments): array
+    {
+        return array_values(array_merge(
+            self::COMPOSE_COMMAND,
+            ['-f', $this->composeFileLocator->require()],
+            $arguments,
+        ));
     }
 
     /**
@@ -359,18 +371,20 @@ readonly class DockerManager
      * @return ProcessResult The process execution result
      * @throws \Exception
      */
-    private function runProcess(array $command, ?string $message = null, ?float $timeout = 60.0): ProcessResult
-    {
+    private function runProcess(
+        array $command,
+        ?string $message = null,
+        ?float $timeout = 60.0,
+        bool $allowTimeout = false,
+    ): ProcessResult {
         $process = new Process($command);
         $process->setTimeout($timeout);
 
         try {
             $message === null ? $process->run() : SpinnerFactory::for($process, $message);
-        } catch (ProcessTimedOutException $e) {
-            // Timeout is expected for commands like logs --follow
-            // Return what we got before timeout
+        } catch (ProcessTimedOutException) {
             return new ProcessResult(
-                exitCode: 0,
+                exitCode: $allowTimeout ? 0 : self::TIMEOUT_EXIT_CODE,
                 output: $process->getOutput(),
                 errorOutput: $process->getErrorOutput(),
             );
@@ -395,11 +409,9 @@ readonly class DockerManager
     {
         try {
             SpinnerFactory::for($process, $message);
-        } catch (ProcessTimedOutException $e) {
-            // Timeout is expected for commands like logs --follow
-            // Return what we got before timeout
+        } catch (ProcessTimedOutException) {
             return new ProcessResult(
-                exitCode: 0,
+                exitCode: self::TIMEOUT_EXIT_CODE,
                 output: $process->getOutput(),
                 errorOutput: $process->getErrorOutput(),
             );

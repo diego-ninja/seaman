@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Tests for ComposeRegenerator service.
 // ABOUTME: Verifies docker-compose.yml regeneration and service restart logic.
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
 use Seaman\Service\ComposeRegenerator;
@@ -30,6 +30,15 @@ beforeEach(function () {
     $this->projectRoot = sys_get_temp_dir() . '/seaman-test-' . uniqid();
     /** @phpstan-ignore argument.type */
     mkdir($this->projectRoot);
+    /** @phpstan-ignore property.notFound */
+    $this->originalPath = getenv('PATH');
+    /** @phpstan-ignore property.notFound, binaryOp.invalid */
+    $binDir = $this->projectRoot . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', "#!/bin/sh\nexit 0\n");
+    chmod($binDir . '/docker', 0755);
+    /** @phpstan-ignore property.notFound */
+    putenv('PATH=' . $binDir . ':' . ($this->originalPath === false ? '' : $this->originalPath));
 
     /** @phpstan-ignore property.notFound */
     $this->config = new Configuration(
@@ -55,13 +64,12 @@ beforeEach(function () {
 });
 
 afterEach(function () {
+    /** @phpstan-ignore property.notFound */
+    $this->originalPath === false ? putenv('PATH') : putenv('PATH=' . $this->originalPath);
     /** @phpstan-ignore property.notFound, argument.type */
     if (is_dir($this->projectRoot)) {
-        /** @phpstan-ignore property.notFound, binaryOp.invalid */
-        $files = glob($this->projectRoot . '/*') ?: [];
-        array_map('unlink', $files);
         /** @phpstan-ignore property.notFound, argument.type */
-        rmdir($this->projectRoot);
+        \Seaman\Tests\Integration\TestHelper::removeTempDir($this->projectRoot);
     }
     HeadlessMode::reset();
 });
@@ -141,8 +149,7 @@ YAML;
 
     // Assert
     expect($result)->toBeInstanceOf(ProcessResult::class);
-    // Note: This will fail in real execution because docker-compose down/up will fail
-    // but we're testing the logic flow. In a real environment with docker, this would succeed.
+    expect($result->isSuccessful())->toBeTrue();
 });
 
 test('restartIfConfirmed returns empty success when user declines', function () {

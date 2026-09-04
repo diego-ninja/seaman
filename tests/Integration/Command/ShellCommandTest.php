@@ -51,9 +51,7 @@ test('shell command works in unmanaged mode without seaman.yaml', function () {
     $application = new Application();
     $commandTester = new CommandTester($application->find('shell'));
 
-    // Shell command will fail because the container isn't running, but it should not fail
-    // due to missing seaman.yaml. The exit code can be 0 or 1 depending on container state.
     $commandTester->execute(['service' => 'app']);
 
-    expect($commandTester->getStatusCode())->toBeIn([0, 1]);
-});
+    expect($commandTester->getDisplay())->not->toContain('seaman.yaml not found');
+})->group('docker');

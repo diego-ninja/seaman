@@ -5,7 +5,7 @@ declare(strict_types=1);
 // ABOUTME: Integration tests for RebuildCommand.
 // ABOUTME: Validates image rebuilding functionality.
 
-namespace Tests\Integration\Command;
+namespace Seaman\Tests\Integration\Command;
 
 use Seaman\Application;
 use Seaman\Exception\FileNotFoundException;
@@ -53,13 +53,10 @@ test('rebuild command regenerates Dockerfile from template', function (): void {
     TestHelper::copyFixture('database-seaman.yaml', $this->tempDir);
     file_put_contents($this->tempDir . '/docker-compose.yml', "services:\n  app:\n    image: php:8.4");
 
-    // Create .seaman directory
-    mkdir($this->tempDir . '/.seaman', 0755, true);
-
     $application = new Application();
     $commandTester = new CommandTester($application->find('rebuild'));
     $commandTester->execute([]);
 
     // Dockerfile should be regenerated from template
     expect(file_exists($this->tempDir . '/.seaman/Dockerfile'))->toBeTrue();
-});
+})->group('docker');

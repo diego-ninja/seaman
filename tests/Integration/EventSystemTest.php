@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Integration;
+namespace Seaman\Tests\Integration;
 
 use Seaman\Application;
 use Symfony\Component\Console\Tester\CommandTester;

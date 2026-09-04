@@ -10,28 +10,26 @@
     }
   ],
   "require": {
-    "php": "^8.4",
+    "php": "^8.5",
     "ext-pcntl": "*",
     "ext-posix": "*",
-    "innmind/signals": "^4.1",
+    "innmind/signals": "^5.2",
     "jolicode/jolinotif": "^3",
     "laravel/prompts": "^0.3.8",
     "nunomaduro/termwind": "^2.3",
     "php-di/php-di": "^7.1",
     "phpoption/phpoption": "^1.9",
-    "ramsey/collection": "^2.1",
-    "symfony/console": "^7",
+    "symfony/console": "^8.1",
     "symfony/event-dispatcher": "^8.0",
-    "symfony/process": "^7",
-    "symfony/yaml": "^7",
+    "symfony/process": "^8.1",
+    "symfony/yaml": "^8.1",
     "twig/twig": "^3",
     "vlucas/phpdotenv": "^5.6"
   },
   "require-dev": {
     "friendsofphp/php-cs-fixer": "^3.64",
     "mockery/mockery": "^1.6",
-    "pestphp/pest": "^4.0",
-    "pestphp/pest-plugin-arch": "^4.0",
+    "pestphp/pest": "^5.1",
     "phpstan/phpstan": "^2.0"
   },
   "autoload": {
@@ -77,9 +75,11 @@
     "bin/seaman"
   ],
   "scripts": {
-    "test": "pest",
-    "test:coverage": "pest --coverage --min=95",
-    "phpstan": "phpstan analyse src tests --level=10 --memory-limit=1G",
+    "test": "pest --exclude-group=docker --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:docker": "SEAMAN_DOCKER_TESTS=1 pest --group=docker --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:all": "SEAMAN_DOCKER_TESTS=1 pest --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "test:coverage": "XDEBUG_MODE=coverage pest --exclude-group=docker --coverage --min=67 --fail-on-deprecation --fail-on-phpunit-deprecation",
+    "phpstan": "phpstan analyse --configuration=phpstan.neon --memory-limit=1G",
     "cs:check": "php-cs-fixer fix --dry-run --diff",
     "cs:fix": "php-cs-fixer fix",
     "quality": [

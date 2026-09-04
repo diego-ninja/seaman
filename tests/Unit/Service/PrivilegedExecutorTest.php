@@ -70,7 +70,8 @@ final class PrivilegedExecutorTest extends TestCase
     public function it_prepends_pkexec_to_command(): void
     {
         $executor = $this->createMock(CommandExecutor::class);
-        $executor->method('execute')
+        $executor->expects($this->once())
+            ->method('execute')
             ->with(['which', 'pkexec'])
             ->willReturn(new ProcessResult(0, '/usr/bin/pkexec', ''));
 
@@ -85,7 +86,8 @@ final class PrivilegedExecutorTest extends TestCase
     public function it_prepends_sudo_to_command_when_pkexec_unavailable(): void
     {
         $executor = $this->createMock(CommandExecutor::class);
-        $executor->method('execute')
+        $executor->expects($this->once())
+            ->method('execute')
             ->with(['which', 'pkexec'])
             ->willReturn(new ProcessResult(1, '', ''));
 
@@ -100,7 +102,8 @@ final class PrivilegedExecutorTest extends TestCase
     public function it_builds_privileged_command_string_from_array(): void
     {
         $executor = $this->createMock(CommandExecutor::class);
-        $executor->method('execute')
+        $executor->expects($this->once())
+            ->method('execute')
             ->with(['which', 'pkexec'])
             ->willReturn(new ProcessResult(0, '/usr/bin/pkexec', ''));
 
@@ -115,7 +118,8 @@ final class PrivilegedExecutorTest extends TestCase
     public function it_builds_privileged_command_string_from_string(): void
     {
         $executor = $this->createMock(CommandExecutor::class);
-        $executor->method('execute')
+        $executor->expects($this->once())
+            ->method('execute')
             ->with(['which', 'pkexec'])
             ->willReturn(new ProcessResult(1, '', ''));
 
@@ -174,7 +178,8 @@ final class PrivilegedExecutorTest extends TestCase
     public function it_handles_empty_which_output_as_not_found(): void
     {
         $executor = $this->createMock(CommandExecutor::class);
-        $executor->method('execute')
+        $executor->expects($this->once())
+            ->method('execute')
             ->with(['which', 'pkexec'])
             ->willReturn(new ProcessResult(0, '', ''));
 

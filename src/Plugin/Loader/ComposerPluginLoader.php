@@ -22,6 +22,17 @@ final readonly class ComposerPluginLoader implements PluginLoaderInterface
      */
     public function load(): array
     {
+        return array_map(
+            static fn(array $candidate): PluginInterface => $candidate['plugin'],
+            $this->loadWithPackageNames(),
+        );
+    }
+
+    /**
+     * @return list<array{plugin: PluginInterface, packageName: string}>
+     */
+    public function loadWithPackageNames(): array
+    {
         $installedFile = $this->projectRoot . '/vendor/composer/installed.json';
 
         if (!file_exists($installedFile)) {
@@ -58,7 +69,7 @@ final readonly class ComposerPluginLoader implements PluginLoaderInterface
             }
 
             $name = $package['name'] ?? '';
-            if ($name === '') {
+            if (!is_string($name) || $name === '') {
                 continue;
             }
 
@@ -89,7 +100,13 @@ final readonly class ComposerPluginLoader implements PluginLoaderInterface
 
             $plugin = $this->loadPluginClass($pluginClass);
             if ($plugin !== null) {
-                $plugins[] = $plugin;
+                $packageName = $package['name'] ?? null;
+                if (is_string($packageName)) {
+                    $plugins[] = [
+                        'plugin' => $plugin,
+                        'packageName' => $packageName,
+                    ];
+                }
             }
         }
 

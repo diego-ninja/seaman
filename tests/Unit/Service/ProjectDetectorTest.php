@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Seaman\Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\ProjectType;
@@ -145,6 +145,19 @@ final class ProjectDetectorTest extends TestCase
 
         // Assert
         $this->assertSame(ProjectType::Skeleton, $type);
+    }
+
+    public function test_detects_every_supported_compose_filename(): void
+    {
+        foreach (['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'] as $filename) {
+            $path = $this->testRoot . '/' . $filename;
+            file_put_contents($path, "services: {}\n");
+
+            $this->assertTrue($this->detector->hasDockerCompose($this->testRoot));
+            $this->assertSame($path, $this->detector->getDockerComposePath($this->testRoot));
+
+            unlink($path);
+        }
     }
 
     public function test_is_symfony_project_returns_true_for_symfony(): void

@@ -6,6 +6,8 @@
 declare(strict_types=1);
 
 use Seaman\Service\TemplateRenderer;
+use Seaman\ValueObject\VolumeConfig;
+use Symfony\Component\Yaml\Yaml;
 
 beforeEach(function (): void {
     $this->renderer = new TemplateRenderer(__DIR__ . '/../../../src/Template');
@@ -86,3 +88,71 @@ describe('Caddyfile.twig', function (): void {
         expect($content)->toContain(':80 {');
     });
 });
+
+/**
+ * @return array{rendered: string, service: array<string, mixed>}
+ */
+function renderElasticsearchTemplateForTest(string $variant): array
+{
+    if ($variant === 'core') {
+        $renderer = new TemplateRenderer(__DIR__ . '/../../../src/Template');
+        $rendered = $renderer->render('docker/services/elasticsearch.twig', [
+            'name' => 'elasticsearch',
+            'service' => new class {
+                public string $version = '8.17.0';
+            },
+            'project_name' => 'test-project',
+            'proxy_enabled' => false,
+            'labels' => [],
+            'volumes' => new VolumeConfig([]),
+        ]);
+    } else {
+        $renderer = new TemplateRenderer(__DIR__ . '/../../../plugins/elasticsearch/templates');
+        $rendered = $renderer->render('elasticsearch.yaml.twig', [
+            'config' => [
+                'version' => '8.17.0',
+                'port' => 9200,
+                'security_enabled' => true,
+                'password' => 'pa ss$word #tag',
+            ],
+            'project' => ['name' => 'test-project'],
+        ]);
+    }
+
+    /** @var array{services: array{elasticsearch: array<string, mixed>}} $compose */
+    $compose = Yaml::parse("services:\n" . $rendered);
+
+    return [
+        'rendered' => $rendered,
+        'service' => $compose['services']['elasticsearch'],
+    ];
+}
+
+test('core Elasticsearch template configures its bootstrap password via Compose interpolation', function (): void {
+    $template = renderElasticsearchTemplateForTest('core');
+
+    expect($template['service']['environment'])->toContain(
+        'ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-seaman}',
+    );
+});
+
+test('plugin Elasticsearch template preserves special characters in its bootstrap password', function (): void {
+    $template = renderElasticsearchTemplateForTest('plugin');
+
+    expect($template['service']['environment'])->toContain('ELASTIC_PASSWORD=pa ss$$word #tag')
+        ->and($template['rendered'])->toContain("- 'ELASTIC_PASSWORD=pa ss\$\$word #tag'");
+});
+
+test('Elasticsearch templates authenticate their healthcheck', function (string $variant): void {
+    $template = renderElasticsearchTemplateForTest($variant);
+
+    /** @var array{test: list<string>} $healthcheck */
+    $healthcheck = $template['service']['healthcheck'];
+
+    expect($healthcheck['test'][1])
+        ->toContain('-u "elastic:$${ELASTIC_PASSWORD:-seaman}"')
+        ->toContain('/_cluster/health');
+})->with([
+    'core template' => ['core'],
+    'plugin template' => ['plugin'],
+]);

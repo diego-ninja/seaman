@@ -8,6 +8,7 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Plugin\Config\ConfigSchema;
+use Seaman\Service\ConfigParser\ServiceConfigParser;
 use Seaman\Service\ConfigurationService;
 
 test('ConfigurationService loads current config for service', function () {
@@ -81,6 +82,174 @@ test('ConfigurationService merges new config with existing', function () {
         'version' => '8.4',
         'port' => 3307,
     ]);
+});
+
+test('ConfigurationService materializes configured values for the runtime', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'version' => '16',
+                'port' => 5432,
+                'environment' => ['CUSTOM_OPTION' => 'preserved'],
+            ],
+        ],
+    ], 'postgresql', [
+        'version' => '17',
+        'port' => 55432,
+        'database' => 'application',
+        'user' => 'developer',
+        'password' => 'secret',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+    $postgresql = $services['postgresql'];
+
+    expect($postgresql['version'])->toBe('17')
+        ->and($postgresql['port'])->toBe(55432)
+        ->and($postgresql['environment'])->toMatchArray([
+            'CUSTOM_OPTION' => 'preserved',
+            'DB_NAME' => 'application',
+            'DB_USER' => 'developer',
+            'DB_PASSWORD' => 'secret',
+            'POSTGRES_DB' => 'application',
+            'POSTGRES_USER' => 'developer',
+            'POSTGRES_PASSWORD' => 'secret',
+        ]);
+});
+
+test('ConfigurationService normalizes Compose list environment and replaces managed variables', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => [
+            'postgresql' => [
+                'environment' => [
+                    'CUSTOM_OPTION=preserved',
+                    'INHERITED_FROM_HOST',
+                    'POSTGRES_DB=legacy',
+                    'DB_NAME=legacy',
+                    'POSTGRES_DB=duplicate',
+                ],
+            ],
+        ],
+    ], 'postgresql', [
+        'database' => 'application',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+
+    expect($services['postgresql']['environment'])->toBe([
+        'CUSTOM_OPTION' => 'preserved',
+        'INHERITED_FROM_HOST' => null,
+        'POSTGRES_DB' => 'application',
+        'DB_NAME' => 'application',
+    ]);
+});
+
+test('ServiceConfigParser reloads canonical environment without losing null values', function () {
+    $services = (new ServiceConfigParser())->parse([
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'environment' => [
+                    'CUSTOM_OPTION' => 'preserved',
+                    'INHERITED_FROM_HOST' => null,
+                    'POSTGRES_DB' => 'application',
+                ],
+            ],
+        ],
+    ]);
+
+    expect($services->get('postgresql')->environmentVariables)->toBe([
+        'CUSTOM_OPTION' => 'preserved',
+        'INHERITED_FROM_HOST' => null,
+        'POSTGRES_DB' => 'application',
+    ]);
+});
+
+test('ConfigurationService maps additional ports and plugin-specific variables', function () {
+    $service = new ConfigurationService();
+
+    $result = $service->mergeConfig([
+        'services' => ['soketi' => ['enabled' => true, 'type' => 'soketi']],
+    ], 'soketi', [
+        'version' => '1.6',
+        'port' => 6002,
+        'metrics_port' => 9602,
+        'app_id' => 'configured-id',
+        'app_key' => 'configured-key',
+        'app_secret' => 'configured-secret',
+    ]);
+
+    /** @var array<string, array<string, mixed>> $services */
+    $services = $result['services'];
+    $soketi = $services['soketi'];
+
+    expect($soketi['additional_ports'])->toBe([9602])
+        ->and($soketi['environment'])->toMatchArray([
+            'PUSHER_APP_ID' => 'configured-id',
+            'PUSHER_APP_KEY' => 'configured-key',
+            'PUSHER_APP_SECRET' => 'configured-secret',
+        ]);
+});
+
+test('ConfigurationService hydrates typed legacy values without overriding modern config', function () {
+    $service = new ConfigurationService();
+    $schema = ConfigSchema::create()
+        ->string('version', default: '3-management')
+        ->integer('port', default: 5672)
+        ->integer('management_port', default: 15672)
+        ->string('user', default: 'seaman')
+        ->string('password', default: 'seaman')->secret()
+        ->boolean('tls', default: false);
+
+    $result = $service->hydrateServiceConfig('rabbitmq', $schema, [
+        'services' => [
+            'rabbitmq' => [
+                'version' => '4.0-management',
+                'port' => 5673,
+                'additional_ports' => [15673],
+                'environment' => [
+                    'RABBITMQ_DEFAULT_USER' => 'legacy-user',
+                    'RABBITMQ_DEFAULT_PASS' => 'legacy-secret',
+                    'RABBITMQ_TLS' => 'true',
+                ],
+                'config' => ['port' => 5674],
+            ],
+        ],
+    ]);
+
+    expect($result)->toMatchArray([
+        'version' => '4.0-management',
+        'port' => 5674,
+        'management_port' => 15673,
+        'user' => 'legacy-user',
+        'password' => 'legacy-secret',
+        'tls' => true,
+    ]);
+});
+
+test('ConfigurationService preserves legacy Elasticsearch security settings', function () {
+    $service = new ConfigurationService();
+    $schema = ConfigSchema::create()
+        ->boolean('security_enabled', default: false);
+
+    $result = $service->hydrateServiceConfig('elasticsearch', $schema, [
+        'services' => [
+            'elasticsearch' => [
+                'environment' => ['xpack.security.enabled' => 'true'],
+            ],
+        ],
+    ]);
+
+    expect($result['security_enabled'] ?? null)->toBeTrue();
 });
 
 test('ConfigurationService renders text field config', function () {

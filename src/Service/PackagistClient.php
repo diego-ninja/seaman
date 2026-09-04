@@ -23,9 +23,18 @@ final class PackagistClient
         'seaman/redis',
     ];
 
+    /** @var \Closure(string): array{body: string|false, statusCode: int} */
+    private readonly \Closure $httpGet;
+
+    /**
+     * @param null|\Closure(string): array{body: string|false, statusCode: int} $httpGet
+     */
     public function __construct(
         private readonly ?string $cacheDir = null,
-    ) {}
+        ?\Closure $httpGet = null,
+    ) {
+        $this->httpGet = $httpGet ?? self::createHttpGet();
+    }
 
     /**
      * Search for seaman-plugin packages on Packagist.
@@ -66,8 +75,12 @@ final class PackagistClient
 
         try {
             $response = $this->request($url);
-        } catch (PackagistException) {
-            return null;
+        } catch (PackagistException $exception) {
+            if ($exception->getCode() === 404) {
+                return null;
+            }
+
+            throw $exception;
         }
 
         /** @var array<string, mixed>|null $package */
@@ -196,19 +209,9 @@ final class PackagistClient
      */
     private function request(string $url): array
     {
-        $context = stream_context_create([
-            'http' => [
-                'method' => 'GET',
-                'timeout' => self::REQUEST_TIMEOUT,
-                'header' => [
-                    'User-Agent: Seaman/1.0',
-                    'Accept: application/json',
-                ],
-                'ignore_errors' => true,
-            ],
-        ]);
-
-        $response = @file_get_contents($url, false, $context);
+        $result = ($this->httpGet)($url);
+        $response = $result['body'];
+        $statusCode = $result['statusCode'];
 
         if ($response === false) {
             throw new PackagistException('Failed to connect to Packagist API');
@@ -225,10 +228,39 @@ final class PackagistClient
             $message = isset($data['message']) && is_string($data['message'])
                 ? $data['message']
                 : 'Packagist API error';
-            throw new PackagistException($message);
+            throw new PackagistException($message, $statusCode);
         }
 
         return $data;
+    }
+
+    /**
+     * @return \Closure(string): array{body: string|false, statusCode: int}
+     */
+    private static function createHttpGet(): \Closure
+    {
+        return static function (string $url): array {
+            $context = stream_context_create([
+                'http' => [
+                    'method' => 'GET',
+                    'timeout' => self::REQUEST_TIMEOUT,
+                    'header' => [
+                        'User-Agent: Seaman/1.0',
+                        'Accept: application/json',
+                    ],
+                    'ignore_errors' => true,
+                ],
+            ]);
+
+            $body = @file_get_contents($url, false, $context);
+            $statusCode = 0;
+            if (isset($http_response_header[0])) {
+                preg_match('/\s(\d{3})\s/', $http_response_header[0], $matches);
+                $statusCode = isset($matches[1]) ? (int) $matches[1] : 0;
+            }
+
+            return ['body' => $body, 'statusCode' => $statusCode];
+        };
     }
 
     /**

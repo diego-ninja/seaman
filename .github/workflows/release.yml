@@ -2,13 +2,15 @@
 name: Release
 
 on:
-  pull_request: ~
   release:
     types: [ created ]
 
+permissions:
+  contents: read
+
 # See https://stackoverflow.com/a/72408109
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -19,20 +21,29 @@ jobs:
       contents: write
     steps:
       -   name: Checkout
-          uses: actions/checkout@v4
+          uses: actions/checkout@v6
           with:
             fetch-depth: 0
 
       -   name: Setup PHP
           uses: shivammathur/setup-php@v2
           with:
-            php-version: '8.4'
+            php-version: '8.5'
             ini-values: phar.readonly=0
             tools: composer box
             coverage: none
 
       -   name: Install Composer dependencies
-          uses: ramsey/composer-install@v2
+          uses: ramsey/composer-install@v4
+
+      -   name: Run PHPStan
+          run: composer phpstan
+
+      -   name: Check code style
+          run: composer cs:check
+
+      -   name: Run deterministic tests
+          run: composer test
 
       -   name: Build PHAR
           run: composer build

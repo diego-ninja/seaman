@@ -208,8 +208,17 @@ final readonly class InitializationWizard
 
         if (count($files) > 0) {
             Prompts::info('Current directory is not empty.');
-            // For now, just use a default - we'll enhance this later
-            return 'symfony-app';
+            $defaultName = basename($currentDir) . '-app';
+            $projectName = Prompts::text(
+                label: 'Project directory name',
+                default: $defaultName,
+            );
+
+            if (!preg_match('/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/', $projectName)) {
+                throw new \InvalidArgumentException('Project directory name contains invalid characters.');
+            }
+
+            return $projectName;
         }
 
         return basename($currentDir);

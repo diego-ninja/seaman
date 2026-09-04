@@ -37,14 +37,14 @@ final class SignalHandler
     {
         foreach ($signals as $signal) {
             self::$listeners[] = [$signal, $listener];
-            self::getInstance()->handler->listen($signal, $listener);
+            $_ = self::getInstance()->handler->listen($signal, $listener)->unwrap();
         }
     }
 
     public static function restore(): void
     {
         foreach (self::$listeners as [$signal, $listener]) {
-            self::getInstance()->handler->listen($signal, $listener);
+            $_ = self::getInstance()->handler->listen($signal, $listener)->unwrap();
         }
     }
 }

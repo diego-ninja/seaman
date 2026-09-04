@@ -3,13 +3,14 @@
 declare(strict_types=1);
 
 // ABOUTME: Removes all Seaman-generated files from the project.
-// ABOUTME: Restores backed-up docker-compose.yml and cleans .env if applicable.
+// ABOUTME: Restores backed-up Compose files and cleans .env if applicable.
 
 namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\DnsProvider;
 use Seaman\Enum\OperatingMode;
+use Seaman\Service\ComposeFileLocator;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\DnsManager;
 use Seaman\Service\DockerManager;
@@ -30,7 +31,6 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 {
     /** @var list<string> */
     private const array FILES_TO_REMOVE = [
-        'docker-compose.yml',
         'seaman.yaml',
     ];
 
@@ -57,13 +57,42 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     {
         $projectRoot = (string) getcwd();
 
-        $filesToRemove = $this->findFilesToRemove($projectRoot);
+        if ($this->hasMultipleComposeBackupTargets($projectRoot)) {
+            Terminal::error('Cannot clean safely: found multiple Compose backup targets.');
+
+            return Command::FAILURE;
+        }
+
+        $composeFile = $this->findManagedComposeFile($projectRoot);
+        $filesToRemove = $this->findFilesToRemove($projectRoot, $composeFile);
         $directoriesToRemove = $this->findDirectoriesToRemove($projectRoot);
         $backupFile = $this->findDockerComposeBackup($projectRoot);
         $hasSeamanEnvSection = $this->hasSeamanEnvSection($projectRoot);
         $dnsInfo = $this->getDnsCleanupInfo($projectRoot);
 
-        if (empty($filesToRemove) && empty($directoriesToRemove)) {
+        if ($composeFile !== null && is_link($composeFile)) {
+            Terminal::error('Cannot clean a project whose Docker Compose file is a symbolic link.');
+
+            return Command::FAILURE;
+        }
+
+        if ($backupFile !== null && $this->backupWouldOverwriteComposeFile($backupFile, $composeFile)) {
+            $target = $this->getBackupTarget($backupFile);
+            Terminal::error(sprintf(
+                'Cannot restore %s because it would overwrite an existing Compose file.',
+                $target === null ? 'the backup' : basename($target),
+            ));
+
+            return Command::FAILURE;
+        }
+
+        if (
+            empty($filesToRemove)
+            && empty($directoriesToRemove)
+            && $backupFile === null
+            && !$hasSeamanEnvSection
+            && $dnsInfo === null
+        ) {
             Terminal::success('No Seaman files found to clean.');
             return Command::SUCCESS;
         }
@@ -75,21 +104,25 @@ class CleanCommand extends ModeAwareCommand implements Decorable
             return Command::SUCCESS;
         }
 
-        // Stop containers first if docker-compose.yml exists
-        if (in_array($projectRoot . '/docker-compose.yml', $filesToRemove, true)) {
-            $this->stopContainers();
+        // Stop containers before removing the exact Compose file shown in the preview
+        if ($composeFile !== null) {
+            if (!$this->stopContainers()) {
+                return Command::FAILURE;
+            }
         }
 
         // Clean DNS configuration before removing config files
         if ($dnsInfo !== null) {
-            $this->cleanDnsConfiguration($dnsInfo['projectName'], $dnsInfo['provider']);
+            if (!$this->cleanDnsConfiguration($dnsInfo['projectName'], $dnsInfo['provider'])) {
+                return Command::FAILURE;
+            }
         }
 
         // Remove files and directories
         $this->removeFiles($filesToRemove);
         $this->removeDirectories($directoriesToRemove);
 
-        // Restore docker-compose.yml backup if it exists
+        // Restore the original Compose file backup if it exists
         if ($backupFile !== null) {
             $this->restoreDockerComposeBackup($projectRoot, $backupFile);
         }
@@ -106,16 +139,36 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     /**
      * @return list<string>
      */
-    private function findFilesToRemove(string $projectRoot): array
+    private function findFilesToRemove(string $projectRoot, ?string $composeFile): array
     {
         $files = [];
         foreach (self::FILES_TO_REMOVE as $file) {
             $path = $projectRoot . '/' . $file;
-            if (file_exists($path)) {
+            if (file_exists($path) || is_link($path)) {
                 $files[] = $path;
             }
         }
+
+        if ($composeFile !== null) {
+            $files[] = $composeFile;
+        }
+
         return $files;
+    }
+
+    private function findManagedComposeFile(string $projectRoot): ?string
+    {
+        $hasManagedArtifacts = is_dir($projectRoot . '/.seaman')
+            || is_link($projectRoot . '/.seaman')
+            || file_exists($projectRoot . '/seaman.yaml')
+            || $this->findDockerComposeBackup($projectRoot) !== null
+            || $this->hasSeamanEnvSection($projectRoot);
+
+        if (!$hasManagedArtifacts) {
+            return null;
+        }
+
+        return (new ComposeFileLocator($projectRoot))->find();
     }
 
     /**
@@ -126,7 +179,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         $directories = [];
         foreach (self::DIRECTORIES_TO_REMOVE as $dir) {
             $path = $projectRoot . '/' . $dir;
-            if (is_dir($path)) {
+            if (is_dir($path) || is_link($path)) {
                 $directories[] = $path;
             }
         }
@@ -165,7 +218,12 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         if ($backupFile !== null) {
             $removeLines[] = '';
-            $removeLines[] = sprintf(' 🔹 Restore docker-compose.yml from <fg=gray>%s</>', basename($backupFile));
+            $target = $this->getBackupTarget($backupFile);
+            $removeLines[] = sprintf(
+                ' 🔹 Restore %s from <fg=gray>%s</>',
+                $target === null ? 'Docker Compose file' : basename($target),
+                basename($backupFile),
+            );
         }
 
         $message = Terminal::render(implode("\n", $removeLines)) ?? implode("\n", $removeLines);
@@ -177,17 +235,22 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         )->display();
     }
 
-    private function stopContainers(): void
+    private function stopContainers(): bool
     {
         try {
             $result = $this->dockerManager->destroy();
             if ($result->isSuccessful()) {
                 Terminal::success('Containers stopped and removed');
+                return true;
             }
-        } catch (\RuntimeException) {
-            // Docker compose file might be invalid or containers not running
-            Terminal::info('No containers to stop');
+
+            Terminal::error('Failed to stop and remove containers');
+            Terminal::output()->writeln($result->errorOutput);
+        } catch (\RuntimeException $exception) {
+            Terminal::error($exception->getMessage());
         }
+
+        return false;
     }
 
     /**
@@ -196,7 +259,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     private function removeFiles(array $files): void
     {
         foreach ($files as $file) {
-            if (file_exists($file)) {
+            if (file_exists($file) || is_link($file)) {
                 unlink($file);
             }
         }
@@ -208,7 +271,9 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     private function removeDirectories(array $directories): void
     {
         foreach ($directories as $dir) {
-            if (is_dir($dir)) {
+            if (is_link($dir)) {
+                unlink($dir);
+            } elseif (is_dir($dir)) {
                 $this->removeDirectoryRecursively($dir);
             }
         }
@@ -223,10 +288,13 @@ class CleanCommand extends ModeAwareCommand implements Decorable
 
         foreach ($files as $file) {
             /** @var \SplFileInfo $file */
-            if ($file->isDir()) {
-                rmdir($file->getRealPath());
+            $path = $file->getPathname();
+            if ($file->isLink()) {
+                unlink($path);
+            } elseif ($file->isDir()) {
+                rmdir($path);
             } else {
-                unlink($file->getRealPath());
+                unlink($path);
             }
         }
 
@@ -234,12 +302,11 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * Find the most recent docker-compose.yml backup file.
+     * Find the most recent supported Docker Compose backup file.
      */
     private function findDockerComposeBackup(string $projectRoot): ?string
     {
-        $pattern = $projectRoot . '/docker-compose.yml.backup-*';
-        $backups = glob($pattern);
+        $backups = $this->findDockerComposeBackups($projectRoot);
 
         if (empty($backups)) {
             return null;
@@ -249,6 +316,35 @@ class CleanCommand extends ModeAwareCommand implements Decorable
         usort($backups, fn(string $a, string $b): int => filemtime($b) <=> filemtime($a));
 
         return $backups[0];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function findDockerComposeBackups(string $projectRoot): array
+    {
+        $backups = [];
+        foreach (ComposeFileLocator::supportedFilenames() as $filename) {
+            $matches = glob($projectRoot . '/' . $filename . '.backup-*');
+            if ($matches !== false) {
+                $backups = [...$backups, ...$matches];
+            }
+        }
+
+        return $backups;
+    }
+
+    private function hasMultipleComposeBackupTargets(string $projectRoot): bool
+    {
+        $targets = [];
+        foreach ($this->findDockerComposeBackups($projectRoot) as $backup) {
+            $target = $this->getBackupTarget($backup);
+            if ($target !== null) {
+                $targets[$target] = true;
+            }
+        }
+
+        return count($targets) > 1;
     }
 
     /**
@@ -271,30 +367,53 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     }
 
     /**
-     * Restore docker-compose.yml from backup and remove all backup files.
+     * Restore the original Compose filename and remove its backups.
      */
     private function restoreDockerComposeBackup(string $projectRoot, string $backupFile): void
     {
-        $targetPath = $projectRoot . '/docker-compose.yml';
+        $targetPath = $this->getBackupTarget($backupFile);
+        if ($targetPath === null) {
+            Terminal::error('Could not determine original Docker Compose filename');
+            return;
+        }
 
         // Restore from backup
         if (copy($backupFile, $targetPath)) {
-            Terminal::success('Restored docker-compose.yml from backup');
+            Terminal::success(sprintf('Restored %s from backup', basename($targetPath)));
         } else {
             Terminal::error('Failed to restore docker-compose.yml from backup');
             return;
         }
 
-        // Remove all backup files
-        $pattern = $projectRoot . '/docker-compose.yml.backup-*';
-        $backups = glob($pattern);
-
-        if ($backups !== false) {
-            foreach ($backups as $backup) {
-                unlink($backup);
+        // Remove only backups for the restored Compose file.
+        foreach (ComposeFileLocator::supportedFilenames() as $filename) {
+            $backups = glob($projectRoot . '/' . $filename . '.backup-*');
+            if ($backups !== false) {
+                foreach ($backups as $backup) {
+                    if ($this->getBackupTarget($backup) === $targetPath) {
+                        unlink($backup);
+                    }
+                }
             }
-            Terminal::success('Removed backup files');
         }
+
+        Terminal::success('Removed backup files');
+    }
+
+    private function getBackupTarget(string $backupFile): ?string
+    {
+        $marker = strrpos($backupFile, '.backup-');
+
+        return $marker === false ? null : substr($backupFile, 0, $marker);
+    }
+
+    private function backupWouldOverwriteComposeFile(string $backupFile, ?string $composeFile): bool
+    {
+        $target = $this->getBackupTarget($backupFile);
+
+        return $target !== null
+            && $target !== $composeFile
+            && (file_exists($target) || is_link($target));
     }
 
     /**
@@ -385,7 +504,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
     /**
      * Clean DNS configuration based on the provider used.
      */
-    private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): void
+    private function cleanDnsConfiguration(string $projectName, DnsProvider $provider): bool
     {
         $result = $this->dnsHelper->executeDnsCleanup($projectName, $provider);
 
@@ -396,5 +515,7 @@ class CleanCommand extends ModeAwareCommand implements Decorable
                 Terminal::error($message);
             }
         }
+
+        return $result['success'];
     }
 }

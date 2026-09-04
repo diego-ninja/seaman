@@ -1,0 +1,43 @@
+name: Docker Integration
+
+on:
+  push:
+    branches: [ main, master, develop, feature/*, codex/* ]
+  pull_request:
+    branches: [ main, master, develop ]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    name: PHP 8.5 Docker integration
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: dom, curl, libxml, mbstring, pcntl, posix, zip
+          coverage: none
+          tools: composer
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-interaction --no-progress
+
+      - name: Verify Docker and Compose
+        run: |
+          docker info
+          docker compose version
+
+      - name: Run Docker integration tests
+        run: composer test:docker -- --compact

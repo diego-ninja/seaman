@@ -4,7 +4,7 @@ Guide for building Seaman from source and contributing to the project.
 
 ## Requirements
 
-- PHP 8.4+
+- PHP 8.5+
 - Composer
 - Docker Desktop or Docker Engine
 - Git
@@ -48,27 +48,29 @@ bin/seaman <command>
 
 ## Testing
 
-Seaman uses Pest for testing with 95%+ code coverage requirement.
+Seaman uses Pest for testing and enforces a ratcheted coverage floor in CI.
 
-### Run All Tests
-
-```bash
-vendor/bin/pest
-```
-
-Or using composer script:
+### Run Deterministic Tests
 
 ```bash
 composer test
 ```
 
+### Run Docker Integration Tests
+
+```bash
+composer test:docker
+```
+
+This suite requires a running Docker daemon and Docker Compose V2.
+
 ### Run with Coverage
 
 ```bash
-vendor/bin/pest --coverage
+XDEBUG_MODE=coverage vendor/bin/pest --exclude-group=docker --coverage
 ```
 
-Enforce 95% minimum coverage:
+Enforce the current coverage floor:
 
 ```bash
 composer test:coverage
@@ -338,7 +340,7 @@ services:
 
 ### Code Standards
 
-1. **PHP 8.4 Features**: Use modern PHP (property hooks, asymmetric visibility, etc.)
+1. **PHP 8.5 Features**: Use modern PHP features available in the supported runtime
 2. **Strict Types**: All files must have `declare(strict_types=1);`
 3. **Type Safety**: PHPStan level 10 compliance
 4. **Test Coverage**: 95%+ coverage for all new code

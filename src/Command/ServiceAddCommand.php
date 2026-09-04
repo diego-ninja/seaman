@@ -13,7 +13,6 @@ use Seaman\Service\ConfigManager;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
-use Seaman\ValueObject\Configuration;
 use Seaman\ValueObject\ServiceConfig;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -83,15 +82,10 @@ class ServiceAddCommand extends ModeAwareCommand implements Decorable
                 port: $defaultConfig->port,
                 additionalPorts: $defaultConfig->additionalPorts,
                 environmentVariables: $defaultConfig->environmentVariables,
+                config: $defaultConfig->config,
             );
             $services = $newConfig->services->add($serviceName, $serviceConfig);
-            $newConfig = new Configuration(
-                projectName: $newConfig->projectName,
-                version: $newConfig->version,
-                php: $newConfig->php,
-                services: $services,
-                volumes: $newConfig->volumes,
-            );
+            $newConfig = $newConfig->with(services: $services);
         }
 
         $this->configManager->save($newConfig);

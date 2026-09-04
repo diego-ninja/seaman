@@ -95,9 +95,13 @@ PHP;
 
     $loader = new \Seaman\Plugin\Loader\ComposerPluginLoader($projectRoot);
     $plugins = $loader->load();
+    $candidates = $loader->loadWithPackageNames();
 
     expect($plugins)->toHaveCount(1);
     expect($plugins[0]->getName())->toBe('test');
+    expect($candidates)->toHaveCount(1)
+        ->and($candidates[0]['plugin']->getName())->toBe('test')
+        ->and($candidates[0]['packageName'])->toBe('acme/test-plugin');
 
     // Cleanup
     unlink($projectRoot . '/vendor/acme/test-plugin/src/TestPlugin.php');

@@ -5,7 +5,7 @@
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Enum;
+namespace Seaman\Tests\Unit\Enum;
 
 use PHPUnit\Framework\TestCase;
 use Seaman\Enum\ServerType;

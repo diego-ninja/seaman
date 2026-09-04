@@ -100,7 +100,7 @@ test('get project name returns basename when directory is empty', function () {
     exec("rm -rf {$testDir}");
 });
 
-test('get project name returns default when directory is not empty', function () {
+test('get project name asks for a derived child directory when current directory is not empty', function () {
     $testDir = sys_get_temp_dir() . '/my-project-' . uniqid();
     mkdir($testDir);
     file_put_contents($testDir . '/composer.json', '{}');
@@ -108,9 +108,11 @@ test('get project name returns default when directory is not empty', function ()
     $detector = new PhpVersionDetector();
     $wizard = new InitializationWizard($detector);
 
+    \Seaman\UI\HeadlessMode::enable();
     $name = $wizard->getProjectName($testDir);
+    \Seaman\UI\HeadlessMode::reset();
 
-    expect($name)->toBe('symfony-app');
+    expect($name)->toBe(basename($testDir) . '-app');
 
     exec("rm -rf {$testDir}");
 });

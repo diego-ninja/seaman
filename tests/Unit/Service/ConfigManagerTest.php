@@ -8,18 +8,23 @@ declare(strict_types=1);
 namespace Seaman\Tests\Unit\Service;
 
 use Seaman\Enum\PhpVersion;
+use Seaman\Enum\DnsProvider;
+use Seaman\Enum\ProjectType;
 use Seaman\Enum\Service;
 use Seaman\Service\ConfigManager;
 use Seaman\Service\ConfigurationValidator;
 use Seaman\Service\Container\ServiceRegistry;
 use Seaman\ValueObject\Configuration;
+use Seaman\ValueObject\CustomServiceCollection;
 use Seaman\ValueObject\PhpConfig;
+use Seaman\ValueObject\ProxyConfig;
 use Seaman\ValueObject\ServiceCollection;
 use Seaman\ValueObject\ServiceConfig;
 use Seaman\ValueObject\VolumeConfig;
 use Seaman\ValueObject\XdebugConfig;
 use Seaman\Exception\FileNotFoundException;
 use Seaman\Exception\YamlParseException;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * @property string $tempDir
@@ -197,6 +202,132 @@ test('saves configuration with plugins to YAML', function () {
     expect($loadedConfig->plugins)->toBe($plugins);
 });
 
+test('round-trips the complete configuration without data loss', function () {
+    $service = new ServiceConfig(
+        name: 'postgresql',
+        enabled: true,
+        type: Service::PostgreSQL,
+        version: '16',
+        port: 5432,
+        additionalPorts: [5433],
+        environmentVariables: ['POSTGRES_DB' => 'legacy'],
+        config: [
+            'database' => 'app',
+            'user' => 'developer',
+            'password' => 'secret',
+        ],
+    );
+    $config = new Configuration(
+        projectName: 'complete-project',
+        version: '2.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal')),
+        services: new ServiceCollection(['postgresql' => $service]),
+        volumes: new VolumeConfig(['postgresql']),
+        projectType: ProjectType::Microservice,
+        proxy: new ProxyConfig(false, 'internal', 'letsencrypt', false, DnsProvider::Manual),
+        customServices: new CustomServiceCollection([
+            'worker' => ['image' => 'example/worker:latest'],
+        ]),
+        plugins: ['example/plugin' => ['enabled' => true]],
+    );
+
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    $manager->save($config);
+    $loaded = $manager->load();
+
+    expect($loaded->projectType)->toBe(ProjectType::Microservice)
+        ->and($loaded->proxy()->enabled)->toBeFalse()
+        ->and($loaded->proxy()->dnsProvider)->toBe(DnsProvider::Manual)
+        ->and($loaded->customServices->all())->toBe($config->customServices->all())
+        ->and($loaded->plugins)->toBe($config->plugins)
+        ->and($loaded->services->get('postgresql')->config)->toBe($service->config);
+});
+
+test('preserves unmodelled YAML while saving an updated service collection', function () {
+    /** @var ConfigManager $manager */
+    $manager = $this->manager;
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $seamanDir = $tempDir . '/.seaman';
+    mkdir($seamanDir, 0755, true);
+
+    $yamlPath = $seamanDir . '/seaman.yaml';
+    file_put_contents($yamlPath, Yaml::dump([
+        'project_name' => 'preservation-test',
+        'version' => '1.0',
+        'project_type' => 'existing',
+        'deployment' => ['strategy' => 'blue-green'],
+        'php' => [
+            'version' => '8.4',
+            'server' => 'symfony',
+            'extensions' => ['intl', 'redis'],
+            'xdebug' => [
+                'enabled' => true,
+                'ide_key' => 'CUSTOM',
+                'client_host' => '127.0.0.1',
+            ],
+        ],
+        'services' => [
+            'postgresql' => [
+                'enabled' => true,
+                'type' => 'postgresql',
+                'version' => '16',
+                'port' => 5432,
+                'healthcheck' => ['test' => ['CMD-SHELL', 'pg_isready']],
+            ],
+            'redis' => [
+                'enabled' => true,
+                'type' => 'redis',
+                'version' => '7-alpine',
+                'port' => 6379,
+            ],
+        ],
+        'volumes' => ['persist' => ['postgresql', 'redis']],
+    ], 5, 2));
+
+    $loaded = $manager->load();
+    $postgresql = $loaded->services->get('postgresql');
+    $updatedPostgresql = new ServiceConfig(
+        name: $postgresql->name,
+        enabled: $postgresql->enabled,
+        type: $postgresql->type,
+        version: $postgresql->version,
+        port: 55432,
+        additionalPorts: $postgresql->additionalPorts,
+        environmentVariables: $postgresql->environmentVariables,
+        config: $postgresql->config,
+    );
+
+    $manager->save($loaded->with(
+        services: new ServiceCollection(['postgresql' => $updatedPostgresql]),
+    ));
+
+    $saved = Yaml::parseFile($yamlPath);
+    expect($saved)->toBeArray();
+
+    /** @var array<string, mixed> $saved */
+    expect([
+        'top_level' => $saved['deployment'] ?? null,
+        'php_extensions' => $saved['php']['extensions'] ?? null,
+        'xdebug' => $saved['php']['xdebug'] ?? null,
+        'service_field' => $saved['services']['postgresql']['healthcheck'] ?? null,
+        'updated_port' => $saved['services']['postgresql']['port'] ?? null,
+        'removed_service_present' => array_key_exists('redis', $saved['services']),
+    ])->toBe([
+        'top_level' => ['strategy' => 'blue-green'],
+        'php_extensions' => ['intl', 'redis'],
+        'xdebug' => [
+            'enabled' => true,
+            'ide_key' => 'CUSTOM',
+            'client_host' => '127.0.0.1',
+        ],
+        'service_field' => ['test' => ['CMD-SHELL', 'pg_isready']],
+        'updated_port' => 55432,
+        'removed_service_present' => false,
+    ]);
+});
+
 test('generates .env file when saving', function () {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig(PhpVersion::Php84, $xdebug);
@@ -277,6 +408,12 @@ test('merge preserves existing configuration', function () {
         php: $php,
         services: $services,
         volumes: $volumes,
+        projectType: ProjectType::ApiPlatform,
+        proxy: new ProxyConfig(false, 'internal', 'selfsigned', false, DnsProvider::HostsFile),
+        customServices: new CustomServiceCollection([
+            'worker' => ['image' => 'example/worker:latest'],
+        ]),
+        plugins: ['example/plugin' => ['enabled' => true]],
     );
 
     $overrides = [];
@@ -285,7 +422,11 @@ test('merge preserves existing configuration', function () {
     $manager = $this->manager;
     $merged = $manager->merge($baseConfig, $overrides);
 
-    expect($merged->php->version)->toBe(PhpVersion::Php84);
+    expect($merged->php->version)->toBe(PhpVersion::Php84)
+        ->and($merged->projectType)->toBe(ProjectType::ApiPlatform)
+        ->and($merged->proxy())->toBe($baseConfig->proxy())
+        ->and($merged->customServices)->toBe($baseConfig->customServices)
+        ->and($merged->plugins)->toBe($baseConfig->plugins);
 });
 
 test('generates .env with seaman managed section markers', function () {

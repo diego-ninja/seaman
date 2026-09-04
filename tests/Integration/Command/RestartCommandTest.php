@@ -54,4 +54,4 @@ test('restart command works in unmanaged mode without seaman.yaml', function () 
     $commandTester->execute([]);
 
     expect($commandTester->getStatusCode())->toBe(0);
-});
+})->group('docker');
