@@ -228,12 +228,12 @@ test('configureProvider returns correct result for NetworkManager', function () 
         ->and($result->restartCommand)->toContain('NetworkManager');
 });
 
-test('hasNetworkManager returns true when NetworkManager is active', function () {
+test('hasNetworkManager requires the service and configuration directory', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: true);
     $helper = new DnsManager($executor);
 
-    expect($helper->hasNetworkManager())->toBeTrue();
-})->skip(PHP_OS_FAMILY === 'Darwin', 'NetworkManager is Linux-specific (/etc/NetworkManager does not exist)');
+    expect($helper->hasNetworkManager())->toBe(is_dir('/etc/NetworkManager'));
+});
 
 test('hasNetworkManager returns false when NetworkManager is not active', function () {
     $executor = new FakeDnsCommandExecutor(hasNetworkManager: false);
