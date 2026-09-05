@@ -10,6 +10,7 @@ namespace Seaman\Tests\Unit\Service;
 use Seaman\Service\DockerManager;
 use Seaman\ValueObject\LogOptions;
 use Seaman\ValueObject\ProcessResult;
+use Symfony\Component\Yaml\Yaml;
 
 /**
  * @property string $tempDir
@@ -121,6 +122,125 @@ test('restart returns ProcessResult for specific service', function () {
     expect($result)->toBeInstanceOf(ProcessResult::class);
     expect($result->exitCode)->toBeInt();
 });
+
+test('start and restart migrate legacy Traefik config without losing content', function (string $operation): void {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $traefikDir = $tempDir . '/.seaman/traefik';
+    $traefikConfig = $traefikDir . '/traefik.yml';
+    mkdir($traefikDir);
+    file_put_contents($traefikConfig, <<<YAML
+api:
+  dashboard: true
+providers:
+  docker:
+    exposedByDefault: false
+log:
+  level: DEBUG
+YAML);
+
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+    $manager->{$operation}();
+
+    $migratedConfig = file_get_contents($traefikConfig);
+
+    expect($migratedConfig)
+        ->toContain('dashboard: true')
+        ->toContain('exposedByDefault: false')
+        ->toContain('level: DEBUG')
+        ->toContain('ping: {}')
+        ->and(substr_count($migratedConfig, 'ping:'))
+        ->toBe(1);
+
+    $manager->{$operation}();
+
+    expect(file_get_contents($traefikConfig))->toBe($migratedConfig);
+})->with(['start', 'restart']);
+
+test('start and restart leave quoted top-level ping config unchanged', function (
+    string $operation,
+    string $pingEntry,
+): void {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $traefikDir = $tempDir . '/.seaman/traefik';
+    $traefikConfig = $traefikDir . '/traefik.yml';
+    mkdir($traefikDir);
+    $originalConfig = <<<YAML
+api:
+  dashboard: true
+{$pingEntry}
+YAML;
+    file_put_contents($traefikConfig, $originalConfig);
+
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+    $manager->{$operation}();
+
+    expect(file_get_contents($traefikConfig))->toBe($originalConfig);
+})->with([
+    'start with double-quoted ping' => ['start', '"ping": {}'],
+    'start with single-quoted ping' => ['start', "'ping': {}"],
+    'restart with double-quoted ping' => ['restart', '"ping": {}'],
+    'restart with single-quoted ping' => ['restart', "'ping': {}"],
+]);
+
+test('start and restart insert ping before a YAML document end marker', function (
+    string $operation,
+    string $suffix,
+): void {
+    /** @var string $tempDir */
+    $tempDir = $this->tempDir;
+    $traefikDir = $tempDir . '/.seaman/traefik';
+    $traefikConfig = $traefikDir . '/traefik.yml';
+    mkdir($traefikDir);
+    $legacyContent = <<<YAML
+api:
+  dashboard: true
+providers:
+  docker:
+    exposedByDefault: false
+YAML;
+    file_put_contents($traefikConfig, $legacyContent . "\n" . $suffix);
+
+    /** @var DockerManager $manager */
+    $manager = $this->manager;
+    $manager->{$operation}();
+
+    $migratedConfig = (string) file_get_contents($traefikConfig);
+
+    expect($migratedConfig)
+        ->toStartWith($legacyContent)
+        ->toEndWith($suffix)
+        ->and(substr_count($migratedConfig, 'ping: {}'))
+        ->toBe(1)
+        ->and(strpos($migratedConfig, 'ping: {}'))
+        ->toBeLessThan(strlen($migratedConfig) - strlen($suffix));
+
+    $markerLineLength = strpos($suffix, "\n") + 1;
+    $parseableConfig = substr($migratedConfig, 0, -strlen($suffix))
+        . substr($suffix, $markerLineLength);
+
+    expect(Yaml::parse($parseableConfig))->toBe([
+        'api' => ['dashboard' => true],
+        'providers' => ['docker' => ['exposedByDefault' => false]],
+        'ping' => [],
+    ]);
+
+    $manager->{$operation}();
+
+    expect(file_get_contents($traefikConfig))->toBe($migratedConfig);
+})->with([
+    'start with terminal marker' => ['start', "...\n"],
+    'start with trailing blank line' => ['start', "...\n\n"],
+    'start with inline marker comment' => ['start', "... # end\n"],
+    'start with trailing comment' => ['start', "...\n# comentario\n"],
+    'restart with terminal marker' => ['restart', "...\n"],
+    'restart with trailing blank line' => ['restart', "...\n\n"],
+    'restart with inline marker comment' => ['restart', "... # end\n"],
+    'restart with trailing comment' => ['restart', "...\n# comentario\n"],
+]);
 
 test('executeInService runs command in service container', function () {
     /** @var DockerManager $manager */
