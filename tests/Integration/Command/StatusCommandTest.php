@@ -55,3 +55,40 @@ test('status command works in unmanaged mode without seaman.yaml', function () {
 
     expect($commandTester->getStatusCode())->toBe(0);
 })->group('docker');
+
+test('status command resolves canonical, detected, and custom Compose service names', function () {
+    TestHelper::createMinimalDockerCompose($this->tempDir);
+
+    $binDir = $this->tempDir . '/bin';
+    mkdir($binDir);
+    file_put_contents($binDir . '/docker', <<<'SH'
+#!/bin/sh
+if [ "$#" -ne 6 ] || [ "$1" != "compose" ] || [ "$2" != "-f" ] || [ "$4" != "ps" ] || [ "$5" != "--format" ] || [ "$6" != "json" ]; then
+    exit 64
+fi
+
+printf '%s\n' \
+'{"ID":"redis-id","Name":"project-redis-1","Image":"postgres:16","Service":"redis","State":"running","Health":"healthy","RunningFor":"1 minute","Publishers":[]}' \
+'{"ID":"image-id","Name":"project-image-db-1","Image":"postgres:16","Service":"primary-db","State":"running","Health":"healthy","RunningFor":"1 minute","Publishers":[]}' \
+'{"ID":"name-id","Name":"project-name-db-1","Image":"acme/database:latest","Service":"postgres","State":"running","Health":"healthy","RunningFor":"1 minute","Publishers":[]}' \
+'{"ID":"worker-id","Name":"project-worker-1","Image":"acme/worker:latest","Service":"worker","State":"running","Health":"healthy","RunningFor":"1 minute","Publishers":[]}'
+SH);
+    chmod($binDir . '/docker', 0755);
+
+    $originalPath = getenv('PATH');
+    putenv('PATH=' . $binDir);
+
+    try {
+        $application = new Application();
+        $commandTester = new CommandTester($application->find('status'));
+        $commandTester->execute([]);
+    } finally {
+        $originalPath === false ? putenv('PATH') : putenv('PATH=' . $originalPath);
+    }
+
+    expect($commandTester->getStatusCode())->toBe(0)
+        ->and($commandTester->getDisplay())->toContain('🧵 project-redis-1')
+        ->and($commandTester->getDisplay())->toContain('🐘 project-image-db-1')
+        ->and($commandTester->getDisplay())->toContain('🐘 project-name-db-1')
+        ->and($commandTester->getDisplay())->toContain('⚙️  project-worker-1');
+});

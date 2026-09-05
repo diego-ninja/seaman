@@ -9,6 +9,7 @@ namespace Seaman\Command;
 
 use Seaman\Contract\Decorable;
 use Seaman\Enum\Service;
+use Seaman\Service\Detector\ServiceDetector;
 use Seaman\Service\DockerManager;
 use Seaman\UI\Prompts;
 use Seaman\UI\Terminal;
@@ -48,6 +49,7 @@ class StatusCommand extends ModeAwareCommand implements Decorable
         }
 
         $rows = [];
+        $serviceDetector = new ServiceDetector();
         foreach ($services as $service) {
             /** @var list<array{PublishedPort?: int, Protocol?: string}> $publishers */
             $publishers = $service['Publishers'] ?? [];
@@ -62,8 +64,19 @@ class StatusCommand extends ModeAwareCommand implements Decorable
                 );
             }, $publishers));
 
+            $serviceType = Service::tryFrom($service['Service']);
+            if ($serviceType === null) {
+                $detectedService = $serviceDetector->detectService(
+                    $service['Service'],
+                    ['image' => $service['Image']],
+                );
+                $serviceType = $detectedService !== null
+                    ? $detectedService->type
+                    : Service::Custom;
+            }
+
             $rows[] = [
-                sprintf('%s %s', Service::from($service['Service'])->icon(), $service['Name']),
+                sprintf('%s %s', $serviceType->icon(), $service['Name']),
                 $service['Image'],
                 $this->formatStatus($service['State'], $service['Health'] ?? 'unknown'),
                 $service["RunningFor"],
