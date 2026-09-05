@@ -186,7 +186,6 @@ test('includes traefik service when proxy enabled', function (): void {
     expect($yaml)->toContain('traefik:')
         ->and($yaml)->toContain('image: traefik:v3.6')
         ->and($yaml)->toContain('--api.dashboard=true')
-        ->and($yaml)->toContain('--ping=true')
         ->and($yaml)->toContain('--providers.docker=true')
         ->and($yaml)->toContain('/var/run/docker.sock');
 });

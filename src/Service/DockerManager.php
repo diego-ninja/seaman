@@ -366,6 +366,18 @@ readonly class DockerManager
             return;
         }
 
+        $documentEndMarker = '';
+        if (preg_match(
+            '/^\.{3}[ \t]*(?:#[^\r\n]*)?(?:\R[ \t]*(?:#[^\r\n]*)?)*\z/m',
+            $config,
+            $matches,
+            PREG_OFFSET_CAPTURE,
+        ) === 1) {
+            $markerOffset = $matches[0][1];
+            $documentEndMarker = substr($config, $markerOffset);
+            $config = substr($config, 0, $markerOffset);
+        }
+
         try {
             $parsedConfig = Yaml::parse($config);
         } catch (ParseException) {
@@ -381,7 +393,7 @@ readonly class DockerManager
         }
 
         $separator = $config === '' || str_ends_with($config, "\n") ? '' : "\n";
-        file_put_contents($configPath, $config . $separator . "\nping: {}\n");
+        file_put_contents($configPath, $config . $separator . "\nping: {}\n" . $documentEndMarker);
     }
 
     /**
