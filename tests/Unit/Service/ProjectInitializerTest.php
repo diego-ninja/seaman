@@ -159,8 +159,10 @@ test('initializes traefik when proxy enabled', function () {
     $initializer = new ProjectInitializer($this->registry);
     $initializer->initializeDockerEnvironment($config, $this->testDir);
 
+    $staticConfig = $this->testDir . '/.seaman/traefik/traefik.yml';
     expect(is_dir($this->testDir . '/.seaman/traefik'))->toBeTrue();
-    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeTrue();
+    expect(is_dir($this->testDir . '/.seaman/certs'))->toBeTrue()
+        ->and(file_get_contents($staticConfig))->toContain('ping: {}');
 });
 
 test('creates traefik dynamic certs configuration', function () {

@@ -12,6 +12,8 @@ use Seaman\ValueObject\LogOptions;
 use Seaman\ValueObject\ProcessResult;
 use Symfony\Component\Process\Exception\ProcessTimedOutException;
 use Symfony\Component\Process\Process;
+use Symfony\Component\Yaml\Exception\ParseException;
+use Symfony\Component\Yaml\Yaml;
 
 readonly class DockerManager
 {
@@ -39,6 +41,7 @@ readonly class DockerManager
     public function start(?string $service = null): ProcessResult
     {
         $this->ensureComposeFileExists();
+        $this->ensureTraefikPingEnabled();
 
         $command = $this->composeCommand('up', '-d');
 
@@ -79,6 +82,7 @@ readonly class DockerManager
     public function restart(?string $service = null): ProcessResult
     {
         $this->ensureComposeFileExists();
+        $this->ensureTraefikPingEnabled();
 
         $command = $this->composeCommand('restart');
 
@@ -348,6 +352,36 @@ readonly class DockerManager
     private function ensureComposeFileExists(): void
     {
         $this->composeFileLocator->require();
+    }
+
+    private function ensureTraefikPingEnabled(): void
+    {
+        $configPath = $this->projectPath . '/.seaman/traefik/traefik.yml';
+        if (!is_file($configPath)) {
+            return;
+        }
+
+        $config = file_get_contents($configPath);
+        if ($config === false) {
+            return;
+        }
+
+        try {
+            $parsedConfig = Yaml::parse($config);
+        } catch (ParseException) {
+            return;
+        }
+
+        if (is_array($parsedConfig) && array_key_exists('ping', $parsedConfig)) {
+            return;
+        }
+
+        if ($parsedConfig !== null && !is_array($parsedConfig)) {
+            return;
+        }
+
+        $separator = $config === '' || str_ends_with($config, "\n") ? '' : "\n";
+        file_put_contents($configPath, $config . $separator . "\nping: {}\n");
     }
 
     /**
