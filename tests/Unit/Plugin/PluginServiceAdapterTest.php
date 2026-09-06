@@ -328,6 +328,34 @@ test('adapter maps a semantic primary port without shifting additional ports', f
         ->and($envVars)->toHaveKey('CLICKHOUSE_NATIVE_PORT', 9000);
 });
 
+test('adapter maps duplicate default port values to distinct runtime ports', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'telemetry',
+        template: '/path/to/telemetry.yaml',
+        defaultConfig: [
+            'port' => 8000,
+            'admin_port' => 9000,
+            'metrics_port' => 9000,
+        ],
+        ports: [8000, 9000, 9000],
+    );
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'telemetry',
+        enabled: true,
+        type: Service::Custom,
+        version: 'latest',
+        port: 18000,
+        additionalPorts: [19000, 19001],
+        environmentVariables: [],
+    );
+
+    $envVars = $adapter->getEnvVariables($config);
+
+    expect($envVars)->toHaveKey('TELEMETRY_ADMIN_PORT', 19000)
+        ->and($envVars)->toHaveKey('TELEMETRY_METRICS_PORT', 19001);
+});
+
 test('adapter adds DB_PORT for database services', function (): void {
     $definition = new ServiceDefinition(
         name: 'mysql',

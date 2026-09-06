@@ -136,9 +136,13 @@ final readonly class PluginServiceAdapter implements ServiceInterface, DatabaseS
                 continue;
             }
 
-            $index = array_search($defaultValue, $this->definition->ports, true);
-            if ($index !== false) {
+            foreach ($this->definition->ports as $index => $definedPort) {
+                if ($definedPort !== $defaultValue || isset($portFields[$index])) {
+                    continue;
+                }
+
                 $portFields[$index] = $field;
+                break;
             }
         }
 
