@@ -7,7 +7,7 @@
       - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD:-seaman123}
     ports:
       - "${MINIO_PORT}:9000"
-      - "${MINIO_CONSOLE_PORT}:9001"
+      - "${MINIO_CONSOLE_PORT:-{{ service.additionalPorts[0] | default(9001) }}}:9001"
 {% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}

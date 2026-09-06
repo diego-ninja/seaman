@@ -259,6 +259,103 @@ test('adapter returns env variables from config with port variable', function ()
         ->and($envVars['TEST-SERVICE_PORT'])->toBe(8080);
 });
 
+test('adapter maps current additional ports to semantic environment variables', function (
+    string $serviceName,
+    Service $serviceType,
+    string $portField,
+    int $defaultAdditionalPort,
+    int $currentAdditionalPort,
+    string $expectedVariable,
+): void {
+    $definition = new ServiceDefinition(
+        name: $serviceName,
+        template: '/path/to/template.yaml',
+        defaultConfig: [
+            'port' => 8000,
+            $portField => $defaultAdditionalPort,
+        ],
+        ports: [8000, $defaultAdditionalPort],
+    );
+
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: $serviceName,
+        enabled: true,
+        type: $serviceType,
+        version: 'latest',
+        port: 8000,
+        additionalPorts: [$currentAdditionalPort],
+        environmentVariables: [],
+    );
+
+    expect($adapter->getEnvVariables($config))->toHaveKey($expectedVariable, $currentAdditionalPort);
+})->with([
+    'RabbitMQ management port' => [
+        'rabbitmq', Service::RabbitMq, 'management_port', 15672, 25672, 'RABBITMQ_MANAGEMENT_PORT',
+    ],
+    'MinIO console port' => [
+        'minio', Service::MinIO, 'console_port', 9001, 19001, 'MINIO_CONSOLE_PORT',
+    ],
+    'generic secondary port' => [
+        'telemetry', Service::Custom, 'metrics_port', 9090, 19090, 'TELEMETRY_METRICS_PORT',
+    ],
+]);
+
+test('adapter maps a semantic primary port without shifting additional ports', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'clickhouse',
+        template: '/path/to/clickhouse.yaml',
+        defaultConfig: [
+            'http_port' => 8123,
+            'native_port' => 9000,
+        ],
+        ports: [8123, 9000],
+    );
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'clickhouse',
+        enabled: true,
+        type: Service::Custom,
+        version: 'latest',
+        port: 8123,
+        additionalPorts: [9000],
+        environmentVariables: [],
+    );
+
+    $envVars = $adapter->getEnvVariables($config);
+
+    expect($envVars)->toHaveKey('CLICKHOUSE_HTTP_PORT', 8123)
+        ->and($envVars)->toHaveKey('CLICKHOUSE_NATIVE_PORT', 9000);
+});
+
+test('adapter maps duplicate default port values to distinct runtime ports', function (): void {
+    $definition = new ServiceDefinition(
+        name: 'telemetry',
+        template: '/path/to/telemetry.yaml',
+        defaultConfig: [
+            'port' => 8000,
+            'admin_port' => 9000,
+            'metrics_port' => 9000,
+        ],
+        ports: [8000, 9000, 9000],
+    );
+    $adapter = new PluginServiceAdapter($definition);
+    $config = new ServiceConfig(
+        name: 'telemetry',
+        enabled: true,
+        type: Service::Custom,
+        version: 'latest',
+        port: 18000,
+        additionalPorts: [19000, 19001],
+        environmentVariables: [],
+    );
+
+    $envVars = $adapter->getEnvVariables($config);
+
+    expect($envVars)->toHaveKey('TELEMETRY_ADMIN_PORT', 19000)
+        ->and($envVars)->toHaveKey('TELEMETRY_METRICS_PORT', 19001);
+});
+
 test('adapter adds DB_PORT for database services', function (): void {
     $definition = new ServiceDefinition(
         name: 'mysql',

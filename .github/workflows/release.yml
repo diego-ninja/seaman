@@ -56,7 +56,7 @@ jobs:
       # The following section is done only for releases
       -   name: Import GPG key
           if: github.event_name == 'release'
-          uses: crazy-max/ghaction-import-gpg@v6
+          uses: crazy-max/ghaction-import-gpg@2dc316deee8e90f13e1a351ab510b4d5bc0c82cd # v7.0.0
           with:
             gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
             passphrase: ${{ secrets.GPG_PASSPHRASE }}
@@ -75,7 +75,7 @@ jobs:
 
       -   name: Upload PHAR to the release
           if: github.event_name == 'release'
-          uses: softprops/action-gh-release@v2
+          uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
           with:
             files: |
               dist/seaman.phar

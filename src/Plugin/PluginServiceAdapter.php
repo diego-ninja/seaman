@@ -127,6 +127,35 @@ final readonly class PluginServiceAdapter implements ServiceInterface, DatabaseS
         // Always add the service-specific port variable
         $envVars[$portVarName] = $config->port;
 
+        $portFields = [];
+        foreach ($this->definition->defaultConfig as $field => $defaultValue) {
+            if (
+                !is_int($defaultValue)
+                || $field !== 'port' && !str_ends_with($field, '_port')
+            ) {
+                continue;
+            }
+
+            foreach ($this->definition->ports as $index => $definedPort) {
+                if ($definedPort !== $defaultValue || isset($portFields[$index])) {
+                    continue;
+                }
+
+                $portFields[$index] = $field;
+                break;
+            }
+        }
+
+        foreach ($config->getAllPorts() as $index => $port) {
+            if (!isset($portFields[$index])) {
+                continue;
+            }
+
+            $field = $portFields[$index];
+            $variable = strtoupper(str_replace('-', '_', $this->definition->name . '_' . $field));
+            $envVars[$variable] = $port;
+        }
+
         return $envVars;
     }
 
