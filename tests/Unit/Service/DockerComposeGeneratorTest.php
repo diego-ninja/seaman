@@ -77,6 +77,44 @@ test('includes only enabled services', function (): void {
         ->and($yaml)->toContain('image: redis:7-alpine');
 });
 
+test('uses default additional port fallbacks for legacy service configurations', function (
+    string $name,
+    Service $type,
+    string $version,
+    int $port,
+    int $additionalPort,
+    string $expectedMapping,
+): void {
+    $service = new ServiceConfig(
+        name: $name,
+        enabled: true,
+        type: $type,
+        version: $version,
+        port: $port,
+        additionalPorts: [$additionalPort],
+        environmentVariables: [],
+    );
+    $config = new Configuration(
+        projectName: 'legacy-project',
+        version: '1.0',
+        php: new PhpConfig(PhpVersion::Php84, new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal')),
+        services: new ServiceCollection([$name => $service]),
+        volumes: new VolumeConfig([]),
+        proxy: ProxyConfig::disabled(),
+    );
+
+    expect($this->generator->generate($config))->toContain($expectedMapping);
+})->with([
+    'RabbitMQ management port' => [
+        'rabbitmq', Service::RabbitMq, '3-management', 5672, 15672,
+        '${RABBITMQ_MANAGEMENT_PORT:-15672}:15672',
+    ],
+    'MinIO console port' => [
+        'minio', Service::MinIO, 'latest', 9000, 9001,
+        '${MINIO_CONSOLE_PORT:-9001}:9001',
+    ],
+]);
+
 test('merges custom services into generated compose', function (): void {
     $xdebug = new XdebugConfig(false, 'PHPSTORM', 'host.docker.internal');
     $php = new PhpConfig(PhpVersion::Php84, $xdebug);

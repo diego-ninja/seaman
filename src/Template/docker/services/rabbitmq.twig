@@ -6,7 +6,7 @@
       - RABBITMQ_DEFAULT_PASS=${RABBITMQ_PASSWORD:-secret}
     ports:
       - "${RABBITMQ_PORT}:5672"
-      - "${RABBITMQ_MANAGEMENT_PORT}:15672"
+      - "${RABBITMQ_MANAGEMENT_PORT:-{{ service.additionalPorts[0] | default(15672) }}}:15672"
 {% if proxy_enabled and labels is defined and labels|length > 0 %}
     labels:
 {% for label in labels %}
